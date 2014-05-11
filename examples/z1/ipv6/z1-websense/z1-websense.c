@@ -43,7 +43,11 @@
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
 #include "dev/battery-sensor.h"
+
+#ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
+#endif
+
 #include "dev/leds.h"
 #include <stdio.h>
 
@@ -160,7 +164,9 @@ PROCESS_THREAD(web_sense_process, ev, data)
 {
   static struct etimer timer;
   PROCESS_BEGIN();
+  #ifndef CC11xx_CC1120
   cc2420_set_txpower(31);
+  #endif
 
   sensors_pos = 0;
   process_start(&webserver_nogui_process, NULL);
