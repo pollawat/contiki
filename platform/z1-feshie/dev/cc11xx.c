@@ -1202,8 +1202,8 @@ channel_set(uint8_t c)
   /* XXX Requires SETTLING_CFG.FS_AUTOCAL == 01b */
   uint32_t freq, f_vco, freq_regs;
 
-#define FHSS_ETSI_50    0
-#define FHSS_FCC_50     1
+#define FHSS_ETSI_50    1
+#define FHSS_FCC_50     0
 #if FHSS_FCC_50 && FHSS_ETSI_50
 #error Error: FHSS, both FHSS_ETSI_50 and FHSS_FCC_50 defined. Please set only one.
 #endif

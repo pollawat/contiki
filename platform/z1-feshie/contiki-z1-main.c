@@ -126,7 +126,7 @@ force_float_inclusion()
 void uip_log(char *msg) { puts(msg); }
 /*---------------------------------------------------------------------------*/
 #ifndef RF_CHANNEL
-#define RF_CHANNEL              26
+#define RF_CHANNEL              42
 #endif
 /*---------------------------------------------------------------------------*/
 #if 0
