@@ -274,7 +274,8 @@ main(int argc, char **argv)
 
   set_rime_addr();
 
-  cc11xx_arch_init();
+  NETSTACK_RADIO.init();
+  //cc11xx_arch_init();
   //cc2420_init();
   accm_init();
 
@@ -293,7 +294,9 @@ main(int argc, char **argv)
     //cc2420_set_pan_addr(IEEE802154_PANID, shortaddr, longaddr);
   }
   //cc2420_set_channel(RF_CHANNEL);
+  printf("Set channel to 42...");
   cc11xx_channel_set(RF_CHANNEL);
+  printf("OK\n\r");
 
   leds_off(LEDS_ALL);
 

@@ -183,8 +183,8 @@ typedef unsigned long off_t;
 #define CC1120_GDO0_PORT(type) P1##type
 #define CC1120_GDO0_PIN        6
 
-#define CC2420_CSN_PORT(type)      P1##type
-#define CC2420_CSN_PIN             6
+//#define CC2420_CSN_PORT(type)      P1##type
+//#define CC2420_CSN_PIN             1
 
 #define cc11xx_arch_init        cc1120_arch_init
 

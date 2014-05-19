@@ -61,7 +61,7 @@ cc1120_arch_spi_enable(void)
   CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 
   /* The MISO pin should go high before chip is fully enabled. */
-  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
+  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) == 0);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -113,6 +113,7 @@ cc1120_arch_spi_rw(unsigned char *inBuf, unsigned char *outBuf, int len)
 void
 cc1120_arch_init(void)
 {
+  printf("CC1120 init...");
   spi_init();
 
   /* all input by default, set these as output */
@@ -148,8 +149,11 @@ cc1120_arch_init(void)
   //CC1120_GDO2_PORT(IES) &= ~BV(CC1120_GDO2_PIN);
   //CC1120_GDO3_PORT(IES) &= ~BV(CC1120_GDO3_PIN);
 
-  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
+  printf("RDY_CHK...");
+  cc1120_arch_spi_enable();
+//  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+//  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
+  printf("OK\n\r");
 }
 /*---------------------------------------------------------------------------*/
 void
