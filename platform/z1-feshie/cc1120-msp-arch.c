@@ -42,7 +42,12 @@
 #include "isr_compat.h"
 #include <stdio.h>
 
+#include "cc11xx.h"
+#include "cc1120-const.h"
+#include "cc1120-config.h"
 
+#define READ_BIT 0x80
+#define TEST_VALUE 0xA5
 
 //#define CC1120_GDO2_PORT(type) P1##type
 //#define CC1120_GDO2_PIN        3
@@ -60,8 +65,8 @@ cc1120_arch_spi_enable(void)
   /* Set CSn to low (0) */
   CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 
-  /* The MISO pin should go high before chip is fully enabled. */
-  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) == 0);
+  /* The MISO pin should go LOW before chip is fully enabled. */
+//  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -76,7 +81,7 @@ cc1120_arch_spi_rw_byte(unsigned char c)
 {
   SPI_WAITFORTx_BEFORE();
   SPI_TXBUF = c;
-  SPI_WAITFOREOTx();
+  //SPI_WAITFOREOTx();
   SPI_WAITFOREORx();
   c = SPI_RXBUF;
 
@@ -113,11 +118,47 @@ cc1120_arch_spi_rw(unsigned char *inBuf, unsigned char *outBuf, int len)
 void
 cc1120_arch_init(void)
 {
+  /* Turn off CC2420. */
+  CC2420_PWR_PORT(DIR) |= BV(CC2420_PWR_PIN);
+  CC2420_PWR_PORT(OUT) &= ~BV(CC2420_PWR_PIN); 
+  CC2420_CSN_PORT(DIR) |= BV(CC2420_CSN_PIN);
+  CC2420_CSN_PORT(OUT) |= BV(CC2420_CSN_PIN); 
+
+  
+  GPIO_TEST1_PORT(DIR) |= BV(GPIO_TEST1_PIN);
+  GPIO_TEST1_PORT(SEL) &= ~BV(GPIO_TEST1_PIN);
+
+//  GPIO_TEST2_PORT(DIR) |= BV(GPIO_TEST2_PIN);
+//  GPIO_TEST2_PORT(SEL) &= ~BV(GPIO_TEST2_PIN);
+
+  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
+  CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);
+
+//  while(1)
+//  {
+//        GPIO_TEST1_PORT(OUT) |= BV(GPIO_TEST1_PIN);
+//        GPIO_TEST2_PORT(OUT) |= BV(GPIO_TEST2_PIN);
+        CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+        printf("ON\n\r");
+        clock_wait(100);
+
+
+//        GPIO_TEST1_PORT(OUT) &= ~BV(GPIO_TEST1_PIN);
+//        GPIO_TEST2_PORT(OUT) &= ~BV(GPIO_TEST2_PIN);
+        CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+        printf("OFF\n\r");
+        clock_wait(100);
+//  }
+
+
+
+  uint8_t test, test1, test2, test3 = 0;
   printf("CC1120 init...");
   spi_init();
 
   /* all input by default, set these as output */
-  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
+//  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
+//  CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);
 
   /* Unselect radio. */
   cc1120_arch_spi_disable();
@@ -131,12 +172,14 @@ cc1120_arch_init(void)
   //CC1120_GDO3_PORT(SEL) &= ~BV(CC1120_GDO3_PIN);
   //CC1120_GDO3_PORT(DIR) &= ~BV(CC1120_GDO3_PIN);
 
-  /* Reset procedure */
-  CC1120_SPI_SCLK_PORT(OUT) |= BV(CC1120_SPI_SCLK_PIN);
-  CC1120_SPI_MOSI_PORT(OUT) |= BV(CC1120_SPI_MOSI_PIN);
+//  GPIO_TEST2_PORT(OUT) |= BV(GPIO_TEST2_PIN);
 
-  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+  /* Reset procedure */
+//  CC1120_SPI_SCLK_PORT(OUT) |= BV(CC1120_SPI_SCLK_PIN);
+//  CC1120_SPI_MOSI_PORT(OUT) |= BV(CC1120_SPI_MOSI_PIN);
+
+//  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+//  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 
   clock_delay_usec(400);
 
@@ -154,6 +197,33 @@ cc1120_arch_init(void)
 //  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 //  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
   printf("OK\n\r");
+  cc1120_arch_spi_disable();
+//  GPIO_TEST2_PORT(OUT) &= ~BV(GPIO_TEST2_PIN);
+
+  printf("Checking CC1120 Communications...");
+while(1) 
+{
+  clock_delay_usec(100);
+  cc1120_arch_spi_enable();
+  test3 = CC11xx_ARCH_SPI_RW_BYTE(46);
+  test1 = CC11xx_ARCH_SPI_RW_BYTE(TEST_VALUE);
+  test = CC11xx_ARCH_SPI_RW_BYTE(46 | READ_BIT);
+  test2 = CC11xx_ARCH_SPI_RW_BYTE(0);
+  cc1120_arch_spi_disable();
+  clock_delay_usec(100);
+//}
+
+  if (test != TEST_VALUE) 
+  {
+	printf("*** NOT OK! ***\n\r");
+	printf("Check CC1120 and reset. TV:%d R0:%d R1:%d R2:%d R3:%d\n\r", TEST_VALUE, test3, test1, test, test2);
+	//while(1) 
+	//{
+
+	//}
+  }
+  else printf("OK\n\r");
+}
 }
 /*---------------------------------------------------------------------------*/
 void

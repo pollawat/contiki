@@ -73,9 +73,9 @@ PROCESS_THREAD(example_shell_process, ev, data)
   /*shell_profile_init();*/
   shell_ps_init();
   /*shell_reboot_init();*/
-  shell_rime_debug_init();
-  shell_rime_netcmd_init();
-  shell_rime_ping_init(); /* Rime ping */
+//  shell_rime_debug_init();
+//  shell_rime_netcmd_init();
+//  shell_rime_ping_init(); /* Rime ping */
 //  shell_rime_sendcmd_init();
 //  shell_rime_sniff_init();
   shell_rime_init();

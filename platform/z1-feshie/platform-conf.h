@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2010, Swedish Institute of Computer Science.
  * All rights reserved.
@@ -144,8 +145,8 @@ typedef unsigned long off_t;
 #define MISO           2  /* P3.2 - Input:  SPI Master in - slave out (MISO) */
 #define SCK            3  /* P3.3 - Output: SPI Serial Clock (SCLK) */
 
-#define CC1120_SPI_CSN_PORT(type)  P1##type
-#define CC1120_SPI_CSN_PIN     0
+#define CC1120_SPI_CSN_PORT(type)  P2##type
+#define CC1120_SPI_CSN_PIN     1
 #define CC1120_SPI_MOSI_PORT(type)  P3##type
 #define CC1120_SPI_MOSI_PIN    1
 #define CC1120_SPI_MISO_PORT(type)  P3##type
@@ -181,10 +182,20 @@ typedef unsigned long off_t;
 #define cc11xx_arch_interrupt_enable cc1120_arch_interrupt_enable
 
 #define CC1120_GDO0_PORT(type) P1##type
-#define CC1120_GDO0_PIN        6
+#define CC1120_GDO0_PIN        0
 
-//#define CC2420_CSN_PORT(type)      P1##type
-//#define CC2420_CSN_PIN             1
+#define GPIO_TEST1_PORT(type) P1##type
+#define GPIO_TEST1_PIN         7
+
+//#define GPIO_TEST2_PORT(type) P2##type
+//#define GPIO_TEST2_PIN	       1
+
+
+#define CC2420_CSN_PORT(type) P3##type
+#define CC2420_CSN_PIN	      0
+
+#define CC2420_PWR_PORT(type) P4##type
+#define CC2420_PWR_PIN        4
 
 #define cc11xx_arch_init        cc1120_arch_init
 

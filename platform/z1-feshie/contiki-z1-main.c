@@ -33,6 +33,8 @@
 #include <stdarg.h> 
 
 #include "contiki.h"
+#include "platform-conf.h"
+#include "isr_compat.h"
 //#include "dev/cc2420.h"
 #include "cc11xx.h"
 #include "cc11xx-arch.h"

@@ -45,16 +45,19 @@ spi_init(void)
 
   UCB0CTL1 |=  UCSWRST;                //reset usci
   UCB0CTL1 |=  UCSSEL_2;               //smclk while usci is reset
-  UCB0CTL0 = ( UCMSB | UCMST | UCSYNC | UCCKPL); // MSB-first 8-bit, Master, Synchronous, 3 pin SPI master, no ste, watch-out for clock-phase UCCKPH
+  UCB0CTL0 = ( UCMSB | UCMST | UCSYNC | UCCKPH); // UCCKPL) MSB-first 8-bit, Master, Synchronous, 3 pin SPI master, no ste, watch-out for clock-phase UCCKPH
 
   UCB0BR1 = 0x00;
   UCB0BR0 = 0x02;
+
+//  UCB0STAT |= UCLISTEN;			//Set listen mode for debug.
 
 //  UCB0MCTL = 0;                       // Dont need modulation control.
 
   P3SEL |= BV(SCK) | BV(MOSI) | BV(MISO); // Select Peripheral functionality
   P3DIR |= BV(SCK) | BV(MISO);  // Configure as outputs(SIMO,CLK).
-
+//  P3REN |= BV(MISO);		//Set MISO Pull resistor
+//  P3OUT &= ~BV(MISO);		//Set MISO Pull resistor to pulldown.
   //ME1   |= USPIE0;            // Module enable ME1 --> U0ME? xxx/bg
 
   // Clear pending interrupts before enable!!!
