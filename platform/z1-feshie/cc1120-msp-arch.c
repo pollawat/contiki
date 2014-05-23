@@ -201,29 +201,30 @@ cc1120_arch_init(void)
 //  GPIO_TEST2_PORT(OUT) &= ~BV(GPIO_TEST2_PIN);
 
   printf("Checking CC1120 Communications...");
-while(1) 
-{
+//while(1) 
+//{
   clock_delay_usec(100);
   cc1120_arch_spi_enable();
   test3 = CC11xx_ARCH_SPI_RW_BYTE(46);
-  test1 = CC11xx_ARCH_SPI_RW_BYTE(TEST_VALUE);
-  test = CC11xx_ARCH_SPI_RW_BYTE(46 | READ_BIT);
-  test2 = CC11xx_ARCH_SPI_RW_BYTE(0);
+  test2 = CC11xx_ARCH_SPI_RW_BYTE(TEST_VALUE);
+  test1 = CC11xx_ARCH_SPI_RW_BYTE(46 | READ_BIT);
+  test = CC11xx_ARCH_SPI_RW_BYTE(0);
   cc1120_arch_spi_disable();
+  printf("TV:%d R0:%d R1:%d R2:%d R3:%d", TEST_VALUE, test3, test2, test1, test);
   clock_delay_usec(100);
 //}
 
   if (test != TEST_VALUE) 
   {
 	printf("*** NOT OK! ***\n\r");
-	printf("Check CC1120 and reset. TV:%d R0:%d R1:%d R2:%d R3:%d\n\r", TEST_VALUE, test3, test1, test, test2);
-	//while(1) 
-	//{
+	printf("Check CC1120 and reset.");
+	while(1) 
+	{
 
-	//}
+	}
   }
   else printf("OK\n\r");
-}
+//}
 }
 /*---------------------------------------------------------------------------*/
 void
