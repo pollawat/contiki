@@ -147,6 +147,9 @@ typedef unsigned long off_t;
 
 #define CC1120_SPI_CSN_PORT(type)  P2##type
 #define CC1120_SPI_CSN_PIN     1
+#define CC1120_RESET_PORT(type)	   P2##type
+#define CC1120_RESET_PIN       6
+
 #define CC1120_SPI_MOSI_PORT(type)  P3##type
 #define CC1120_SPI_MOSI_PIN    1
 #define CC1120_SPI_MISO_PORT(type)  P3##type

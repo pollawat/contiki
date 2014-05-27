@@ -77,7 +77,7 @@
     do {                                                                  \
       rtimer_clock_t t0;                                                  \
       t0 = RTIMER_NOW();                                                  \
-      while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time))) {/*printf(".");*/} \
+      while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time))) {printf(".");} \
     } while(0)
 
 #define RSSI_OFFSET 74
@@ -565,14 +565,18 @@ pollhandler(void)
 static void
 flushrx(void)
 {
+  printf("\tRestart Input...");
   restart_input();
+  printf("OK\n\r");
 
   LOCK_SPI();
   if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
     strobe(CC11xx_SFRX);
   }
+  printf("\tSet IDLE mode.");
   strobe(CC11xx_SIDLE);
   BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
+  printf("OK\n\r");
   strobe(CC11xx_SFRX);
   strobe(CC11xx_SRX);
   RELEASE_SPI();
@@ -1052,10 +1056,12 @@ on(void)
     return 0;
   }
   LOCK_SPI();
+  printf("Flush RX buffer\n\r");
   flushrx();
+  printf("Set CC1120 RX...");
   strobe(CC11xx_SRX);
   RELEASE_SPI();
-
+  printf("OK\n\r");
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
 
   //leds_on(LEDS_RED);
@@ -1088,8 +1094,8 @@ static void
 reset(void)
 {
   LOCK_SPI();
-  strobe(CC11xx_SRES);
-  strobe(CC11xx_SNOP); /* XXX needed? */
+  //strobe(CC11xx_SRES);
+  //strobe(CC11xx_SNOP); /* XXX needed? */
 
 #if CC11xx_CC1101
   burst_write(CC11xx_IOCFG2, (unsigned char *)cc1101_register_config,
@@ -1150,7 +1156,7 @@ reset(void)
 #endif /* CC11xx_CC1101 or CC11xx_CC1120? */
 
   RELEASE_SPI();
-
+  printf("Radio Configured\n\r");
   on();
 }
 /*---------------------------------------------------------------------------*/
@@ -1348,8 +1354,9 @@ static uint8_t
 state(void)
 {
   uint8_t state;
-
+  printf("\tRead CC1120 State...");
   burst_read(CC11xx_MARCSTATE, &state, 1);
+  printf("OK\n\r");
   return state & 0x1f;
 }
 /*---------------------------------------------------------------------------*/

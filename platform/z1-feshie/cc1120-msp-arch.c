@@ -45,6 +45,7 @@
 #include "cc11xx.h"
 #include "cc1120-const.h"
 #include "cc1120-config.h"
+#include "cc11xx-arch.h"
 
 #define READ_BIT 0x80
 #define TEST_VALUE 0xA5
@@ -60,13 +61,23 @@
 int cc11xx_rx_interrupt(void);
 /*---------------------------------------------------------------------------*/
 void
+cc1120_reset(void)
+{
+  CC1120_RESET_PORT(OUT) &= ~BV(CC1120_RESET_PIN);
+  clock_delay_usec(100);
+  CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);
+  //CC11xx_ARCH_SPI_RW_BYTE(CC11xx_SRES);
+}
+
+/*---------------------------------------------------------------------------*/
+void
 cc1120_arch_spi_enable(void)
 {
   /* Set CSn to low (0) */
   CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 
   /* The MISO pin should go LOW before chip is fully enabled. */
-//  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
+  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -131,23 +142,29 @@ cc1120_arch_init(void)
 //  GPIO_TEST2_PORT(DIR) |= BV(GPIO_TEST2_PIN);
 //  GPIO_TEST2_PORT(SEL) &= ~BV(GPIO_TEST2_PIN);
 
-  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
+  /* Setup CC1120 pins */
+/*  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
   CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);
+  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 
+  CC1120_RESET_PORT(DIR) |= BV(CC1120_RESET_PIN);
+  CC1120_RESET_PORT(SEL) &= ~BV(CC1120_RESET_PIN);
+  CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);
+*/
 //  while(1)
 //  {
 //        GPIO_TEST1_PORT(OUT) |= BV(GPIO_TEST1_PIN);
 //        GPIO_TEST2_PORT(OUT) |= BV(GPIO_TEST2_PIN);
-        CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
-        printf("ON\n\r");
-        clock_wait(100);
+        //CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+        //printf("ON\n\r");
+        //clock_wait(100);
 
 
 //        GPIO_TEST1_PORT(OUT) &= ~BV(GPIO_TEST1_PIN);
 //        GPIO_TEST2_PORT(OUT) &= ~BV(GPIO_TEST2_PIN);
-        CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-        printf("OFF\n\r");
-        clock_wait(100);
+        //CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+        //printf("OFF\n\r");
+        //clock_wait(100);
 //  }
 
 
@@ -175,12 +192,13 @@ cc1120_arch_init(void)
 //  GPIO_TEST2_PORT(OUT) |= BV(GPIO_TEST2_PIN);
 
   /* Reset procedure */
-//  CC1120_SPI_SCLK_PORT(OUT) |= BV(CC1120_SPI_SCLK_PIN);
-//  CC1120_SPI_MOSI_PORT(OUT) |= BV(CC1120_SPI_MOSI_PIN);
+  //CC1120_SPI_SCLK_PORT(OUT) |= BV(CC1120_SPI_SCLK_PIN);
+  //CC1120_SPI_MOSI_PORT(OUT) |= BV(CC1120_SPI_MOSI_PIN);
 
-//  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-//  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+ // CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+  //CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 
+  cc1120_reset();
   clock_delay_usec(400);
 
   /* Rising edge interrupt; note that GPIO-pins are hardwired to 0/1/tristate
@@ -192,26 +210,26 @@ cc1120_arch_init(void)
   //CC1120_GDO2_PORT(IES) &= ~BV(CC1120_GDO2_PIN);
   //CC1120_GDO3_PORT(IES) &= ~BV(CC1120_GDO3_PIN);
 
-  printf("RDY_CHK...");
-  cc1120_arch_spi_enable();
+  //printf("RDY_CHK...");
+  //cc1120_arch_spi_enable();
 //  CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 //  while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
-  printf("OK\n\r");
-  cc1120_arch_spi_disable();
+  //printf("OK\n\r");
+  //cc1120_arch_spi_disable();
 //  GPIO_TEST2_PORT(OUT) &= ~BV(GPIO_TEST2_PIN);
 
   printf("Checking CC1120 Communications...");
 //while(1) 
 //{
-  clock_delay_usec(100);
+  //clock_delay_usec(100);
   cc1120_arch_spi_enable();
   test3 = CC11xx_ARCH_SPI_RW_BYTE(46);
   test2 = CC11xx_ARCH_SPI_RW_BYTE(TEST_VALUE);
   test1 = CC11xx_ARCH_SPI_RW_BYTE(46 | READ_BIT);
   test = CC11xx_ARCH_SPI_RW_BYTE(0);
   cc1120_arch_spi_disable();
-  printf("TV:%d R0:%d R1:%d R2:%d R3:%d", TEST_VALUE, test3, test2, test1, test);
-  clock_delay_usec(100);
+  printf("TV:%d R0:%d R1:%d R2:%d R3:%d...", TEST_VALUE, test3, test2, test1, test);
+  //clock_delay_usec(100);
 //}
 
   if (test != TEST_VALUE) 

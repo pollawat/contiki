@@ -213,6 +213,15 @@ main(int argc, char **argv)
   slip_arch_init(BAUD2UBR(115200));
 #endif /* WITH_UIP */
 
+  /* Setup CC1120 pins to avoid SPI conflict*/
+  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
+  CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);
+  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+
+  CC1120_RESET_PORT(DIR) |= BV(CC1120_RESET_PIN);
+  CC1120_RESET_PORT(SEL) &= ~BV(CC1120_RESET_PIN);
+  CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);
+
   xmem_init();
 
   rtimer_init();
