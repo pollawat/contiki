@@ -77,7 +77,7 @@
     do {                                                                  \
       rtimer_clock_t t0;                                                  \
       t0 = RTIMER_NOW();                                                  \
-      while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time))) {printf(".");} \
+      while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time))) {/*printf(".");*/} \
     } while(0)
 
 #define RSSI_OFFSET 74
@@ -241,6 +241,10 @@ strobe(uint8_t strobe)
   LOCK_SPI();
   CC11xx_ARCH_SPI_ENABLE();
   ret = CC11xx_ARCH_SPI_RW_BYTE(strobe);
+  //if((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
+  //{
+  //  (void) CC11xx_ARCH_SPI_RW_BYTE(CC11xx_SNOP);
+  //}
   CC11xx_ARCH_SPI_DISABLE();
   RELEASE_SPI();
   return ret;
@@ -343,13 +347,15 @@ burst_read(uint16_t addr, uint8_t *buffer, uint8_t count)
   CC11xx_ARCH_SPI_ENABLE();
 
   if(IS_EXTENDED(addr)) {
+    //printf("Extended Address...");
     addr &= ~0x2F00;
     CC11xx_ARCH_SPI_RW_BYTE(CC11xx_EXTENDED_MEMORY_ACCESS | READ_BIT | BURST_BIT);
     CC11xx_ARCH_SPI_RW_BYTE(addr);
   } else {
+    //printf("Standard Read...");
     CC11xx_ARCH_SPI_RW_BYTE(addr | READ_BIT | BURST_BIT);
   }
-
+  //printf("SPI Read...");
   CC11xx_ARCH_SPI_RW(buffer, NULL, count);
 
   CC11xx_ARCH_SPI_DISABLE();
@@ -565,20 +571,29 @@ pollhandler(void)
 static void
 flushrx(void)
 {
-  printf("\tRestart Input...");
+  //printf("\tRestart Input...");
   restart_input();
-  printf("OK\n\r");
-
+  //printf("OK\n\r");
+  
+  uint8_t cur_state = 0;
   LOCK_SPI();
-  if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
+  cur_state = state();
+  if(cur_state == CC11xx_STATE_RXFIFO_OVERFLOW) {
     strobe(CC11xx_SFRX);
   }
-  printf("\tSet IDLE mode.");
-  strobe(CC11xx_SIDLE);
-  BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
-  printf("OK\n\r");
+  else if(cur_state != CC11xx_STATE_IDLE)
+  {
+    //printf("\tSet IDLE mode.");
+    strobe(CC11xx_SIDLE);
+    BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
+    //printf("OK\n\r");
+  }
+  //printf("\tFlush RX FIFO..."); 
   strobe(CC11xx_SFRX);
+  //printf("OK\n\r");
+  //printf("Set RX mode...");
   strobe(CC11xx_SRX);
+  //printf("OK\r\n");
   RELEASE_SPI();
 }
 /*---------------------------------------------------------------------------*/
@@ -912,6 +927,7 @@ cc11xx_rx_interrupt(void)
 static int
 read_packet(void *buf, unsigned short bufsize)
 {
+  //printf("\t\t*** Driver: read_packet ***\n\r");
   int len;
 
   len = 0;
@@ -952,6 +968,7 @@ read_packet(void *buf, unsigned short bufsize)
 static int
 transmit(unsigned short len)
 {
+  //printf("\t\t*** Driver: transmit ***\n\r");
   if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
     flushrx();
   }
@@ -970,7 +987,7 @@ transmit(unsigned short len)
 
   LOCK_SPI();
 #if DEBUG 
-  printf(".");
+  printf("TX.");
 #endif /* DEBUG */
   strobe(CC11xx_SIDLE);
 
@@ -1015,6 +1032,7 @@ transmit(unsigned short len)
 static int
 prepare(const void *payload, unsigned short len)
 {
+  //printf("\t\t*** Driver: prepare ***\n\r");
   if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
     flushrx();
   }
@@ -1036,6 +1054,7 @@ prepare(const void *payload, unsigned short len)
 static int
 send_packet(const void *data, unsigned short len)
 {
+  //printf("\t\t*** Driver: send_packet ***\n\r");
   int ret;
   if(len > CC11xx_MAX_PAYLOAD) {
 #if DEBUG
@@ -1052,16 +1071,17 @@ send_packet(const void *data, unsigned short len)
 static int
 on(void)
 {
+  //printf("\t\t*** Driver: on ***\n\r");
   if(SPI_IS_LOCKED()) {
     return 0;
   }
   LOCK_SPI();
-  printf("Flush RX buffer\n\r");
+  //printf("Flush RX buffer\n\r");
   flushrx();
-  printf("Set CC1120 RX...");
+  //printf("Set CC1120 RX...");
   strobe(CC11xx_SRX);
   RELEASE_SPI();
-  printf("OK\n\r");
+  //printf("OK\n\r");
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
 
   //leds_on(LEDS_RED);
@@ -1071,14 +1091,21 @@ on(void)
 static int
 off(void)
 {
+  //printf("\t\t*** Driver: off ***\n\r");
   if(SPI_IS_LOCKED()) {
     return 0;
   }
-
+  uint8_t cur_state = 0;
+  //printf("\tTurn OFF CC1120\n\r");
   LOCK_SPI();
-  strobe(CC11xx_SIDLE);
-  BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
-  strobe(CC11xx_SPWD);
+  cur_state = state();
+  if(cur_state != CC11xx_STATE_IDLE)
+  {
+    //printf("\tSet IDLE mode.");
+    strobe(CC11xx_SIDLE);
+    BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
+    //printf("OK\n\r");
+  }
   RELEASE_SPI();
 
   ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
@@ -1320,6 +1347,7 @@ read_lqi(void)
 static int
 receiving_packet(void)
 {
+  //printf("\t\t*** Driver: receiving_packet ***\n\r");
   uint8_t rxbytes;
   if(SPI_IS_LOCKED()) {
     return 0;
@@ -1344,6 +1372,7 @@ receiving_packet(void)
 static int
 pending_packet(void)
 {
+  //printf("\t\t*** Driver: pending_packet ***\n\r");
   if(packet_rx_len > 0) {
     return 1;
   }
@@ -1354,9 +1383,9 @@ static uint8_t
 state(void)
 {
   uint8_t state;
-  printf("\tRead CC1120 State...");
+  //printf("\tRead CC1120 State...");
   burst_read(CC11xx_MARCSTATE, &state, 1);
-  printf("OK\n\r");
+  //printf("OK\n\r");
   return state & 0x1f;
 }
 /*---------------------------------------------------------------------------*/
@@ -1372,6 +1401,7 @@ cc11xx_set_promiscuous(char p)
 static int
 channel_clear(void)
 {
+  //printf("\t\t*** Driver: channel_clear ***\n\r");
   uint8_t radio_was_off, cca, val;
 
   if(SPI_IS_LOCKED()) {
@@ -1432,9 +1462,12 @@ channel_clear(void)
 static int
 init(void)
 {
+  //printf("\t\t*** Driver: init ***\n\r");
+
   cc11xx_arch_init();
   reset();
-
+  
+  //printf("Start CC1120 Process...\n\r");
   process_start(&cc11xx_process, NULL);
 
   off();

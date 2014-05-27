@@ -83,6 +83,11 @@ cc1120_arch_spi_enable(void)
 void
 cc1120_arch_spi_disable(void)
 {
+  if((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
+  {
+    (void) CC11xx_ARCH_SPI_RW_BYTE(CC11xx_SNOP);
+  }
+
   /* Set CSn to high (1) */
   CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 }
