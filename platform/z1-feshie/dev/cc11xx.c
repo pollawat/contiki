@@ -1215,10 +1215,27 @@ cc11xx_channel_set(uint8_t c)
 static void
 channel_set(uint8_t c)
 {
-  if(SPI_IS_LOCKED() || is_transmitting || receiving_packet()) {
+  uint8_t spi_lock, tx_lock, rx_lock, timeout = 0;
+  rtimer_clock_t t1;
+
+  spi_lock = SPI_IS_LOCKED();
+  tx_lock = is_transmitting;
+  rx_lock = receiving_packet();
+  
+  while((spi_lock || tx_lock || rx_lock) && (timeout <10))
+  {
+    spi_lock = SPI_IS_LOCKED();
+    tx_lock = is_transmitting;
+    rx_lock = receiving_packet();
+    timeout++;
+    t1 = RTIMER_NOW();
+    while(RTIMER_CLOCK_LT(RTIMER_NOW(), t1 + 5));  //delay
+  } 
+  if(timeout >= 10 & !(spi_lock || tx_lock || rx_lock))
+  {
 #if DEBUG||1
     printf("cannot change channel, radio is busy: spi:%d tx:%d rx:%d\n",
-           SPI_IS_LOCKED(), is_transmitting, receiving_packet());
+           spi_lock, tx_lock, rx_lock);
 #endif /* DEBUG */
     request_set_channel = c;
     process_poll(&cc11xx_process);
