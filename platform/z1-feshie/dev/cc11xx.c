@@ -1177,7 +1177,7 @@ reset(void)
   pa_table_write(CC11xx_PA_11);
 #elif CC11xx_CC1120
   /* TODO Move to *-arch.c or smartstudio.c? */
-  single_write(CC11xx_IOCFG3, CC11xx_SETTING_IOCFG3);
+  /*single_write(CC11xx_IOCFG3, CC11xx_SETTING_IOCFG3);
   single_write(CC11xx_IOCFG2, CC11xx_SETTING_IOCFG2);
   single_write(CC11xx_IOCFG1, CC11xx_SETTING_IOCFG1);
   single_write(CC11xx_IOCFG0, CC11xx_SETTING_IOCFG0);
@@ -1226,7 +1226,47 @@ reset(void)
   single_write(CC11xx_FS_VCO0, CC11xx_SETTING_FS_VCO0);
   single_write(CC11xx_XOSC5, CC11xx_SETTING_XOSC5);
   single_write(CC11xx_XOSC2, CC11xx_SETTING_XOSC2);
-  single_write(CC11xx_XOSC1, CC11xx_SETTING_XOSC1);
+  single_write(CC11xx_XOSC1, CC11xx_SETTING_XOSC1);*/
+  single_write(CC11xx_IOCFG3, 0x0000);
+  single_write(CC11xx_IOCFG2, 0x0001);
+  single_write(CC11xx_IOCFG1, 0x0002);
+  single_write(CC11xx_IOCFG0, 0x0003);
+  single_write(CC11xx_SYNC_CFG1, 0x0008);
+  single_write(CC11xx_DCFILT_CFG, 0x000C);
+  single_write(CC11xx_PREAMBLE_CFG1, 0x000D);
+  single_write(CC11xx_IQIC, 0x0010);
+  single_write(CC11xx_CHAN_BW, 0x0011);
+  single_write(CC11xx_MDMCFG1, 0x0012);
+  single_write(CC11xx_MDMCFG0, 0x0013);
+  single_write(CC11xx_AGC_REF, 0x0017);
+  single_write(CC11xx_AGC_CS_THR, 0x0018);
+  single_write(CC11xx_AGC_CFG1, 0x001C);
+  single_write(CC11xx_AGC_CFG0, 0x001D);
+  single_write(CC11xx_FIFO_CFG, 0x001E);
+  single_write(CC11xx_SETTLING_CFG, 0x0020);
+  single_write(CC11xx_FS_CFG, 0x0021);
+  single_write(CC11xx_PKT_CFG2, 0x0026);
+  single_write(CC11xx_PKT_CFG1, 0x0027);
+  single_write(CC11xx_PKT_CFG0, 0x0028);
+  single_write(CC11xx_IF_MIX_CFG, 0x2F00);
+  single_write(CC11xx_FREQOFF_CFG, 0x2F01);
+  single_write(CC11xx_FREQ2, 0x2F0C);
+  single_write(CC11xx_FREQ1, 0x2F0D);
+  single_write(CC11xx_FS_DIG1, 0x2F12);
+  single_write(CC11xx_FS_DIG0, 0x2F13);
+  single_write(CC11xx_FS_CAL1, 0x2F16);
+  single_write(CC11xx_FS_CAL0, 0x2F17);
+  single_write(CC11xx_FS_DIVTWO, 0x2F19);
+  single_write(CC11xx_FS_DSM0, 0x2F1B);
+  single_write(CC11xx_FS_DVC0, 0x2F1D);
+  single_write(CC11xx_FS_PFD, 0x2F1F);
+  single_write(CC11xx_FS_PRE, 0x2F20);
+  single_write(CC11xx_FS_REG_DIV_CML, 0x2F21);
+  single_write(CC11xx_FS_SPARE, 0x2F22);
+  single_write(CC11xx_FS_VCO0, 0x2F27);
+  single_write(CC11xx_XOSC5, 0x2F32);
+  single_write(CC11xx_XOSC1, 0x2F36);
+  single_write(CC11xx_SERIAL_STATUS, 0x2F91);
 #endif /* CC11xx_CC1101 or CC11xx_CC1120? */
 
   RELEASE_SPI();
