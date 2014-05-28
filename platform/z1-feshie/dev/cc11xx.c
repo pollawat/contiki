@@ -583,10 +583,10 @@ flushrx(void)
   }
   else if(cur_state != CC11xx_STATE_IDLE)
   {
-    //printf("\tSet IDLE mode.");
+    printf("\tSet IDLE mode.");
     strobe(CC11xx_SIDLE);
     BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
-    //printf("OK\n\r");
+    printf("OK\n\r");
   }
   //printf("\tFlush RX FIFO..."); 
   strobe(CC11xx_SFRX);
@@ -968,28 +968,37 @@ read_packet(void *buf, unsigned short bufsize)
 static int
 transmit(unsigned short len)
 {
-  //printf("\t\t*** Driver: transmit ***\n\r");
+  printf("\t\t*** Driver: transmit ***\n\r");
+  uint8_t cur_state;
+
   if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
     flushrx();
   }
 
-#if DEBUG
+//#if DEBUG
   printf("tx len %d\n", len);
-#endif /* DEBUG */
+//#endif /* DEBUG */
   if(len > CC11xx_MAX_PAYLOAD) {
-#if DEBUG || 1
+//#if DEBUG || 1
     printf("cc11xx: too big tx %d\n", len);
-#endif /* DEBUG */
+//#endif /* DEBUG */
     return RADIO_TX_ERR;
   }
 
   RIMESTATS_ADD(lltx);
 
   LOCK_SPI();
-#if DEBUG 
+//#if DEBUG 
   printf("TX.");
-#endif /* DEBUG */
+//#endif /* DEBUG */
   strobe(CC11xx_SIDLE);
+  cur_state = state();
+  while(cur_state != CC11xx_STATE_IDLE)
+  {
+    printf("Requested IDLE, NOT set. (in %d)\n\r", cur_state); 
+    
+  }
+
 
   is_transmitting = 1;
   write_txfifo((unsigned char *)packet_tx, len);
@@ -998,10 +1007,11 @@ transmit(unsigned short len)
   ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
   ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 
-  if(state() != CC11xx_STATE_TX) {
-#if DEBUG
-    printf("didn't tx (in %d)\n", state());
-#endif /* DEBUG */
+  cur_state = state();
+  if(cur_state != CC11xx_STATE_TX) {
+//#if DEBUG
+    printf("didn't tx (in %d)\n", cur_state);
+//#endif /* DEBUG */
     check_txfifo();
     flushrx();
     RELEASE_SPI();
@@ -1012,10 +1022,11 @@ transmit(unsigned short len)
   BUSYWAIT_UNTIL((state() != CC11xx_STATE_TX), RTIMER_SECOND / 10);
   ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
-  if(state() == CC11xx_STATE_TX) {
-#if DEBUG
-    printf("didn't end tx (in %d, txbytes %d)\n", state(), txbytes());
-#endif /* DEBUG */
+  cur_state = state();
+  if(cur_state == CC11xx_STATE_TX) {
+//#if DEBUG
+    printf("didn't end tx (in %d, txbytes %d)\n", cur_state, txbytes());
+//#endif /* DEBUG */
     check_txfifo();
     flushrx();
     is_transmitting = 0;
@@ -1032,7 +1043,7 @@ transmit(unsigned short len)
 static int
 prepare(const void *payload, unsigned short len)
 {
-  //printf("\t\t*** Driver: prepare ***\n\r");
+  printf("\t\t*** Driver: prepare ***\n\r");
   if(state() == CC11xx_STATE_RXFIFO_OVERFLOW) {
     flushrx();
   }
@@ -1054,7 +1065,7 @@ prepare(const void *payload, unsigned short len)
 static int
 send_packet(const void *data, unsigned short len)
 {
-  //printf("\t\t*** Driver: send_packet ***\n\r");
+  printf("\t\t*** Driver: send_packet ***\n\r");
   int ret;
   if(len > CC11xx_MAX_PAYLOAD) {
 #if DEBUG
