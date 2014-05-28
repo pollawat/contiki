@@ -240,7 +240,7 @@ const struct radio_driver cc11xx_driver = {
 uint8_t
 set_state(uint8_t req_strobe, uint8_t req_state)
 {
-	uint8_t cur_state, timeout = 0;
+	uint8_t cur_state, timeout, i = 0;
 	rtimer_clock_t t2;
 
 	strobe(req_strobe);
@@ -255,6 +255,7 @@ set_state(uint8_t req_strobe, uint8_t req_state)
 			while(RTIMER_CLOCK_LT(RTIMER_NOW(), t2 + 5));  //delay
 		}
 		strobe(req_strobe);
+		i++;
 	}
 	if((timeout >= 10) & (cur_state != req_state))
 	{
@@ -618,7 +619,10 @@ flushrx(void)
     //strobe(CC11xx_SIDLE);
     //BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
     //printf("OK\n\r");
-	set_state(CC11xx_SIDLE, CC11xx_STATE_IDLE);
+    if(set_state(CC11xx_SIDLE, CC11xx_STATE_IDLE))
+    {
+       printf("\t\t*** Idle Set. ***\n\r");
+    }
   }
   //printf("\tFlush RX FIFO..."); 
   strobe(CC11xx_SFRX);
@@ -1525,20 +1529,22 @@ init(void)
   //printf("\t\t*** Driver: init ***\n\r");
 
   cc11xx_arch_init();
+  printf("Current state = %d\n\r", state());
   reset();
-  
+  printf("Current state = %d\n\r", state());
   //printf("Start CC1120 Process...\n\r");
   process_start(&cc11xx_process, NULL);
-
+  printf("Current state = %d\n\r", state());
   off();
+  printf("Current state = %d\n\r", state());
   cc11xx_arch_interrupt_enable();
 
-#if PERFORM_MANUAL_CALIBRATION
-  strobe(CC11xx_SIDLE);
-  dint(); /* XXX No eint() is performed here! */
-  calibrate_manual();
-#endif /* PERFORM_MANUAL_CALIBRATION */
-
+//#if PERFORM_MANUAL_CALIBRATION
+//  strobe(CC11xx_SIDLE);
+//  dint(); /* XXX No eint() is performed here! */
+//  calibrate_manual();
+//#endif /* PERFORM_MANUAL_CALIBRATION */
+  printf("Current state = %d\n\r", state());
   return 1;
 }
 /*---------------------------------------------------------------------------*/
