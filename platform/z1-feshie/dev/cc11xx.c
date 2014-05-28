@@ -204,6 +204,8 @@ static void channel_set(unsigned char channel_number);
 
 void cc11xx_set_promiscuous(char p);
 
+static uint8_t set_state(uint8_t req_strobe, uint8_t req_state);
+
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
 #define READ_BIT 0x80
@@ -232,6 +234,35 @@ const struct radio_driver cc11xx_driver = {
     on,
     off,
 };
+
+/*---------------------------------------------------------------------------*/
+
+uint8_t
+set_state(uint8_t req_strobe, uint8_t req_state)
+{
+	uint8_t cur_state, timeout = 0;
+	rtimer_clock_t t2;
+
+	strobe(req_strobe);
+	cur_state = state();
+	while((cur_state != req_state) & (i < 10))
+	{
+		while((cur_state != req_state) & (timeout <10))
+		{
+			cur_state = state();
+			timeout++;
+			t2 = RTIMER_NOW();
+			while(RTIMER_CLOCK_LT(RTIMER_NOW(), t2 + 5));  //delay
+		}
+		strobe(req_strobe);
+	}
+	if((timeout >= 10) & (cur_state != req_state))
+	{
+		printf("!!!!! SET CC1120 STATE FAILED - timeout reached (wanted %d, got %d) !!!!!\n\r", req_state, cur_state);
+		return -1;
+	}
+	return 1;
+}
 
 /*---------------------------------------------------------------------------*/
 static uint8_t
@@ -583,10 +614,11 @@ flushrx(void)
   }
   else if(cur_state != CC11xx_STATE_IDLE)
   {
-    printf("\tSet IDLE mode.");
-    strobe(CC11xx_SIDLE);
-    BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
-    printf("OK\n\r");
+    //printf("\tSet IDLE mode.");
+    //strobe(CC11xx_SIDLE);
+    //BUSYWAIT_UNTIL((state() == CC11xx_STATE_IDLE), RTIMER_SECOND / 10);
+    //printf("OK\n\r");
+	set_state(CC11xx_SIDLE, CC11xx_STATE_IDLE);
   }
   //printf("\tFlush RX FIFO..."); 
   strobe(CC11xx_SFRX);
@@ -993,10 +1025,10 @@ transmit(unsigned short len)
 //#endif /* DEBUG */
   strobe(CC11xx_SIDLE);
   cur_state = state();
-  while(cur_state != CC11xx_STATE_IDLE)
+  if(cur_state != CC11xx_STATE_IDLE)
   {
     printf("Requested IDLE, NOT set. (in %d)\n\r", cur_state); 
-    
+    set_state(CC11xx_SIDLE, CC11xx_STATE_IDLE);
   }
 
 
