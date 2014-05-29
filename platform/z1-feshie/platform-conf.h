@@ -200,6 +200,9 @@ typedef unsigned long off_t;
 #define CC2420_PWR_PORT(type) P4##type
 #define CC2420_PWR_PIN        4
 
+#define CC2420_RESET_PORT(type)    P4##type
+#define CC2420_RESET_PIN           6
+
 #define cc11xx_arch_init        cc1120_arch_init
 
 #endif /* __PLATFORM_CONF_H__ */
