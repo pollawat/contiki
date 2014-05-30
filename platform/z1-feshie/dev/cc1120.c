@@ -33,18 +33,21 @@ cc1120_driver_init(void)
 		printf("**** Radio Driver: Init ****\n");
 	#endif
 	
-	/* Init arch & SPI */
+	/* Init arch */
+	cc1120_arch_init();
 	
 	/* Reset CC1120 */
+	cc1120_arch_reset();
 	
 	/* Check CC1120 */
 	
 	/* Configure CC1120 */
 	
 	/* Set Channel */
+	cc1120_set_channel((RF_CHANNEL);
 	
     /* Set to IDLE */
-	
+	cc1120_set_state(IDLE);
 	
 }
 
@@ -113,6 +116,8 @@ cc1120_driver_on(void)
 		printf("**** Radio Driver: On ****\n");
 	#endif
 	/* Set CC1120 into RX. */
+	// TODO: DO we want to set TXOFF_MODE=11 so that it goes to RX after TX?
+	// TODO: Do we want to set RXOFF_MODE=01 so that we go to FSTXON after RX? 
 	
 	/* Enable CC1120 RX interrupt*/
 }
@@ -144,33 +149,279 @@ cc1120_get_channel(void)
 }
 
 uint8_t
-cc1120_set_state(uint8_t state)
+cc1120_read_txbytes(void)
 {
 
+}
+
+uint8_t
+cc1120_read_rxbytes(void)
+{
+
+}
+
+
+/* --------------------------- CC1120 State Functions --------------------------- */
+uint8_t
+cc1120_set_state(uint8_t state)
+{
+	/* Get the current state. */
+	uint8_t cur_state = cc1120_get_state();
+	
+	switch(state)
+	{
+		case CC1120_STATE_FSTXON:	/* Can only enter from IDLE, TX or RX. */
+								if(!((cur_state & CC1120_STATUS_IDLE) 
+									| (cur_state & CC1120_STATUS_TX)))
+								{
+									cc1120_set_idle();
+									if (cur_state & CC1120_STATUS_RX)
+									{
+										cc1120_flush_rx();
+									}
+								}
+								else if(!(cur_state & CC1120_STATUS_FSTXON))
+								{
+									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);
+									while(!((c1120_get_state() & CC1120_STATUS_FSTXON));
+								}
+								return CC1120_STATUS_FSTXON;
+								break;
+								
+		case CC1120_STATE_XOFF:		/* Can only enter from IDLE. */
+								/* If we are not in IDLE, get us there. */
+								if(!(cur_state & CC1120_STATUS_IDLE)
+								{
+									cc1120_set_idle();
+									if (cur_state & CC1120_STATUS_RX)
+									{
+										cc1120_flush_rx();
+									}
+								}
+								cc1120_spi_cmd_strobe(CC1120_STROBE_SXOFF);
+								return CC1120_STATUS_IDLE;
+								break;
+								
+		case CC1120_STATE_CAL:		/* Can only enter from IDLE. */
+								/* If we are not in IDLE, get us there. */
+								if(!(cur_state & CC1120_STATUS_IDLE)
+								{
+									cc1120_set_idle();
+									if (cur_state & CC1120_STATUS_RX)
+									{
+										cc1120_flush_rx();
+									}
+								}
+								cc1120_spi_cmd_strobe(CC1120_STROBE_SCAL);
+								while(!((c1120_get_state() & CC1120_STATUS_CALIBRATE));
+								return CC1120_STATUS_CALIBRATE;
+								break;
+								break;
+								
+		case CC1120_STATE_RX:		/* Can only enter from IDLE, FSTXON or TX. */
+								if (cur_state & CC1120_STATUS_RX)
+								{
+									cc1120_set_idle();
+									cc1120_flush_rx();
+									return cc1120_set_rx();
+								}								
+								else if((cur_state & CC1120_STATUS_IDLE) 
+									| (cur_state & CC1120_STATUS_FSTXON)
+									| (cur_state & CC1120_STATUS_TX))
+								{
+									/* Return RX state. */
+									return cc1120_set_rx();
+								}
+								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								{
+									/* If there is a RX FIFO Error, clear it and RX. */
+									cc1120_flush_rx();
+									return cc1120_set_rx();
+								}
+								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								{
+									/* If there is a TX FIFO Error, clear it and RX. */
+									cc1120_flush_tx();
+									return cc1120_set_rx();
+								}
+								else
+								{
+									/* We are in a state that will end up in IDLE, FSTXON or TX. Wait till we are there. */
+									while(!((c1120_get_state() & CC1120_STATUS_IDLE) |
+											(c1120_get_state() & CC1120_STATUS_FSTXON)	|
+											(c1120_get_state() & CC1120_STATUS_TX)) );
+									
+									/* Return RX state. */
+									return cc1120_set_rx();
+								}
+								break;
+								
+		case CC1120_STATE_TX:		/* Can only enter from IDLE, FSTXON or RX. Entering TX from TX will end TX & start a new.*/
+								if((cur_state & CC1120_STATUS_IDLE) 
+									| (cur_state & CC1120_STATUS_FSTXON)
+									| (cur_state & CC1120_STATUS_RX))
+								{
+									/* Return TX state. */
+									return cc1120_set_tx();
+								}
+								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								{
+									/* If there is a RX FIFO Error, clear it and TX. */
+									cc1120_flush_rx();
+									return cc1120_set_tx();
+								}
+								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								{
+									/* If there is a TX FIFO Error, clear it and TX. */
+									cc1120_flush_tx();
+									return cc1120_set_tx();
+								}
+								else
+								{
+									/* We are in a state that will end up in IDLE, FSTXON or RX. Wait till we are there. */
+									while(!((c1120_get_state() & CC1120_STATUS_IDLE) |
+											(c1120_get_state() & CC1120_STATUS_FSTXON)	|
+											(c1120_get_state() & CC1120_STATUS_RX)) );
+									
+									/* Return TX state. */
+									return cc1120_set_tx();
+								}
+								break;
+								
+		case CC1120_STATE_IDLE:		/* Can enter from any state. */
+								/* If we are already in IDLE, do nothing and return the current state. */
+								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								{
+									/* If there is a RX FIFO Error, clear it. */
+									cc1120_flush_rx();
+								}
+								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								{
+									/* If there is a TX FIFO Error, clear it. */
+									cc1120_flush_tx();
+								}
+								else if(!(cur_state & CC1120_STATUS_IDLE))
+								{
+									/* Set Idle. */
+									cc1120_set_idle();
+								}
+								/* Return IDLE state. */
+								return CC1120_STATUS_IDLE;
+								break;
+								
+		case CC1120_STATE_SLEEP:	/* Can only enter from IDLE. */
+								/* If we are not in IDLE, get us there. */
+								if(!(cur_state & CC1120_STATUS_IDLE)
+								{
+									cc1120_set_idle();
+								}
+								cc1120_spi_cmd_strobe(CC1120_STROBE_SPWD);
+								return CC1120_STATUS_IDLE;
+								break;
+								
+		default:				printf("!!! INVALID STATE REQUESTED !!!\n"); 
+								return CC1120_STATUS_STATE_MASK;
+								break;	
+	}
 }
 
 uint8_t
 cc1120_get_state(void)
 {
+	return (cc1120_spi_cmd_strobe(CC1120_STROBE_SNOP) && CC1120_STATUS_STATE_MASK);
+}
 
+
+/* --------------------------- CC1120 State Set Functions --------------------------- */
+uint8_t
+cc1120_set_idle(void)
+{
+	/* Send IDLE strobe. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
+
+	/* Spin until we are in IDLE. */
+	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	// TODO: give this a timeout?
+	
+	/* Return IDLE state. */
+	return CC1120_STATUS_IDLE;
 }
 
 uint8_t
-read_txbytes(void)
+cc1120_set_rx(void)
 {
+	/* Enter RX. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_SRX);
 
+	/* Spin until we are in RX. */
+	while(!((c1120_get_state() & CC1120_STATUS_RX));
+	// TODO: give this a timeout?
+
+	/* Return TX state. */
+	return CC1120_STATUS_RX;
 }
 
 uint8_t
-read_rxbytes(void)
+cc1120_set_tx(void)
 {
+	/* Enter TX. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 
+	/* Spin until we are in TX. */
+	while(!((c1120_get_state() & CC1120_STATUS_TX));
+	// TODO: give this a timeout?
+
+	/* Return TX state. */
+	return CC1120_STATUS_TX;
 }
+
+uint8_t
+cc1120_flush_rx(void)
+{
+	/* FLush RX FIFO. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
+
+	/* Spin until we are in IDLE. */
+	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	// TODO: give this a timeout?
+
+	/* Return IDLE state. */
+	return CC1120_STATUS_IDLE;
+}
+
+uint8_t
+cc1120_flush_tx(void)
+{
+	/* FLush TX FIFO. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
+
+	/* Spin until we are in IDLE. */
+	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	// TODO: give this a timeout?
+
+	/* Return IDLE state. */
+	return CC1120_STATUS_IDLE;
+}
+
 
 
 
 
 /* --------------------------- CC1120 SPI Functions --------------------------- */
+uint8_t
+cc1120_spi_cmd_strobe(uint8_t strobe)
+{
+	LOCK_SPI();
+	cc1120_arch_spi_enable();
+	
+	strobe = cc1120_arch_spi_rw_byte(strobe);
+	
+	cc1120_arch_spi_disable();
+	RELEASE_SPI();
+	
+	return strobe;
+}
+
 uint8_t
 cc1120_spi_single_read(uint16_t addr)
 {

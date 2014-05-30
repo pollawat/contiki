@@ -128,7 +128,7 @@ force_float_inclusion()
 void uip_log(char *msg) { puts(msg); }
 /*---------------------------------------------------------------------------*/
 #ifndef RF_CHANNEL
-#define RF_CHANNEL              42
+
 #endif
 /*---------------------------------------------------------------------------*/
 #if 0
@@ -204,7 +204,7 @@ main(int argc, char **argv)
   msp430_cpu_init();
   clock_init();
   
-  cc1120_arch_pin_init();
+  cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
   leds_init();
   leds_on(LEDS_RED);
@@ -216,6 +216,8 @@ main(int argc, char **argv)
   slip_arch_init(BAUD2UBR(115200));
 #endif /* WITH_UIP */
 
+  spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
+  
   xmem_init();
 
   rtimer_init();

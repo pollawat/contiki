@@ -167,6 +167,7 @@ typedef unsigned long off_t;
 /* **************************************************************************** */
 
 #define CC1120DEBUG		1
+#define RF_CHANNEL      42
 
 //#define CC1120_GPIO2_PRESENT
 //#define CC1120_GPIO3_PRESENT	
