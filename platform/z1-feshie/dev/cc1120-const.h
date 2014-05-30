@@ -216,8 +216,37 @@
 #define CC1120_ADDRESS_MASK					0xFF
 
 
-
-
+/* ------------------------------- GPIO Functions ------------------------------- */
+#define CC1120_GPIO_RXFIFO_THR			0
+#define CC1120_GPIO_RXFIFO_THR_PKT		1
+#define CC1120_GPIO_TXFIFO_THR			2
+#define CC1120_GPIO_TXFIFO_THR_PKT		3
+#define CC1120_GPIO_RXFIFO_OVERFLOW		4
+#define CC1120_GPIO_TXFIFO_UNDERFLOW	5
+#define CC1120_GPIO_PKT_SYNC_RXTX		6
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
+#define CC1120_GPIO_
 
 
 

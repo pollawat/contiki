@@ -6,33 +6,9 @@
  *         Phil Basford <pjb@ecs.soton.ac.uk>
  */
  
-/* Contiki Headers. */
-#include "contiki.h"
-#include "contiki-conf.h"
-
-/* Network Headers. */
-#include "dev/radio.h"
-#include "net/packetbuf.h"
-#include "net/rime/rimestats.h"
-#include "net/netstack.h"
-#include "net/mac/frame802154.h"
-
 
 /* CC1120 headers. */
 #include "cc1120.h"
-#include "cc1120-const.h"
-#include "cc1120-config.h"
-#include "cc1120-arch.h"
-
-/* Misc Headers. */
-#include <string.h>
-#include <stdio.h>
-
-
-#define DEBUG 1
-#define CC1120_MAX_PAYLOAD 125
-
-
 
 /* --------------------------- Radio Driver Structure --------------------------- */
 const struct radio_driver cc1120_driver = {
@@ -53,7 +29,7 @@ const struct radio_driver cc1120_driver = {
 int 
 cc1120_driver_init(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Init ****\n");
 	#endif
 
@@ -62,7 +38,7 @@ cc1120_driver_init(void)
 int
 cc1120_driver_prepare(const void *payload, unsigned short len)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Prepare ****\n");
 	#endif
 }
@@ -70,7 +46,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Transmit ****\n");
 	#endif
 }
@@ -78,7 +54,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 int
 cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Send ****\n");
 	#endif
 }
@@ -86,7 +62,7 @@ cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 int
 cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Read ****\n");
 	#endif
 }
@@ -94,7 +70,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 int
 cc1120_driver_channel_clear(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: CCA ****\n");
 	#endif
 }
@@ -102,7 +78,7 @@ cc1120_driver_channel_clear(void)
 int
 cc1120_driver_receiving_packet(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Receiving Packet? ****\n");
 	#endif
 }
@@ -110,7 +86,7 @@ cc1120_driver_receiving_packet(void)
 int
 cc1120_driver_pending_packet(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Pending Packet? ****\n");
 	#endif
 }
@@ -118,7 +94,7 @@ cc1120_driver_pending_packet(void)
 int
 cc1120_driver_on(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: On ****\n");
 	#endif
 }
@@ -126,7 +102,7 @@ cc1120_driver_on(void)
 int
 cc1120_driver_off(void)
 {
-	#if DEBUG
+	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Off ****\n");
 	#endif
 }

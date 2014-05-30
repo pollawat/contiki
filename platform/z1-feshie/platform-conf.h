@@ -30,7 +30,7 @@
 
 /**
  * \file
- *         Platform configuration for the Z1 platform
+ *         Platform configuration for the Z1-feshie platform
  * \author
  *         Joakim Eriksson <joakime@sics.se>
  */
@@ -91,7 +91,7 @@ typedef unsigned long clock_time_t;
 typedef unsigned long off_t;
 
 /* the low-level radio driver */
-#define NETSTACK_CONF_RADIO   cc11xx_driver
+#define NETSTACK_CONF_RADIO   cc1120_driver
 
 /*
  * Definitions below are dictated by the hardware and not really
@@ -126,45 +126,34 @@ typedef unsigned long off_t;
 
 #define CFS_RAM_CONF_SIZE 4096
 
-/*
- * SPI bus configuration for the TMote Sky.
- */
 
-/* SPI input/output registers. */
+
+/* **************************************************************************** */
+/* ------------------------------- SPI Related -------------------------------- */
+/* **************************************************************************** */
 #define SPI_TXBUF UCB0TXBUF
 #define SPI_RXBUF UCB0RXBUF
 
-				/* USART0 Tx ready? */
+/* USART0 Tx ready? */
 #define	SPI_WAITFOREOTx() while ((UCB0STAT & UCBUSY) != 0)
-				/* USART0 Rx ready? */
+
+/* USART0 Rx ready? */
 #define	SPI_WAITFOREORx() while ((IFG2 & UCB0RXIFG) == 0)
-				/* USART0 Tx buffer ready? */
+
+/* USART0 Tx buffer ready? */
 #define SPI_WAITFORTxREADY() while ((IFG2 & UCB0TXIFG) == 0)
 
 #define MOSI           1  /* P3.1 - Output: SPI Master out - slave in (MOSI) */
 #define MISO           2  /* P3.2 - Input:  SPI Master in - slave out (MISO) */
 #define SCK            3  /* P3.3 - Output: SPI Serial Clock (SCLK) */
 
-#define CC1120_SPI_CSN_PORT(type)  P2##type
-#define CC1120_SPI_CSN_PIN     1
-#define CC1120_RESET_PORT(type)	   P2##type
-#define CC1120_RESET_PIN       6
 
-#define CC1120_SPI_MOSI_PORT(type)  P3##type
-#define CC1120_SPI_MOSI_PIN    1
-#define CC1120_SPI_MISO_PORT(type)  P3##type
-#define CC1120_SPI_MISO_PIN    2
-#define CC1120_SPI_SCLK_PORT(type)  P3##type
-#define CC1120_SPI_SCLK_PIN    3
 
-/*
- * SPI bus - M25P80 external flash configuration.
- */
-//#define FLASH_PWR	3	/* P4.3 Output */ ALWAYS POWERED ON Z1
+/* **************************************************************************** */
+/* --------------------------- M25P80 Flash Related --------------------------- */
+/* **************************************************************************** */
 #define FLASH_CS	4	/* P4.4 Output */
 #define FLASH_HOLD	7	/* P5.7 Output */
-
-/* Enable/disable flash access to the SPI bus (active low). */
 
 #define SPI_FLASH_ENABLE()  ( P4OUT &= ~BV(FLASH_CS) )
 #define SPI_FLASH_DISABLE() ( P4OUT |=  BV(FLASH_CS) )
@@ -173,27 +162,44 @@ typedef unsigned long off_t;
 #define SPI_FLASH_UNHOLD()		( P5OUT |=  BV(FLASH_HOLD) )
 
 
-#define CC11xx_ARCH_SPI_ENABLE  cc1120_arch_spi_enable
-#define CC11xx_ARCH_SPI_DISABLE cc1120_arch_spi_disable
-#define CC11xx_ARCH_SPI_RW_BYTE cc1120_arch_spi_rw_byte
-#define CC11xx_ARCH_SPI_RW      cc1120_arch_spi_rw
+/* **************************************************************************** */
+/* ------------------------------ CC1120 Related ------------------------------ */
+/* **************************************************************************** */
 
-#define cc11xx_arch_spi_enable  cc1120_arch_spi_enable
-#define cc11xx_arch_spi_disable cc1120_arch_spi_disable
-#define cc11xx_arch_spi_rw_byte cc1120_arch_spi_rw_byte
-#define cc11xx_arch_spi_rw      cc1120_arch_spi_rw
-#define cc11xx_arch_interrupt_enable cc1120_arch_interrupt_enable
+#define CC1120DEBUG		1
+
+#define CC1120_GPIO0_FUNC
+#define CC1120_GPIO2_FUNC
+#define CC1120_GPIO3_FUNC
+
+
+/* --------------------------- CC1120 Pin Mappings. --------------------------- */
+#define CC1120_RESET_PORT(type)	   P2##type
+#define CC1120_RESET_PIN       6
+
+#define CC1120_SPI_CSN_PORT(type)  P2##type
+#define CC1120_SPI_CSN_PIN     1
+
+#define CC1120_SPI_MOSI_PORT(type)  P3##type
+#define CC1120_SPI_MOSI_PIN    1
+
+#define CC1120_SPI_MISO_PORT(type)  P3##type
+#define CC1120_SPI_MISO_PIN    2
+
+#define CC1120_SPI_SCLK_PORT(type)  P3##type
+#define CC1120_SPI_SCLK_PIN    3
 
 #define CC1120_GDO0_PORT(type) P1##type
 #define CC1120_GDO0_PIN        0
 
-#define GPIO_TEST1_PORT(type) P1##type
-#define GPIO_TEST1_PIN         7
-
-//#define GPIO_TEST2_PORT(type) P2##type
-//#define GPIO_TEST2_PIN	       1
 
 
+
+/* **************************************************************************** */
+/* ------------------------------ CC2420 Related ------------------------------ */
+/* **************************************************************************** */
+
+/* Pin Mappings. */
 #define CC2420_CSN_PORT(type) P3##type
 #define CC2420_CSN_PIN	      0
 
@@ -202,7 +208,5 @@ typedef unsigned long off_t;
 
 #define CC2420_RESET_PORT(type)    P4##type
 #define CC2420_RESET_PIN           6
-
-#define cc11xx_arch_init        cc1120_arch_init
 
 #endif /* __PLATFORM_CONF_H__ */
