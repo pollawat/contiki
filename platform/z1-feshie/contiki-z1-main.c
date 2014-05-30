@@ -203,6 +203,9 @@ main(int argc, char **argv)
    */
   msp430_cpu_init();
   clock_init();
+  
+  cc1120_arch_pin_init();
+  
   leds_init();
   leds_on(LEDS_RED);
 
@@ -212,15 +215,6 @@ main(int argc, char **argv)
 #if WITH_UIP
   slip_arch_init(BAUD2UBR(115200));
 #endif /* WITH_UIP */
-
-  /* Setup CC1120 pins to avoid SPI conflict*/
-  CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);
-  CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);
-  CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
-
-  CC1120_RESET_PORT(DIR) |= BV(CC1120_RESET_PIN);
-  CC1120_RESET_PORT(SEL) &= ~BV(CC1120_RESET_PIN);
-  CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);
 
   xmem_init();
 
@@ -501,6 +495,13 @@ main(int argc, char **argv)
   return 0;
 }
 /*---------------------------------------------------------------------------*/
+
+void
+clock_delay_usec(uint16_t usec)
+{
+  clock_delay(usec / 100);
+}
+
 #if LOG_CONF_ENABLED
 void
 log_message(char *m1, char *m2)

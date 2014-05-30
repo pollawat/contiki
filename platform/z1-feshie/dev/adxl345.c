@@ -44,8 +44,8 @@
 #include "adxl345.h"
 //#include "cc2420.h"
 #include "platform-conf.h"
-#include <cc11xx.h>
-#include <cc11xx-arch.h>
+#include <cc1120.h>
+#include <cc1120-arch.h>
 #include "i2cmaster.h"
 #include "isr_compat.h"
 
@@ -383,7 +383,7 @@ ISR(PORT1, port1_isr)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
   /* ADXL345_IFG.x goes high when interrupt occurs, use to check what interrupted */
-  if ((ADXL345_IFG & ADXL345_INT1_PIN) && !(ADXL345_IFG & BV(CC1120_GDO0_PIN))){
+  if ((ADXL345_IFG & ADXL345_INT1_PIN) && !(CC1120_GDO0_PORT(IFG) & BV(CC1120_GDO0_PIN))){
     /* Check if this should be suppressed or not */
     if(timer_expired(&suppressTimer1)) {
       timer_set(&suppressTimer1, SUPPRESS_TIME_INT1);
@@ -391,7 +391,7 @@ ISR(PORT1, port1_isr)
       process_poll(&accmeter_process);
       LPM4_EXIT;
     }
-  } else if ((ADXL345_IFG & ADXL345_INT2_PIN) && !(ADXL345_IFG & BV(CC1120_GDO0_PIN))){
+  } else if ((ADXL345_IFG & ADXL345_INT2_PIN) && !(CC1120_GDO0_PORT(IFG) & BV(CC1120_GDO0_PIN))){
     /* Check if this should be suppressed or not */
     if(timer_expired(&suppressTimer2)) {
       timer_set(&suppressTimer2, SUPPRESS_TIME_INT2);
@@ -401,7 +401,7 @@ ISR(PORT1, port1_isr)
     }
   } else {
     /* CC1120 interrupt */
-    if(cc11xx_rx_interrupt()) {
+    if(cc1120_rx_interrupt()) {
       LPM4_EXIT;
     }
   }

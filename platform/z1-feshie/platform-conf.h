@@ -168,6 +168,9 @@ typedef unsigned long off_t;
 
 #define CC1120DEBUG		1
 
+//#define CC1120_GPIO2_PRESENT
+//#define CC1120_GPIO3_PRESENT	
+
 #define CC1120_GPIO0_FUNC
 #define CC1120_GPIO2_FUNC
 #define CC1120_GPIO3_FUNC
@@ -192,6 +195,16 @@ typedef unsigned long off_t;
 #define CC1120_GDO0_PORT(type) P1##type
 #define CC1120_GDO0_PIN        0
 
+#ifdef CC1120_GPIO2_PRESENT
+#define CC1120_GDO1_PORT(type) P1##type
+#define CC1120_GDO1_PIN        0
+#endif
+
+#ifdef CC1120_GPIO3_PRESENT
+#define CC1120_GDO3_PORT(type) P1##type
+#define CC1120_GDO3_PIN        0
+
+#endif
 
 
 

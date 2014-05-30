@@ -145,7 +145,7 @@ erase_sector(unsigned long offset)
 void
 xmem_init(void)
 {
-  spi_init();
+  //spi_init();
 
   P4DIR |= BV(FLASH_CS);   // Unnecessary for Zolertia Z1  | BV(FLASH_PWR);
   P5DIR |= BV(FLASH_HOLD); // In P5 for Z1

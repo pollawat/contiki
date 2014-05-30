@@ -11,7 +11,7 @@ endif
 CLEAN += symbols.c symbols.h
 
 ARCH=msp430.c leds.c watchdog.c xmem.c \
-     spi.c cc11xx.c cc1120-msp-arch.c \
+     spi.c cc1120.c cc1120-arch-z1.c \
      node-id.c sensors.c button-sensor.c cfs-coffee.c \
      uart0.c uart0-putchar.c uip-ipchksum.c \
      checkpoint-arch.c slip.c slip_uart0.c \

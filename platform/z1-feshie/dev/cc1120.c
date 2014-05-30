@@ -32,7 +32,20 @@ cc1120_driver_init(void)
 	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Init ****\n");
 	#endif
-
+	
+	/* Init arch & SPI */
+	
+	/* Reset CC1120 */
+	
+	/* Check CC1120 */
+	
+	/* Configure CC1120 */
+	
+	/* Set Channel */
+	
+    /* Set to IDLE */
+	
+	
 }
 
 int
@@ -73,6 +86,8 @@ cc1120_driver_channel_clear(void)
 	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: CCA ****\n");
 	#endif
+	/* CCA Pin Check */
+	
 }
 
 int
@@ -97,6 +112,9 @@ cc1120_driver_on(void)
 	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: On ****\n");
 	#endif
+	/* Set CC1120 into RX. */
+	
+	/* Enable CC1120 RX interrupt*/
 }
 
 int
@@ -105,6 +123,9 @@ cc1120_driver_off(void)
 	#if CC1120DEBUG || DEBUG
 		printf("**** Radio Driver: Off ****\n");
 	#endif
+	/* Put CC1120 into IDLE or sleep?*/
+	
+	/* Disable CC1120 RX interrupt. */
 }
 
 
@@ -252,7 +273,7 @@ input_byte(uint8_t byte)
 }
 
 void
-reset(void)
+cc1120_reset(void)
 {
 
 }
