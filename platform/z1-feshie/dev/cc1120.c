@@ -428,8 +428,7 @@ cc1120_spi_single_read(uint16_t addr)
 	LOCK_SPI();
 	cc1120_arch_spi_enable();
 	
-	cc1120_spi_write_addr(
-	
+	cc1120_spi_write_addr(addr, CC1120_STANDARD_BIT, CC1120_READ_BIT);
 	addr = cc1120_arch_spi_rw_byte(0);		/* Get the value.  Re-use addr to save a byte. */ 
 	
 	cc1120_arch_spi_disable();
@@ -441,19 +440,42 @@ cc1120_spi_single_read(uint16_t addr)
 uint8_t
 cc1120_spi_single_write(uint16_t addr, uint8_t val)
 {
-
+	LOCK_SPI();
+	cc1120_arch_spi_enable();
+	
+	addr = cc1120_spi_write_addr(addr, CC1120_STANDARD_BIT, CC1120_WRITE_BIT);	/* Read the status byte. */
+	cc1120_arch_spi_rw_byte(val);		
+	
+	cc1120_arch_spi_disable();
+	RELEASE_SPI();
+	
+	return addr;
 }
 
 void
-cc1120_spi_burst_read(uint16_t addr, uint8_t *buffer, uint8_t count)
+cc1120_spi_burst_read(uint16_t addr, uint8_t *buf, uint8_t len)
 {
-
+	LOCK_SPI();
+	cc1120_arch_spi_enable();
+	
+	cc1120_spi_write_addr(addr, CC1120_BURST_BIT, CC1120_READ_BIT);
+	cc1120_arch_rw_buf(buf, NULL, len);
+	
+	cc1120_arch_spi_disable();
+	RELEASE_SPI();
 }
 
 void
-cc1120_spi_burst_write(uint16_t addr, uint8_t *buffer, uint8_t count)
+cc1120_spi_burst_write(uint16_t addr, uint8_t *buf, uint8_t len)
 {
-
+	LOCK_SPI();
+	cc1120_arch_spi_enable();
+	
+	cc1120_spi_write_addr(addr, CC1120_BURST_BIT, CC1120_WRITE_BIT);
+	cc1120_arch_rw_buf(NULL, BUFF, len);
+	
+	cc1120_arch_spi_disable();
+	RELEASE_SPI();
 }
 
 void
