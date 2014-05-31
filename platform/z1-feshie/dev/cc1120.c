@@ -10,6 +10,10 @@
 /* CC1120 headers. */
 #include "cc1120.h"
 
+
+/* Internal variables. */
+static volatile uint8_t current_channel, transmitting;
+
 /* --------------------------- Radio Driver Structure --------------------------- */
 const struct radio_driver cc1120_driver = {
     cc1120_driver_init,
@@ -140,12 +144,16 @@ cc1120_set_channel(uint8_t channel)
 {
 	//TODO: Need to check country, should probably be set in platform?
 	//TODO: Need to do manual calibration after setting channel due to errata...
+	
+	
+	current_channel = channel;
+	return current_channel;
 }
 
 uint8_t
 cc1120_get_channel(void)
 {
-
+	return current_channel;
 }
 
 uint8_t
@@ -172,21 +180,23 @@ cc1120_set_state(uint8_t state)
 	{
 		case CC1120_STATE_FSTXON:	/* Can only enter from IDLE, TX or RX. */
 								if(!((cur_state & CC1120_STATUS_IDLE) 
-									| (cur_state & CC1120_STATUS_TX)))
+									| (cur_state & CC1120_STATUS_TX)
+									| (cur_state & CC1120_STATUS_FSTXON)))
 								{
+									/* If we are not in IDLE or TX or FSTXON, get us to IDLE.
+									 * While we can enter FSTXON from RX, it may leave stuff stuck in the FIFO. */
 									cc1120_set_idle();
 									if (cur_state & CC1120_STATUS_RX)
 									{
 										cc1120_flush_rx();
 									}
 								}
-								else if(!(cur_state & CC1120_STATUS_FSTXON))
+								if(!(cur_state & CC1120_STATUS_FSTXON))
 								{
 									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);
 									while(!((c1120_get_state() & CC1120_STATUS_FSTXON));
 								}
 								return CC1120_STATUS_FSTXON;
-								break;
 								
 		case CC1120_STATE_XOFF:		/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
@@ -200,7 +210,6 @@ cc1120_set_state(uint8_t state)
 								}
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SXOFF);
 								return CC1120_STATUS_IDLE;
-								break;
 								
 		case CC1120_STATE_CAL:		/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
@@ -215,8 +224,6 @@ cc1120_set_state(uint8_t state)
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SCAL);
 								while(!((c1120_get_state() & CC1120_STATUS_CALIBRATE));
 								return CC1120_STATUS_CALIBRATE;
-								break;
-								break;
 								
 		case CC1120_STATE_RX:		/* Can only enter from IDLE, FSTXON or TX. */
 								if (cur_state & CC1120_STATUS_RX)
@@ -290,7 +297,7 @@ cc1120_set_state(uint8_t state)
 								
 		case CC1120_STATE_IDLE:		/* Can enter from any state. */
 								/* If we are already in IDLE, do nothing and return the current state. */
-								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
 								{
 									/* If there is a RX FIFO Error, clear it. */
 									cc1120_flush_rx();
@@ -307,7 +314,6 @@ cc1120_set_state(uint8_t state)
 								}
 								/* Return IDLE state. */
 								return CC1120_STATUS_IDLE;
-								break;
 								
 		case CC1120_STATE_SLEEP:	/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
