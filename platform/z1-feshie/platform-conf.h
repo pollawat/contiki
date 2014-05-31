@@ -172,6 +172,8 @@ typedef unsigned long off_t;
 #define CC1120_FHSS_ETSI_50    1
 #define CC1120_FHSS_FCC_50     0
 
+#define CC1120_OFF_STATE CC1120_STATE_IDLE
+
 //#define CC1120_GPIO2_PRESENT
 //#define CC1120_GPIO3_PRESENT	
 

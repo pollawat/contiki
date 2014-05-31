@@ -120,6 +120,7 @@ cc1120_driver_on(void)
 		printf("**** Radio Driver: On ****\n");
 	#endif
 	/* Set CC1120 into RX. */
+	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	// TODO: DO we want to set TXOFF_MODE=11 so that it goes to RX after TX?
 	// TODO: Do we want to set RXOFF_MODE=01 so that we go to FSTXON after RX? 
 	
@@ -133,8 +134,12 @@ cc1120_driver_off(void)
 		printf("**** Radio Driver: Off ****\n");
 	#endif
 	/* Put CC1120 into IDLE or sleep?*/
+	cc1120_set_state(CC1120_OFF_STATE);
 	
 	/* Disable CC1120 RX interrupt. */
+	cc1120_arch_interrupt_disable();
+	
+	
 }
 
 
