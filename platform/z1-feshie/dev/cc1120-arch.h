@@ -50,3 +50,7 @@ void cc1120_arch_interrupt_enable(void);
 void cc1120_arch_interrupt_disable(void);
 
 void cc1120_arch_pin_init(void);
+
+#if CC1120_CCA_PIN_PRESENT
+uint8_t cc1120_arch_read_cca(void);
+#endif

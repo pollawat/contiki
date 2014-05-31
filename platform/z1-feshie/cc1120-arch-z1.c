@@ -199,6 +199,12 @@ cc1120_arch_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 	return ret;
 }
 
+uint8_t 
+cc1120_arch_read_cca(void)
+{
+	return (CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN));
+}
+
 
 /* -------------------------- Interrupt Functions -------------------------- */
 

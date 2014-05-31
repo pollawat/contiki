@@ -12,7 +12,7 @@
 
 
 /* Internal variables. */
-static volatile uint8_t current_channel, transmitting;
+static volatile uint8_t current_channel, transmitting, radio_on = 0;
 
 /* --------------------------- Radio Driver Structure --------------------------- */
 const struct radio_driver cc1120_driver = {
@@ -91,10 +91,34 @@ int
 cc1120_driver_channel_clear(void)
 {
 	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: CCA ****\n");
+	printf("**** Radio Driver: CCA ****\n");
 	#endif
-	/* CCA Pin Check */
 	
+	#if CC1120_CCA_PIN_PRESENT
+	/* we have a CCA Pin so we can check it instead of reading RSSI register */
+	return cc1120_arch_read_cca();
+	#endif
+	#if !CC1120_CCA_PIN_PRESENT
+	/* We don't have a CCA pin so we do a CCA the hard way.*/
+	uint8_t cur_state, cca = 0;
+	
+	/* We need to be in RX to do a CCA so find out where we are. */
+	cur_state = cc1120_get_state();
+	
+	/* If we are not in RX, get us there. */
+	if(cur_state != CC1120_STATUS_RX)
+	{
+		cc1120_set_state(CC1120_STATE_RX);	
+	}
+	
+	/* Read RSSI. */
+	
+	if(!radio_on)
+	{
+		cc1120_driver_off();
+	}
+	
+	#endif
 }
 
 int
@@ -123,8 +147,15 @@ cc1120_driver_on(void)
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	// TODO: DO we want to set TXOFF_MODE=11 so that it goes to RX after TX?
 	// TODO: Do we want to set RXOFF_MODE=01 so that we go to FSTXON after RX? 
+	// TODO: Do we want to flush RX before going into RX?
+	
 	
 	/* Enable CC1120 RX interrupt*/
+	cc1120_arch_interrupt_enable();
+	
+	/* Radio on. */
+	radio_on = 1;
+	return 1;
 }
 
 int
@@ -139,7 +170,9 @@ cc1120_driver_off(void)
 	/* Disable CC1120 RX interrupt. */
 	cc1120_arch_interrupt_disable();
 	
-	
+	/* Irrelevant return... */
+	radio_on = 0;
+	return 1;	
 }
 
 
@@ -184,31 +217,31 @@ cc1120_set_state(uint8_t state)
 	switch(state)
 	{
 		case CC1120_STATE_FSTXON:	/* Can only enter from IDLE, TX or RX. */
-								if(!((cur_state & CC1120_STATUS_IDLE) 
-									| (cur_state & CC1120_STATUS_TX)
-									| (cur_state & CC1120_STATUS_FSTXON)))
+								if(!((cur_state == CC1120_STATUS_IDLE) 
+									|| (cur_state == CC1120_STATUS_TX)
+									|| (cur_state == CC1120_STATUS_FSTXON)))
 								{
 									/* If we are not in IDLE or TX or FSTXON, get us to IDLE.
 									 * While we can enter FSTXON from RX, it may leave stuff stuck in the FIFO. */
 									cc1120_set_idle();
-									if (cur_state & CC1120_STATUS_RX)
+									if (cur_state == CC1120_STATUS_RX)
 									{
 										cc1120_flush_rx();
 									}
 								}
-								if(!(cur_state & CC1120_STATUS_FSTXON))
+								if(!(cur_state == CC1120_STATUS_FSTXON))
 								{
 									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);
-									while(!((c1120_get_state() & CC1120_STATUS_FSTXON));
+									while(c1120_get_state() != CC1120_STATUS_FSTXON);
 								}
 								return CC1120_STATUS_FSTXON;
 								
 		case CC1120_STATE_XOFF:		/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
-								if(!(cur_state & CC1120_STATUS_IDLE)
+								if(cur_state != CC1120_STATUS_IDLE)
 								{
 									cc1120_set_idle();
-									if (cur_state & CC1120_STATUS_RX)
+									if (cur_state == CC1120_STATUS_RX)
 									{
 										cc1120_flush_rx();
 									}
@@ -218,39 +251,39 @@ cc1120_set_state(uint8_t state)
 								
 		case CC1120_STATE_CAL:		/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
-								if(!(cur_state & CC1120_STATUS_IDLE)
+								if(cur_state != CC1120_STATUS_IDLE)
 								{
 									cc1120_set_idle();
-									if (cur_state & CC1120_STATUS_RX)
+									if (cur_state == CC1120_STATUS_RX)
 									{
 										cc1120_flush_rx();
 									}
 								}
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SCAL);
-								while(!((c1120_get_state() & CC1120_STATUS_CALIBRATE));
+								while(c1120_get_state() != CC1120_STATUS_CALIBRATE);
 								return CC1120_STATUS_CALIBRATE;
 								
 		case CC1120_STATE_RX:		/* Can only enter from IDLE, FSTXON or TX. */
-								if (cur_state & CC1120_STATUS_RX)
+								if (cur_state == CC1120_STATUS_RX)
 								{
 									cc1120_set_idle();
 									cc1120_flush_rx();
 									return cc1120_set_rx();
 								}								
-								else if((cur_state & CC1120_STATUS_IDLE) 
-									| (cur_state & CC1120_STATUS_FSTXON)
-									| (cur_state & CC1120_STATUS_TX))
+								else if((cur_state == CC1120_STATUS_IDLE) 
+									|| (cur_state == CC1120_STATUS_FSTXON)
+									|| (cur_state == CC1120_STATUS_TX))
 								{
 									/* Return RX state. */
 									return cc1120_set_rx();
 								}
-								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
 								{
 									/* If there is a RX FIFO Error, clear it and RX. */
 									cc1120_flush_rx();
 									return cc1120_set_rx();
 								}
-								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								else if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 								{
 									/* If there is a TX FIFO Error, clear it and RX. */
 									cc1120_flush_tx();
@@ -259,9 +292,12 @@ cc1120_set_state(uint8_t state)
 								else
 								{
 									/* We are in a state that will end up in IDLE, FSTXON or TX. Wait till we are there. */
-									while(!((c1120_get_state() & CC1120_STATUS_IDLE) |
-											(c1120_get_state() & CC1120_STATUS_FSTXON)	|
-											(c1120_get_state() & CC1120_STATUS_TX)) );
+									while(!((cur_state == CC1120_STATUS_IDLE)
+										|| (cur_state == CC1120_STATUS_FSTXON)
+										|| (cur_state == CC1120_STATUS_TX)) )
+										{
+											cur_state = cc1120_get_state;
+										}
 									
 									/* Return RX state. */
 									return cc1120_set_rx();
@@ -269,20 +305,20 @@ cc1120_set_state(uint8_t state)
 								break;
 								
 		case CC1120_STATE_TX:		/* Can only enter from IDLE, FSTXON or RX. Entering TX from TX will end TX & start a new.*/
-								if((cur_state & CC1120_STATUS_IDLE) 
-									| (cur_state & CC1120_STATUS_FSTXON)
-									| (cur_state & CC1120_STATUS_RX))
+								if((cur_state == CC1120_STATUS_IDLE) 
+								|| (cur_state == CC1120_STATUS_FSTXON)
+								|| (cur_state == CC1120_STATUS_RX))
 								{
 									/* Return TX state. */
 									return cc1120_set_tx();
 								}
-								else if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
 								{
 									/* If there is a RX FIFO Error, clear it and TX. */
 									cc1120_flush_rx();
 									return cc1120_set_tx();
 								}
-								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								else if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 								{
 									/* If there is a TX FIFO Error, clear it and TX. */
 									cc1120_flush_tx();
@@ -291,10 +327,12 @@ cc1120_set_state(uint8_t state)
 								else
 								{
 									/* We are in a state that will end up in IDLE, FSTXON or RX. Wait till we are there. */
-									while(!((c1120_get_state() & CC1120_STATUS_IDLE) |
-											(c1120_get_state() & CC1120_STATUS_FSTXON)	|
-											(c1120_get_state() & CC1120_STATUS_RX)) );
-									
+									while(!((cur_state == CC1120_STATUS_IDLE)
+										|| (cur_state == CC1120_STATUS_FSTXON)
+										|| (cur_state == CC1120_STATUS_RX)) )
+										{
+											cur_state = cc1120_get_state;
+										}
 									/* Return TX state. */
 									return cc1120_set_tx();
 								}
@@ -302,17 +340,17 @@ cc1120_set_state(uint8_t state)
 								
 		case CC1120_STATE_IDLE:		/* Can enter from any state. */
 								/* If we are already in IDLE, do nothing and return the current state. */
-								if(cur_state & CC1120_STATUS_RX_FIFO_ERROR)
+								if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
 								{
 									/* If there is a RX FIFO Error, clear it. */
 									cc1120_flush_rx();
 								}
-								else if(cur_state & CC1120_STATUS_TX_FIFO_ERROR)
+								else if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 								{
 									/* If there is a TX FIFO Error, clear it. */
 									cc1120_flush_tx();
 								}
-								else if(!(cur_state & CC1120_STATUS_IDLE))
+								else if(cur_state != CC1120_STATUS_IDLE)
 								{
 									/* Set Idle. */
 									cc1120_set_idle();
@@ -322,7 +360,7 @@ cc1120_set_state(uint8_t state)
 								
 		case CC1120_STATE_SLEEP:	/* Can only enter from IDLE. */
 								/* If we are not in IDLE, get us there. */
-								if(!(cur_state & CC1120_STATUS_IDLE)
+								if(cur_state != CC1120_STATUS_IDLE)
 								{
 									cc1120_set_idle();
 								}
@@ -339,7 +377,7 @@ cc1120_set_state(uint8_t state)
 uint8_t
 cc1120_get_state(void)
 {
-	return (cc1120_spi_cmd_strobe(CC1120_STROBE_SNOP) && CC1120_STATUS_STATE_MASK);
+	return (cc1120_spi_cmd_strobe(CC1120_STROBE_SNOP) & CC1120_STATUS_STATE_MASK);
 }
 
 
@@ -351,7 +389,7 @@ cc1120_set_idle(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
 
 	/* Spin until we are in IDLE. */
-	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	while(c1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 	
 	/* Return IDLE state. */
@@ -365,7 +403,7 @@ cc1120_set_rx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SRX);
 
 	/* Spin until we are in RX. */
-	while(!((c1120_get_state() & CC1120_STATUS_RX));
+	while(c1120_get_state() != CC1120_STATUS_RX);
 	// TODO: give this a timeout?
 
 	/* Return TX state. */
@@ -379,7 +417,7 @@ cc1120_set_tx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 
 	/* Spin until we are in TX. */
-	while(!((c1120_get_state() & CC1120_STATUS_TX));
+	while(c1120_get_state() != CC1120_STATUS_TX);
 	// TODO: give this a timeout?
 
 	/* Return TX state. */
@@ -393,7 +431,7 @@ cc1120_flush_rx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 
 	/* Spin until we are in IDLE. */
-	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	while((c1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 
 	/* Return IDLE state. */
@@ -407,7 +445,7 @@ cc1120_flush_tx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
 
 	/* Spin until we are in IDLE. */
-	while(!((c1120_get_state() & CC1120_STATUS_IDLE));
+	while(c1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 
 	/* Return IDLE state. */
