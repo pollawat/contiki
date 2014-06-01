@@ -90,6 +90,23 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Prepare ****\n");
 #endif
+	if(len > CC1120_MAX_PAYLOAD)
+	{
+		/* Packet is too large - max packet size is 125 bytes. */
+#if CC1120DEBUG || DEBUG
+		printf("!!! PREPARE ERROR: Packet too large. !!!\n");
+#endif
+		return RADIO_TX_ERR;
+	}
+
+
+	// TODO: Do we want to load data into FIFO here?
+	
+	
+	/* Read number of bytes in TX FIFO. */
+	
+	/* If the FIFO is not empty, flush it. Otherwise we might send multiple TXs. */
+		
 }
 
 int
@@ -98,6 +115,22 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Transmit ****\n");
 #endif
+		if(transmit_len > CC1120_MAX_PAYLOAD)
+	{
+		/* Packet is too large - max packet size is 125 bytes. */
+#if CC1120DEBUG || DEBUG
+		printf("!!! TX ERROR: Packet too large. !!!\n");
+#endif
+		return RADIO_TX_ERR;
+	}
+	
+	transmitting = 1;
+	/* Enter TX. */
+	
+	/* Check that TX was successful. */
+	
+	transmitting = 0;
+	
 }
 
 int
@@ -217,6 +250,10 @@ cc1120_driver_off(void)
 #endif
 	// TODO: If TXOFF_MODE is set not to go to IDLE, shall we set it to do so?
 	
+	/* Flush the RX and TX FIFOs. */
+	cc1120_set_state(CC1120_STATE_IDLE);
+	cc1120_flush_tx();
+	cc1120_flush_rx();
 	
 	/* Put CC1120 into IDLE or sleep? Leave it up to platform-conf.h*/
 	cc1120_set_state(CC1120_OFF_STATE);
@@ -371,7 +408,7 @@ cc1120_set_state(uint8_t state)
 								}
 								break;
 								
-		case CC1120_STATE_TX:		/* Can only enter from IDLE, FSTXON or RX. Entering TX from TX will end TX & start a new.*/
+		case CC1120_STATE_TX:		/* Can only enter from IDLE, FSTXON or RX. */
 								if((cur_state == CC1120_STATUS_IDLE) 
 								|| (cur_state == CC1120_STATUS_FSTXON)
 								|| (cur_state == CC1120_STATUS_RX))
