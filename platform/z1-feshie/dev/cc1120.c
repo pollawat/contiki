@@ -33,9 +33,10 @@ const struct radio_driver cc1120_driver = {
 int 
 cc1120_driver_init(void)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Init ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Init ****\n");
+#endif
+	uint8_t part = 0;
 	
 	/* Init arch */
 	cc1120_arch_init();
@@ -43,64 +44,90 @@ cc1120_driver_init(void)
 	/* Reset CC1120 */
 	cc1120_arch_reset();
 	
-	/* Check CC1120 */
+	/* Check CC1120 - we read the part number register as a test. */
+	part = cc1120_spi_single_read(CC1120_ADDR_PARTNUMBER);
+	switch(part)
+	{
+		case CC1120_PART_NUM_CC1120:
+									printf("CC1120 Detected - Radio OK\n");
+									break;
+		case CC1120_PART_NUM_CC1121:
+									printf("CC1121 Detected - Radio OK\n");
+									break;
+		case CC1120_PART_NUM_CC1125:
+									printf("CC1125 Detected - Radio OK\n");
+									break;
+		case CC1120_PART_NUM_CC1175:							
+									printf("CC1175 Detected\n");
+									printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n);
+									while(1);	/* Spin ad infinitum as we cannot continue. */
+									break;
+		case default:	/* Not a supported chip or no chip present... */
+						printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %04x detected) ***\n", part);
+						printf("*** Check radio and reset ***\n");
+						while(1);	/* Spin ad infinitum as we cannot continue. */
+						break;
+	}
 	
 	/* Configure CC1120 */
+	cc1120_register_config();
+	cc1120_gpio_config();
 	
 	/* Set Channel */
-	cc1120_set_channel((RF_CHANNEL);
+	cc1120_set_channel(RF_CHANNEL);
 	
-    /* Set to IDLE */
-	cc1120_set_state(IDLE);
+    /* Set radio off */
+	cc1120_driver_off();
+#if CC1120DEBUG || DEBUG
+	printf("\tCC1120 Initialised\n");
+#endif
 	
 }
 
 int
 cc1120_driver_prepare(const void *payload, unsigned short len)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Prepare ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Prepare ****\n");
+#endif
 }
 
 int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Transmit ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Transmit ****\n");
+#endif
 }
 
 int
 cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Send ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Send ****\n");
+#endif
+	cc1120_driver_prepare(payload, payload_len);
+	// TODO: use the return code
+	
+	return cc1120_driver_transmit(payload_len);
 }
 
 int
 cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Read ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Read ****\n");
+#endif
 }
 
 int
 cc1120_driver_channel_clear(void)
 {
-	#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: CCA ****\n");
-	#endif
+#endif
 	
-	#if CC1120_CCA_PIN_PRESENT
-	/* we have a CCA Pin so we can check it instead of reading RSSI register */
-	return cc1120_arch_read_cca();
-	#endif
-	#if !CC1120_CCA_PIN_PRESENT
-	/* We don't have a CCA pin so we do a CCA the hard way.*/
-	uint8_t cur_state, cca = 0;
+	uint8_t cur_state, cca;
 	
 	/* We need to be in RX to do a CCA so find out where we are. */
 	cur_state = cc1120_get_state();
@@ -111,38 +138,62 @@ cc1120_driver_channel_clear(void)
 		cc1120_set_state(CC1120_STATE_RX);	
 	}
 	
-	/* Read RSSI. */
+#if CC1120_CCA_PIN_PRESENT
+	/* we have a CCA Pin so we can check it instead of reading RSSI register */
+	cca = cc1120_arch_read_cca();
+#endif
+#if !CC1120_CCA_PIN_PRESENT 
+	/* We don't have a CCA pin so we do a CCA the hard way - 
+	 * Read CARRIER_SENSE and CARRIER_SENSE_VALID from RSSI0. */
+	uint8_t rssi0 = c1120_spi_single_read(CC11xx_RSSI0);
+	
+	/* Wait till the CARRIER_SENSE is valid. */
+    while(!(rssi0 & CC1120_CARRIER_SENSE_VALID))
+	{
+		rssi0 = c1120_spi_single_read(CC11xx_RSSI0);
+	}
+	//TODO: Timeout on this.
+	
+	if((rssi0 & CC1120_RSSI0_CARRIER_SENSE) == CC1120_RSSI0_CARRIER_SENSE)
+	{
+		cca = 0;
+	}
+	else
+	{
+		cca = 1;
+	}
+#endif
 	
 	if(!radio_on)
 	{
 		cc1120_driver_off();
 	}
 	
-	#endif
+	return cca;
 }
 
 int
 cc1120_driver_receiving_packet(void)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Receiving Packet? ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Receiving Packet? ****\n");
+#endif
 }
 
 int
 cc1120_driver_pending_packet(void)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Pending Packet? ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Pending Packet? ****\n");
+#endif
 }
 
 int
 cc1120_driver_on(void)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: On ****\n");
-	#endif
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: On ****\n");
+#endif
 	/* Set CC1120 into RX. */
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	// TODO: DO we want to set TXOFF_MODE=11 so that it goes to RX after TX?
@@ -161,10 +212,13 @@ cc1120_driver_on(void)
 int
 cc1120_driver_off(void)
 {
-	#if CC1120DEBUG || DEBUG
-		printf("**** Radio Driver: Off ****\n");
-	#endif
-	/* Put CC1120 into IDLE or sleep?*/
+#if CC1120DEBUG || DEBUG
+	printf("**** Radio Driver: Off ****\n");
+#endif
+	// TODO: If TXOFF_MODE is set not to go to IDLE, shall we set it to do so?
+	
+	
+	/* Put CC1120 into IDLE or sleep? Leave it up to platform-conf.h*/
 	cc1120_set_state(CC1120_OFF_STATE);
 	
 	/* Disable CC1120 RX interrupt. */
@@ -177,6 +231,19 @@ cc1120_driver_off(void)
 
 
 /* --------------------------- CC1120 Support Functions --------------------------- */
+void
+cc1120_gpio_config(void
+{
+	cc1120_spi_single_write(CC1120_ADDR_IOCFG0, CC1120_GPIO0_FUNC);
+	
+#ifdef CC1120_GPIO2_FUNC
+	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO2_FUNC);
+#endif
+#ifdef CC1120_GPIO3_FUNC
+	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, C1120_GPIO3_FUNC);
+#endif
+}
+
 uint8_t
 cc1120_set_channel(uint8_t channel)
 {
@@ -310,6 +377,8 @@ cc1120_set_state(uint8_t state)
 								|| (cur_state == CC1120_STATUS_RX))
 								{
 									/* Return TX state. */
+									// TODO: do we want to set PKT_CFG2.CCA_MODE = 100b (Listen Before Talk) so that TX is entered if in RX and channel is ! clear?
+									
 									return cc1120_set_tx();
 								}
 								else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)

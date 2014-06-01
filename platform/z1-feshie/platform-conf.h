@@ -174,12 +174,14 @@ typedef unsigned long off_t;
 
 #define CC1120_OFF_STATE CC1120_STATE_IDLE
 
+#define CC1120_CCA_PIN_PRESENT 1
+
 //#define CC1120_GPIO2_PRESENT
-//#define CC1120_GPIO3_PRESENT	
+#define CC1120_GPIO3_PRESENT	
 
 #define CC1120_GPIO0_FUNC
 #define CC1120_GPIO2_FUNC
-#define CC1120_GPIO3_FUNC
+#define CC1120_GPIO3_FUNC	CC1120_GPIO_CLEAR_CHANEL_ASSESSMENT
 
 
 /* --------------------------- CC1120 Pin Mappings. --------------------------- */
@@ -207,8 +209,8 @@ typedef unsigned long off_t;
 #endif
 
 #ifdef CC1120_GPIO3_PRESENT
-#define CC1120_GDO3_PORT(type) P1##type
-#define CC1120_GDO3_PIN        0
+#define CC1120_GDO3_PORT(type) P4##type
+#define CC1120_GDO3_PIN        3
 
 #endif
 

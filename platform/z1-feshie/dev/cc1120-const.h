@@ -11,6 +11,21 @@
 
 
 
+/* ------ CC1120 State Values (same as strobes for consistency) ------ */
+#define CC1120_STATE_FSTXON		0x31
+#define CC1120_STATE_XOFF		0x32	
+#define CC1120_STATE_CAL		0x33
+#define CC1120_STATE_RX			0x34
+#define CC1120_STATE_TX			0x35
+#define CC1120_STATE_IDLE		0x36
+#define CC1120_STATE_SLEEP		0x39
+#define CC1120_STATE_FRX		0x3A
+#define CC1120_STATE_RXERR		0x3A
+#define CC1120_STATE_FTX		0x3B
+#define CC1120_STATE_TXERR		0x3B
+
+
+
 /* ----------------------- CC1120 Config Memory Addresses ----------------------- */
 #define CC1120_ADDR_IOCFG3			0x00
 #define CC1120_ADDR_IOCFG2			0x01
@@ -289,11 +304,11 @@
 #define CC1120_STATUS_TX_FIFO_ERROR					0x70
 // bits 3:0 reserved
 
-#define CC1120_RSSI0_NOT_USED_MASK					0x80
+// bit 7 not used.									0x80
 #define CC1120_RSSI0_LSB_MASK_MASK					0x78
-#define CC1120_RSSI0_CARRIER_SENSE_MASK				0x04
-#define CC1120_CARRIER_SENSE_VALID_MASK				0x02
-#define CC1120_RSSI_VALID_MASK						0x01
+#define CC1120_RSSI0_CARRIER_SENSE					0x04
+#define CC1120_CARRIER_SENSE_VALID					0x02
+#define CC1120_RSSI_VALID							0x01
 
 #define CC1120_LQI_PKT_CRC_OK_MASK					0x80
 #define CC1120_LQI_MASK								0x2F
