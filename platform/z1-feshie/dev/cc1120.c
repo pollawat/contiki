@@ -59,7 +59,7 @@ cc1120_driver_init(void)
 									break;
 		case CC1120_PART_NUM_CC1175:							
 									printf("CC1175 Detected\n");
-									printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n);
+									printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n");
 									while(1);	/* Spin ad infinitum as we cannot continue. */
 									break;
 		case default:	/* Not a supported chip or no chip present... */
@@ -371,6 +371,38 @@ cc1120_set_channel(uint8_t channel)
 	//TODO: Need to check country, should probably be set in platform?
 	//TODO: Need to do manual calibration after setting channel due to errata...
 	
+	/* If we are an affected part version, carry out calibration as per CC112x/CC1175 errata. */
+	if(cc1120_spi_single_read(CC1120_ADDR_PARTVERSION) == 0x21)
+	{
+		uint8_t original_fs_cal2, calResults_for_vcdac_start_high[3], calResults_for_vcdac_start_mid[3];
+		
+		/* Set VCO cap Array to 0. */
+		cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, 0x00);				
+		/* Read FS_CAL2 */
+		original_fs_cal2 = cc1120_spi_single_read(CC1120_ADDR_FS_CAL2);
+		/* Write FS_CAL2 as original_fs_cal2 +2 */
+		cc1120_spi_single_write(CC1120_ADDR_FS_CAL2, (original_fs_cal2 + 2));
+		/* Strobe CAL and wait for completion. */
+		cc1120_set_state(CC1120_STATE_CAL);
+		while(cc1120_get_state() == CC1120_STATUS_CALIBRATE);
+		/* Read FS_VCO2, FS_VCO4, FS_CHP. */
+		calResults_for_vcdac_start_high[0] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO2);
+		calResults_for_vcdac_start_high[1] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO4);
+		calResults_for_vcdac_start_high[2] = cc1120_spi_single_read(CC1120_ADDR_FS_CHP);
+		/* Set VCO cap Array to 0. */
+		cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, 0x00);
+		/* Write FS_CAL2 as original_fs_cal2 */
+		cc1120_spi_single_write(CC1120_ADDR_FS_CAL2, original_fs_cal2);
+		/* Strobe CAL and wait for completion. */
+		cc1120_set_state(CC1120_STATE_CAL);
+		while(cc1120_get_state() == CC1120_STATUS_CALIBRATE);
+		/* Read FS_VCO2, FS_VCO4, FS_CHP. */
+		calResults_for_vcdac_start_mid[0] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO2);
+		calResults_for_vcdac_start_mid[1] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO4);
+		calResults_for_vcdac_start_mid[2] = cc1120_spi_single_read(CC1120_ADDR_FS_CHP);
+		
+		if(calResults_for_vcdac_start_high[0] > calResults_for_vcdac_start_mid[0]
+	}
 	
 	current_channel = channel;
 	return current_channel;
@@ -744,12 +776,6 @@ cc1120_spi_burst_write(uint16_t addr, uint8_t *buf, uint8_t len)
 	
 	cc1120_arch_spi_disable();
 	RELEASE_SPI();
-}
-
-void
-cc1120_spi_write_txfifo(uint8_t *data, uint8_t len)
-{
-
 }
 
 uint8_t
