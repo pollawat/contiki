@@ -12,7 +12,7 @@
 
 
 /* Internal variables. */
-static volatile uint8_t current_channel, transmitting, radio_on = 0;
+static volatile uint8_t current_channel, transmitting, radio_on, tx_error = 0;
 
 /* --------------------------- Radio Driver Structure --------------------------- */
 const struct radio_driver cc1120_driver = {
@@ -87,10 +87,12 @@ cc1120_driver_init(void)
 int
 cc1120_driver_prepare(const void *payload, unsigned short len)
 {
-	uint8_t txbytes;
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Prepare ****\n");
 #endif
+
+	uint8_t txbytes;
+
 	if(len > CC1120_MAX_PAYLOAD)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
@@ -157,6 +159,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	
 	transmitting = 1;
+	
+	/* Disable CC1120 interrupt to prevent a spurious trigger. */
+	cc1120_arch_interrupt_disable();
+	
 	/* Enter TX. */
 	cur_state = cc1120_set_state(CC1120_STATE_TX)
 	if(cur_state == CC1120_STATUS_TX)
@@ -173,6 +179,17 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 		transmitting = 0;
 		
+		/* Enable CC120 Interrupt. */
+		cc1120_arch_interrupt_enable();
+		
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
+		{
+			/* TX FIFO Error. Need to clear it... */
+			tx_error = 1;
+			cc1120_set_state(CC1120_STATE_IDLE);
+			cc1120_flush_tx();
+		}		
+		
 		if((cur_state != CC1120_STATUS_RX) && (radio_on))
 		{
 			on();
@@ -181,6 +198,17 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		{
 			ENERGEST_ON(ENERGEST_TYPE_LISTEN);
 		}
+		
+		if(tx_error)
+		{
+			/* we have had a FIFO error. */
+#if CC1120DEBUG || DEBUG
+			printf("!!! TX ERROR: FIFO error. !!!\n",  txbytes);
+#endif			
+			tx_error = 0;
+			return RADIO_TX_ERR;
+		}
+		
 		
 		/* Check that TX was successful. */
 		txbytes = cc1120_read_txbytes();
@@ -290,6 +318,9 @@ cc1120_driver_receiving_packet(void)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Receiving Packet? ****\n");
 #endif
+
+	/* Temporary return for TX debug. */
+	return 0;
 }
 
 int
@@ -298,6 +329,9 @@ cc1120_driver_pending_packet(void)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Pending Packet? ****\n");
 #endif
+
+	/* Temporary return for TX debug. */
+	return 0;
 }
 
 int
@@ -368,10 +402,17 @@ cc1120_gpio_config(void
 uint8_t
 cc1120_set_channel(uint8_t channel)
 {
-	//TODO: Need to check country, should probably be set in platform?
-	//TODO: Need to do manual calibration after setting channel due to errata...
+	uint32_t freq_registers;
 	
-	/* If we are an affected part version, carry out calibration as per CC112x/CC1175 errata. */
+	freq_registers = (channel * CC1120_CHANNEL_MULTIPLIER) + CC1120_BASE_FREQ;
+	
+	cc1120_spi_single_write(CC1120_ADDR_FREQ0, ((unsigned char*)&freq_registers)[0]);
+	cc1120_spi_single_write(CC1120_ADDR_FREQ1, ((unsigned char*)&freq_registers)[1]);
+	cc1120_spi_single_write(CC1120_ADDR_FREQ2, ((unsigned char*)&freq_registers)[2]);
+	
+	
+	/* If we are an affected part version, carry out calibration as per CC112x/CC1175 errata. 
+	 * See http://www.ti.com/lit/er/swrz039b/swrz039b.pdf, page 3 for details.*/
 	if(cc1120_spi_single_read(CC1120_ADDR_PARTVERSION) == 0x21)
 	{
 		uint8_t original_fs_cal2, calResults_for_vcdac_start_high[3], calResults_for_vcdac_start_mid[3];
@@ -401,7 +442,24 @@ cc1120_set_channel(uint8_t channel)
 		calResults_for_vcdac_start_mid[1] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO4);
 		calResults_for_vcdac_start_mid[2] = cc1120_spi_single_read(CC1120_ADDR_FS_CHP);
 		
-		if(calResults_for_vcdac_start_high[0] > calResults_for_vcdac_start_mid[0]
+		if(calResults_for_vcdac_start_high[0] > calResults_for_vcdac_start_mid[0])
+		{
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, calResults_for_vcdac_start_high[0]);
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_high[1]);
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_high[2]);
+		}
+		else
+		{
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, calResults_for_vcdac_start_mid[0]);
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_mid[1]);
+			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_mid[2]);
+		}
+	}
+	else
+	{
+		/* Strobe CAL and wait for completion. */
+		cc1120_set_state(CC1120_STATE_CAL);
+		while(cc1120_get_state() == CC1120_STATUS_CALIBRATE);
 	}
 	
 	current_channel = channel;
@@ -796,6 +854,15 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 }
 
 
+/* ------------------------------ CC1120 Interrupt Handler ------------------------------- */
+int
+cc1120_rx_interrupt(void)
+{
+
+	/* Temporary return for testing TX. */
+	return 0;
+}
+
 
 /* --------------------------- CC1120 misc Functions - needed? --------------------------- */
 
@@ -849,11 +916,7 @@ cc1120_reset(void)
 
 
 
-int
-cc1120_rx_interrupt(void)
-{
 
-}
 
 
 
