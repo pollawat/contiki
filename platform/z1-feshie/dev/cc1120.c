@@ -63,7 +63,7 @@ cc1120_driver_init(void)
 									while(1);	/* Spin ad infinitum as we cannot continue. */
 									break;
 		case default:	/* Not a supported chip or no chip present... */
-						printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %04x detected) ***\n", part);
+						printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %02x detected) ***\n", part);
 						printf("*** Check radio and reset ***\n");
 						while(1);	/* Spin ad infinitum as we cannot continue. */
 						break;
@@ -79,14 +79,15 @@ cc1120_driver_init(void)
     /* Set radio off */
 	cc1120_driver_off();
 #if CC1120DEBUG || DEBUG
-	printf("\tCC1120 Initialised\n");
+	printf("\tCC1120 Initialised and OFF\n");
 #endif
-	
+	return 1;
 }
 
 int
 cc1120_driver_prepare(const void *payload, unsigned short len)
 {
+	uint8_t txbytes;
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Prepare ****\n");
 #endif
@@ -98,24 +99,45 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 #endif
 		return RADIO_TX_ERR;
 	}
-
-
-	// TODO: Do we want to load data into FIFO here?
-	
 	
 	/* Read number of bytes in TX FIFO. */
+	txbytes = cc1120_read_txbytes;
+#if CC1120DEBUG || DEBUG
+		printf("\t%d bytes in TXFIFO, flushing.\n", txbytes);
+#endif
 	
 	/* If the FIFO is not empty, flush it. Otherwise we might send multiple TXs. */
-		
+	if(txbytes != 0)
+	{
+		cc1120_set_state(CC1120_STATE_IDLE);
+		cc1120_flush_tx();
+	}
+	
+	/* Write to the FIFO. */
+	ret = cc1120_write_txfifo(payload, len);
+	
+	if(ret)
+	{
+		return RADIO_TX_OK;
+	}
+	else
+	{
+		return RADIO_TX_ERR;
+	}
 }
 
 int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
+	
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Transmit ****\n");
 #endif
-		if(transmit_len > CC1120_MAX_PAYLOAD)
+	
+	uint8_t txbytes, cur_state;
+	
+	/* Check that the packet is not too large. */
+	if(transmit_len > CC1120_MAX_PAYLOAD)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
 #if CC1120DEBUG || DEBUG
@@ -123,14 +145,69 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #endif
 		return RADIO_TX_ERR;
 	}
+		
+	/* check that we have enough in the FIFO */
+	txbytes = cc1120_read_txbytes();
+	if((transmit_len + 1) != txbytes)
+	{
+#if CC1120DEBUG || DEBUG
+		printf("!!! TX ERROR: wrong number of bytes in FIFO. Wanted %d + 1, have %d !!!\n", transmit_len, txbytes);
+#endif	
+		return RADIO_TX_ERR;
+	}
 	
 	transmitting = 1;
 	/* Enter TX. */
+	cur_state = cc1120_set_state(CC1120_STATE_TX)
+	if(cur_state == CC1120_STATUS_TX)
+	{
+		ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
+		ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 	
-	/* Check that TX was successful. */
-	
-	transmitting = 0;
-	
+		/* wait till we leave TX. */
+		while(cur_state == CC1120_STATUS_TX)
+		{
+			cur_state = cc1120_get_state();
+		}
+		
+		ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
+		transmitting = 0;
+		
+		if((cur_state != CC1120_STATUS_RX) && (radio_on))
+		{
+			on();
+		}
+		else if(radio_on)
+		{
+			ENERGEST_ON(ENERGEST_TYPE_LISTEN);
+		}
+		
+		/* Check that TX was successful. */
+		txbytes = cc1120_read_txbytes();
+		if(txbytes != 0)
+		{
+			/* we have not transmitted what we wanted to. */
+#if CC1120DEBUG || DEBUG
+			printf("!!! TX ERROR: have not transmitted everything: %d bytes left in TX FIFO !!!\n",  txbytes);
+#endif			
+			return RADIO_TX_ERR;
+		}
+		
+		/* We have TX'ed successfully. */
+#if CC1120DEBUG || DEBUG
+		printf("!!! TX OK: Transmission sent !!!\n");
+#endif	
+		return RADIO_TX_OK;
+		
+	else
+	{
+		/* We didn't TX... */
+		transmitting = 0;
+#if CC1120DEBUG || DEBUG
+		printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
+#endif			
+		return RADIO_TX_ERR;
+	}
 }
 
 int
@@ -139,8 +216,10 @@ cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Send ****\n");
 #endif
-	cc1120_driver_prepare(payload, payload_len);
-	// TODO: use the return code
+	if(cc1120_driver_prepare(payload, payload_len) != RADIO_TX_OK)
+	{
+		return RADIO_TX_ERR;
+	}
 	
 	return cc1120_driver_transmit(payload_len);
 }
@@ -238,7 +317,10 @@ cc1120_driver_on(void)
 	cc1120_arch_interrupt_enable();
 	
 	/* Radio on. */
+	cc1120_set_state(CC1120_STATE_RX);
 	radio_on = 1;
+	ENERGEST_ON(ENERGEST_TYPE_LISTEN);
+	
 	return 1;
 }
 
@@ -252,6 +334,8 @@ cc1120_driver_off(void)
 	
 	/* Flush the RX and TX FIFOs. */
 	cc1120_set_state(CC1120_STATE_IDLE);
+	ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
+	
 	cc1120_flush_tx();
 	cc1120_flush_rx();
 	
@@ -301,13 +385,41 @@ cc1120_get_channel(void)
 uint8_t
 cc1120_read_txbytes(void)
 {
-
+	return cc1120_spi_single_read(CC1120_ADDR_NUM_TXBYTES);
 }
 
 uint8_t
 cc1120_read_rxbytes(void)
 {
+	return cc1120_spi_single_read(CC1120_ADDR_NUM_RXBYTES);
+}
 
+uint8_t
+cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
+{
+	uint8_t fifo_len = 0;
+	
+	/* Write the length byte to the start of the FIFO. */
+	cc1120_spi_single_write(C1120_FIFO_ACCESS, payload_len);
+
+	/* Write the payload to the FIFO. */
+	cc1120_spi_burst_write(C1120_FIFO_ACCESS, payload, payload_len);
+	
+	fifo_len = ccc1120_read_txbytes();
+	
+#if CC1120DEBUG || DEBUG	
+	printf("%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
+#endif
+
+	if(fifo_len != (payload_len + 1))
+	{
+		/* We haven't written the right amount of data... */
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
 }
 
 
@@ -512,7 +624,8 @@ cc1120_set_rx(void)
 	while(c1120_get_state() != CC1120_STATUS_RX);
 	// TODO: give this a timeout?
 
-	/* Return TX state. */
+	
+	/* Return RX state. */
 	return CC1120_STATUS_RX;
 }
 
@@ -655,6 +768,8 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 	
 	return status;
 }
+
+
 
 /* --------------------------- CC1120 misc Functions - needed? --------------------------- */
 
