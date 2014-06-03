@@ -495,10 +495,10 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	uint8_t fifo_len = 0;
 	
 	/* Write the length byte to the start of the FIFO. */
-	cc1120_spi_single_write(C1120_FIFO_ACCESS, payload_len);
+	cc1120_spi_single_write(CC1120_FIFO_ACCESS, payload_len);
 
 	/* Write the payload to the FIFO. */
-	cc1120_spi_burst_write(C1120_ADDR_FIFO_ACCESS, payload, payload_len);
+	cc1120_spi_burst_write(CC1120_FIFO_ACCESS, payload, payload_len);
 	
 	fifo_len = cc1120_read_txbytes();
 	
@@ -571,7 +571,7 @@ cc1120_set_state(uint8_t state)
 									}
 								}
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SCAL);
-								while(c1120_get_state() != CC1120_STATUS_CALIBRATE);
+								while(cc1120_get_state() != CC1120_STATUS_CALIBRATE);
 								return CC1120_STATUS_CALIBRATE;
 								
 		case CC1120_STATE_RX:		/* Can only enter from IDLE, FSTXON or TX. */
@@ -702,7 +702,7 @@ cc1120_set_idle(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
 
 	/* Spin until we are in IDLE. */
-	while(c1120_get_state() != CC1120_STATUS_IDLE);
+	while(cc1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 	
 	/* Return IDLE state. */
@@ -716,7 +716,7 @@ cc1120_set_rx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SRX);
 
 	/* Spin until we are in RX. */
-	while(c1120_get_state() != CC1120_STATUS_RX);
+	while(cc1120_get_state() != CC1120_STATUS_RX);
 	// TODO: give this a timeout?
 
 	
@@ -731,7 +731,7 @@ cc1120_set_tx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 
 	/* Spin until we are in TX. */
-	while(c1120_get_state() != CC1120_STATUS_TX);
+	while(cc1120_get_state() != CC1120_STATUS_TX);
 	// TODO: give this a timeout?
 
 	/* Return TX state. */
@@ -745,7 +745,7 @@ cc1120_flush_rx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 
 	/* Spin until we are in IDLE. */
-	while(c1120_get_state() != CC1120_STATUS_IDLE);
+	while(cc1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 
 	/* Return IDLE state. */
@@ -759,7 +759,7 @@ cc1120_flush_tx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
 
 	/* Spin until we are in IDLE. */
-	while(c1120_get_state() != CC1120_STATUS_IDLE);
+	while(cc1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 
 	/* Return IDLE state. */
@@ -833,7 +833,7 @@ cc1120_spi_burst_write(uint16_t addr, uint8_t *buf, uint8_t len)
 	cc1120_arch_spi_enable();
 	
 	cc1120_spi_write_addr(addr, CC1120_BURST_BIT, CC1120_WRITE_BIT);
-	cc1120_arch_rw_buf(NULL, buf, len);
+	cc1120_arch_spi_rw_buf(NULL, buf, len);
 	
 	cc1120_arch_spi_disable();
 	RELEASE_SPI();
