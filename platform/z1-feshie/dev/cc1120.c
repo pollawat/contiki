@@ -16,6 +16,11 @@
 /* Internal variables. */
 static volatile uint8_t current_channel, transmitting, radio_on, tx_error = 0;
 
+/* Temporary SPI lock/unlock while we decide how to handle SPI exclusive access. */
+#define LOCK_SPI() while(0) { }
+#define RELEASE_SPI() while(0) { }
+
+
 /* ---------------------------- Radio Driver Structure ---------------------------- */
 const struct radio_driver cc1120_driver = {
     cc1120_driver_init,
