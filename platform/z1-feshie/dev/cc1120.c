@@ -14,7 +14,7 @@
 /* Internal variables. */
 static volatile uint8_t current_channel, transmitting, radio_on, tx_error = 0;
 
-/* --------------------------- Radio Driver Structure --------------------------- */
+/* ---------------------------- Radio Driver Structure ---------------------------- */
 const struct radio_driver cc1120_driver = {
     cc1120_driver_init,
     cc1120_driver_prepare,
@@ -29,7 +29,7 @@ const struct radio_driver cc1120_driver = {
 };
 
 
-/* --------------------------- Radio Driver Functions --------------------------- */
+/* ---------------------------- Radio Driver Functions ---------------------------- */
 int 
 cc1120_driver_init(void)
 {
@@ -68,6 +68,8 @@ cc1120_driver_init(void)
 						while(1);	/* Spin ad infinitum as we cannot continue. */
 						break;
 	}
+	
+	// TODO: Cover sync-word errata somewhere?
 	
 	/* Configure CC1120 */
 	cc1120_register_config();
@@ -227,14 +229,15 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #endif	
 		return RADIO_TX_OK;
 		
-	else
-	{
-		/* We didn't TX... */
-		transmitting = 0;
+		else
+		{
+			/* We didn't TX... */
+			transmitting = 0;
 #if CC1120DEBUG || DEBUG
-		printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
+			printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 #endif			
-		return RADIO_TX_ERR;
+			return RADIO_TX_ERR;
+		}
 	}
 }
 
@@ -387,7 +390,7 @@ cc1120_driver_off(void)
 
 /* --------------------------- CC1120 Support Functions --------------------------- */
 void
-cc1120_gpio_config(void
+cc1120_gpio_config(void)
 {
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG0, CC1120_GPIO0_FUNC);
 	
@@ -513,7 +516,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 }
 
 
-/* --------------------------- CC1120 State Functions --------------------------- */
+/* ---------------------------- CC1120 State Functions ---------------------------- */
 uint8_t
 cc1120_set_state(uint8_t state)
 {
@@ -689,7 +692,7 @@ cc1120_get_state(void)
 }
 
 
-/* --------------------------- CC1120 State Set Functions --------------------------- */
+/* -------------------------- CC1120 State Set Functions -------------------------- */
 uint8_t
 cc1120_set_idle(void)
 {
@@ -763,9 +766,7 @@ cc1120_flush_tx(void)
 
 
 
-
-
-/* --------------------------- CC1120 SPI Functions --------------------------- */
+/* ----------------------------- CC1120 SPI Functions ----------------------------- */
 uint8_t
 cc1120_spi_cmd_strobe(uint8_t strobe)
 {
@@ -854,7 +855,7 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 }
 
 
-/* ------------------------------ CC1120 Interrupt Handler ------------------------------- */
+/* -------------------------- CC1120 Interrupt Handler --------------------------- */
 int
 cc1120_rx_interrupt(void)
 {
