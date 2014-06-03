@@ -132,7 +132,7 @@ cc1120_arch_spi_disable(void)
 	/* Check if MISO is high at disable.  If it is, send a SNOP to clear it. */
 	if((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
 	{
-		(void) CC11xx_ARCH_SPI_RW_BYTE(CC11xx_SNOP);
+		(void) cc1120_arch_spi_rw_byte(CC1120_STROBE_SNOP);
 	}
 	// TODO: Make this more resilient?
 
@@ -164,7 +164,7 @@ cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 		for(i = 0; i < len; i++) 
 		{
 			SPI_WAITFORTx_BEFORE();			/* Wait for TX buf to be empty. */
-			SPI_TXBUF = outbuf[i];			/* Transmit current byte. */
+			SPI_TXBUF = outBuf[i];			/* Transmit current byte. */
 			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
 			if(i ==0)
 			{
@@ -179,7 +179,7 @@ cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 			SPI_WAITFORTx_BEFORE();			/* Wait for TX buf to be empty. */
 			SPI_TXBUF = 0;					/* Dummy TX to get RX. */
 			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
-			inbuf[i] = SPI_RXBUF;			/* Write read byte to the buffer. */
+			inBuf[i] = SPI_RXBUF;			/* Write read byte to the buffer. */
 		}
 	} 
 	else 
@@ -191,7 +191,7 @@ cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
 			inBuf[i] = SPI_RXBUF;			/* Write read byte to the buffer. */
 		}
-		ret = inbuf[0];						/* Get the status byte for return. */
+		ret = inBuf[0];						/* Get the status byte for return. */
 	}
 	
 	ret &= CC1120_STATUS_CHIP_RDY_MASK | CC1120_STATUS_STATE_MASK;	/* Get just the status and RDY for return. */
