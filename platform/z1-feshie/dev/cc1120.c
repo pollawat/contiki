@@ -529,7 +529,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	if(fifo_len != (payload_len + 1))
 	{
 		/* We haven't written the right amount of data... */
-		printf("Payload = %020x. \n Length - %d\n", 
+		printf("Payload = %020x. \n Length - %d\n", payload, payload_len);
 		return 0;
 	}
 	else
@@ -563,7 +563,7 @@ cc1120_set_state(uint8_t state)
 								}
 								if(!(cur_state == CC1120_STATUS_FSTXON))
 								{
-									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);	/* Intentional Error to catch warnings. */
+									cc1120_spi_cmd_strobe(CC1120_STROBE_SFSTXON);	/* Intentional Error to catch warnings. */
 									while(cc1120_get_state() != CC1120_STATUS_FSTXON);
 								}
 								return CC1120_STATUS_FSTXON;

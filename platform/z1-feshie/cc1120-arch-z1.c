@@ -168,7 +168,7 @@ cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
 			if(i ==0)
 			{
-				ret = SPI_RXBUF				/* Set return to be status byte */
+				ret = SPI_RXBUF;				/* Set return to be status byte */
 			}
 		}
 	} 
