@@ -40,12 +40,12 @@
 #include "cc1120.h"
 
 void cc1120_arch_init(void);
-void cc1120_arch_reset(void);
-void cc1120_arch_enable(void);
-void cc1120_arch_disable(void);
+void cc1120_arch_spi_reset(void);
+void cc1120_arch_spi_enable(void);
+void cc1120_arch_spi_disable(void);
 
-uint8_t cc1120_arch_rw_byte(uint8_t);
-uint8_t cc1120_arch_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len);
+uint8_t cc1120_arch_spi_rw_byte(uint8_t);
+uint8_t cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len);
 void cc1120_arch_interrupt_enable(void);
 void cc1120_arch_interrupt_disable(void);
 

@@ -115,7 +115,7 @@ cc1120_arch_reset(void)
 /* ----------------------------- SPI Functions ----------------------------- */
 /*---------------------------------------------------------------------------*/
 void
-cc1120_arch_enable(void)
+cc1120_arch_spi_enable(void)
 {
 	/* Set CSn to low to select CC1120 */
 	CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
@@ -127,7 +127,7 @@ cc1120_arch_enable(void)
 
 /*---------------------------------------------------------------------------*/
 void
-cc1120_arch_disable(void)
+cc1120_arch_spi_disable(void)
 {
 	/* Check if MISO is high at disable.  If it is, send a SNOP to clear it. */
 	if((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
@@ -142,7 +142,7 @@ cc1120_arch_disable(void)
 
 /*---------------------------------------------------------------------------*/
 uint8_t
-cc1120_arch_rw_byte(uint8_t val)
+cc1120_arch_spi_rw_byte(uint8_t val)
 {
 	SPI_WAITFORTx_BEFORE();
 	SPI_TXBUF = val;
@@ -152,7 +152,7 @@ cc1120_arch_rw_byte(uint8_t val)
 
 /*---------------------------------------------------------------------------*/
 uint8_t
-cc1120_arch_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
+cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
 {
 	uint8_t i, ret;
 	if(inBuf == NULL && outBuf == NULL) 	/* error: both buffers are NULL */
