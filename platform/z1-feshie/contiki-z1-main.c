@@ -36,8 +36,8 @@
 #include "platform-conf.h"
 #include "isr_compat.h"
 //#include "dev/cc2420.h"
-#include "cc11xx.h"
-#include "cc11xx-arch.h"
+#include "cc1120.h"
+#include "cc1120-arch.h"
 #include "dev/leds.h"
 #include "dev/serial-line.h"
 #include "dev/slip.h"
@@ -302,7 +302,7 @@ main(int argc, char **argv)
   }
   //cc2420_set_channel(RF_CHANNEL);
   printf("Set channel to 42...");
-  cc11xx_channel_set(RF_CHANNEL);
+  cc1120_set_channel(RF_CHANNEL);
   printf("OK\n\r");
 
   leds_off(LEDS_ALL);

@@ -114,7 +114,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	/* Read number of bytes in TX FIFO. */
 	txbytes = cc1120_read_txbytes();
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-	printf("\t%d bytes in TXFIFO");
+	printf("\t%d bytes in TXFIFO", txbytes);
 #endif
 	
 	/* If the FIFO is not empty, flush it. Otherwise we might send multiple TXs. */
@@ -363,23 +363,37 @@ int
 cc1120_driver_on(void)
 {
 #if CC1120DEBUG || DEBUG
-	printf("**** Radio Driver: On ****\n");
+	printf("**** Radio Driver: On...");
 #endif
 	/* Set CC1120 into RX. */
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	// TODO: DO we want to set TXOFF_MODE=11 so that it goes to RX after TX?
 	// TODO: Do we want to set RXOFF_MODE=01 so that we go to FSTXON after RX? 
 	// TODO: Do we want to flush RX before going into RX?
-	
+
+#if CC1120DEBUG || DEBUG
+        printf("temp return...OK\n");
+#endif
+	return 1;	
 	
 	/* Enable CC1120 RX interrupt*/
 	cc1120_arch_interrupt_enable();
 	
 	/* Radio on. */
+#if CC1120DEBUG || DEBUG
+        printf("Set State RX...");
+#endif
 	cc1120_set_state(CC1120_STATE_RX);
 	radio_on = 1;
+
+#if CC1120DEBUG || DEBUG
+        printf("Turn on Energy Estimation...");
+#endif
 	ENERGEST_ON(ENERGEST_TYPE_LISTEN);
-	
+#if CC1120DEBUG || DEBUG
+        printf("OK ****\n");
+#endif
+
 	return 1;
 }
 
@@ -391,6 +405,8 @@ cc1120_driver_off(void)
 #endif
 	// TODO: If TXOFF_MODE is set not to go to IDLE, shall we set it to do so?
 	
+	return 1;
+
 	/* Flush the RX and TX FIFOs. */
 	cc1120_set_state(CC1120_STATE_IDLE);
 	ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
@@ -526,10 +542,11 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	printf("\t%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
 #endif
 
+	return 1;
+
 	if(fifo_len != (payload_len + 1))
 	{
 		/* We haven't written the right amount of data... */
-		printf("Payload = %020x. \n Length - %d\n", payload, payload_len);
 		return 0;
 	}
 	else
@@ -545,6 +562,9 @@ cc1120_set_state(uint8_t state)
 {
 	/* Get the current state. */
 	uint8_t cur_state = cc1120_get_state();
+#if CC1120DEBUG || DEBUG
+        printf("Current State = %02x", cur_state);
+#endif
 	
 	switch(state)
 	{

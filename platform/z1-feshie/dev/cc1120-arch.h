@@ -40,7 +40,7 @@
 #include "cc1120.h"
 
 void cc1120_arch_init(void);
-void cc1120_arch_spi_reset(void);
+void cc1120_arch_reset(void);
 void cc1120_arch_spi_enable(void);
 void cc1120_arch_spi_disable(void);
 
