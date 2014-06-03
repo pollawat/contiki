@@ -96,7 +96,7 @@ cc1120_driver_init(void)
 int
 cc1120_driver_prepare(const void *payload, unsigned short len)
 {
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("**** Radio Driver: Prepare ****\n");
 #endif
 
@@ -105,7 +105,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	if(len > CC1120_MAX_PAYLOAD)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! PREPARE ERROR: Packet too large. !!!\n");
 #endif
 		return RADIO_TX_ERR;
@@ -113,24 +113,39 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	
 	/* Read number of bytes in TX FIFO. */
 	txbytes = cc1120_read_txbytes();
-#if CC1120DEBUG || DEBUG
-		printf("\t%d bytes in TXFIFO, flushing.\n", txbytes);
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+	printf("\t%d bytes in TXFIFO");
 #endif
 	
 	/* If the FIFO is not empty, flush it. Otherwise we might send multiple TXs. */
 	if(txbytes != 0)
 	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf(", flushing.");
+#endif	
 		cc1120_set_state(CC1120_STATE_IDLE);
 		cc1120_flush_tx();
 	}
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+	printf("\n");
+#endif
 	
 	/* Write to the FIFO. */
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+	printf("\tWriting %d bytes to TX FIFO.\n", len);
+#endif	
 	if(cc1120_write_txfifo(payload, len))
 	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf("\tTX FIFO written OK.\n");
+#endif
 		return RADIO_TX_OK;
 	}
 	else
 	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf("!!!! ERROR: TX FIFO NOT written !!!!\n");
+#endif
 		return RADIO_TX_ERR;
 	}
 }
@@ -139,7 +154,7 @@ int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
 	
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("**** Radio Driver: Transmit ****\n");
 #endif
 	
@@ -149,7 +164,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	if(transmit_len > CC1120_MAX_PAYLOAD)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: Packet too large. !!!\n");
 #endif
 		return RADIO_TX_ERR;
@@ -159,7 +174,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	txbytes = cc1120_read_txbytes();
 	if((transmit_len + 1) != txbytes)
 	{
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: wrong number of bytes in FIFO. Wanted %d + 1, have %d !!!\n", transmit_len, txbytes);
 #endif	
 		return RADIO_TX_ERR;
@@ -209,7 +224,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		if(tx_error)
 		{
 			/* we have had a FIFO error. */
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: FIFO error. !!!\n");
 #endif			
 			tx_error = 0;
@@ -222,14 +237,14 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		if(txbytes != 0)
 		{
 			/* we have not transmitted what we wanted to. */
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: have not transmitted everything: %d bytes left in TX FIFO !!!\n",  txbytes);
 #endif			
 			return RADIO_TX_ERR;
 		}
 		
 		/* We have TX'ed successfully. */
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX OK: Transmission sent !!!\n");
 #endif	
 		return RADIO_TX_OK;
@@ -238,7 +253,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	{
 		/* We didn't TX... */
 		transmitting = 0;
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 #endif			
 		return RADIO_TX_ERR;
@@ -248,7 +263,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 int
 cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 {
-#if CC1120DEBUG || DEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("**** Radio Driver: Send ****\n");
 #endif
 	if(cc1120_driver_prepare(payload, payload_len) != RADIO_TX_OK)
@@ -507,13 +522,14 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	
 	fifo_len = cc1120_read_txbytes();
 	
-#if CC1120DEBUG || DEBUG	
-	printf("%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG	
+	printf("\t%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
 #endif
 
 	if(fifo_len != (payload_len + 1))
 	{
 		/* We haven't written the right amount of data... */
+		printf("Payload = %020x. \n Length - %d\n", 
 		return 0;
 	}
 	else
