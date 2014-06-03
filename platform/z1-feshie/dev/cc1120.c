@@ -9,6 +9,8 @@
 
 /* CC1120 headers. */
 #include "cc1120.h"
+#include "cc1120-arch.h"
+#include "cc1120-config.h"
 
 
 /* Internal variables. */
@@ -62,7 +64,7 @@ cc1120_driver_init(void)
 									printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n");
 									while(1);	/* Spin ad infinitum as we cannot continue. */
 									break;
-		case default:	/* Not a supported chip or no chip present... */
+		default:	/* Not a supported chip or no chip present... */
 						printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %02x detected) ***\n", part);
 						printf("*** Check radio and reset ***\n");
 						while(1);	/* Spin ad infinitum as we cannot continue. */
@@ -105,7 +107,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	}
 	
 	/* Read number of bytes in TX FIFO. */
-	txbytes = cc1120_read_txbytes;
+	txbytes = cc1120_read_txbytes();
 #if CC1120DEBUG || DEBUG
 		printf("\t%d bytes in TXFIFO, flushing.\n", txbytes);
 #endif
@@ -118,9 +120,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	}
 	
 	/* Write to the FIFO. */
-	ret = cc1120_write_txfifo(payload, len);
-	
-	if(ret)
+	if(cc1120_write_txfifo(payload, len))
 	{
 		return RADIO_TX_OK;
 	}
@@ -166,7 +166,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	cc1120_arch_interrupt_disable();
 	
 	/* Enter TX. */
-	cur_state = cc1120_set_state(CC1120_STATE_TX)
+	cur_state = cc1120_set_state(CC1120_STATE_TX);
 	if(cur_state == CC1120_STATUS_TX)
 	{
 		ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
@@ -261,6 +261,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 #if CC1120DEBUG || DEBUG
 	printf("**** Radio Driver: Read ****\n");
 #endif
+
+	/* Temporary return for TX testing. */
+	return 0;
 }
 
 int
@@ -743,7 +746,7 @@ cc1120_flush_rx(void)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 
 	/* Spin until we are in IDLE. */
-	while((c1120_get_state() != CC1120_STATUS_IDLE);
+	while(c1120_get_state() != CC1120_STATUS_IDLE);
 	// TODO: give this a timeout?
 
 	/* Return IDLE state. */
@@ -843,7 +846,7 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 	uint8_t status;
 	if(addr & CC1120_EXTENDED_MEMORY_ACCESS_MASK)
 	{
-		status = cc1120_arch_spi_rw_byte(CC1120_EXTENDED_MEMORY_ACCESS | rw | burst); 
+		status = cc1120_arch_spi_rw_byte(CC1120_ADDR_EXTENDED_MEMORY_ACCESS | rw | burst); 
 		(void) cc1120_arch_spi_rw_byte(addr & CC1120_ADDRESS_MASK);
 	}
 	else
@@ -866,7 +869,7 @@ cc1120_rx_interrupt(void)
 
 
 /* --------------------------- CC1120 misc Functions - needed? --------------------------- */
-
+/*
 void
 check_txfifo(void)
 {
@@ -922,3 +925,5 @@ cc1120_reset(void)
 
 
 
+
+*/
