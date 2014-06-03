@@ -194,7 +194,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 		if((cur_state != CC1120_STATUS_RX) && (radio_on))
 		{
-			on();
+			cc1120_driver_on();
 		}
 		else if(radio_on)
 		{
@@ -205,7 +205,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		{
 			/* we have had a FIFO error. */
 #if CC1120DEBUG || DEBUG
-			printf("!!! TX ERROR: FIFO error. !!!\n",  txbytes);
+			printf("!!! TX ERROR: FIFO error. !!!\n");
 #endif			
 			tx_error = 0;
 			return RADIO_TX_ERR;
@@ -228,16 +228,15 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		printf("!!! TX OK: Transmission sent !!!\n");
 #endif	
 		return RADIO_TX_OK;
-		
-		else
-		{
-			/* We didn't TX... */
-			transmitting = 0;
+	}
+	else
+	{
+		/* We didn't TX... */
+		transmitting = 0;
 #if CC1120DEBUG || DEBUG
-			printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
+	printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 #endif			
-			return RADIO_TX_ERR;
-		}
+		return RADIO_TX_ERR;
 	}
 }
 
@@ -401,7 +400,7 @@ cc1120_gpio_config(void)
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO2_FUNC);
 #endif
 #ifdef CC1120_GPIO3_FUNC
-	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, C1120_GPIO3_FUNC);
+	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, CC1120_GPIO3_FUNC);
 #endif
 }
 
@@ -499,9 +498,9 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	cc1120_spi_single_write(C1120_FIFO_ACCESS, payload_len);
 
 	/* Write the payload to the FIFO. */
-	cc1120_spi_burst_write(C1120_FIFO_ACCESS, payload, payload_len);
+	cc1120_spi_burst_write(C1120_ADDR_FIFO_ACCESS, payload, payload_len);
 	
-	fifo_len = ccc1120_read_txbytes();
+	fifo_len = cc1120_read_txbytes();
 	
 #if CC1120DEBUG || DEBUG	
 	printf("%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
@@ -543,8 +542,8 @@ cc1120_set_state(uint8_t state)
 								}
 								if(!(cur_state == CC1120_STATUS_FSTXON))
 								{
-									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);
-									while(c1120_get_state() != CC1120_STATUS_FSTXON);
+									cc1120_spi_cmd_strobe(CC1120_STROBE_SFTXON);	/* Intentional Error to catch warnings. */
+									while(cc1120_get_state() != CC1120_STATUS_FSTXON);
 								}
 								return CC1120_STATUS_FSTXON;
 								
@@ -821,7 +820,7 @@ cc1120_spi_burst_read(uint16_t addr, uint8_t *buf, uint8_t len)
 	cc1120_arch_spi_enable();
 	
 	cc1120_spi_write_addr(addr, CC1120_BURST_BIT, CC1120_READ_BIT);
-	cc1120_arch_rw_buf(buf, NULL, len);
+	cc1120_arch_spi_rw_buf(buf, NULL, len);
 	
 	cc1120_arch_spi_disable();
 	RELEASE_SPI();
@@ -834,7 +833,7 @@ cc1120_spi_burst_write(uint16_t addr, uint8_t *buf, uint8_t len)
 	cc1120_arch_spi_enable();
 	
 	cc1120_spi_write_addr(addr, CC1120_BURST_BIT, CC1120_WRITE_BIT);
-	cc1120_arch_rw_buf(NULL, BUFF, len);
+	cc1120_arch_rw_buf(NULL, buf, len);
 	
 	cc1120_arch_spi_disable();
 	RELEASE_SPI();
