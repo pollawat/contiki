@@ -1,13 +1,13 @@
-/* Deviation = 3.997803 */
+/* Deviation = 24.963379 */
 /* PA ramping = true */
-/* RX filter BW = 10.000000 */
+/* RX filter BW = 100.000000 */
 /* Address config = No address check */
 /* Packet length = 255 */
 /* Packet length mode = Variable */
-/* Bit rate = 0.3 */
-/* Modulation format = 2-FSK */
+/* Bit rate = 50 */
+/* Modulation format = 2-GFSK */
 /* Performance mode = High Performance */
-/* Symbol rate = 1.2 */
+/* Symbol rate = 50 */
 /* Packet bit length = 0 */
 /* Whitening = false */
 /* Device address = 0 */
@@ -45,22 +45,30 @@ cc1120_register_config(void)
    cc1120_spi_single_write(CC1120_ADDR_IOCFG2, 0x06);          /* GPIO2 IO Pin Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_IOCFG1, 0xB0);          /* GPIO1 IO Pin Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_IOCFG0, 0x40);          /* GPIO0 IO Pin Configuration. */
-   cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG1, 0x0F);       /* Sync Word Detection Configuration Reg. 1. */
-   cc1120_spi_single_write(CC1120_ADDR_MODCFG_DEV_E, 0x83);    /* Modulation Format and Frequency Deviation Configur... */
-   cc1120_spi_single_write(CC1120_ADDR_DCFILT_CFG, 0x1C);      /* Digital DC Removal Configuration. */
-   cc1120_spi_single_write(CC1120_ADDR_IQIC, 0xC6);            /* Digital Image Channel Compensation Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG1, 0x08);       /* Sync Word Detection Configuration Reg. 1. */
+   cc1120_spi_single_write(CC1120_ADDR_DEVIATION_M, 0x99);     /* Frequency Deviation Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_MODCFG_DEV_E, 0x0D);    /* Modulation Format and Frequency Deviation Configur... */
+   cc1120_spi_single_write(CC1120_ADDR_DCFILT_CFG, 0x15);      /* Digital DC Removal Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_PREAMBLE_CFG1, 0x18);   /* Preamble Length Configuration Reg. 1. */
+   cc1120_spi_single_write(CC1120_ADDR_FREQ_IF_CFG, 0x3A);     /* RX Mixer Frequency Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_IQIC, 0x00);            /* Digital Image Channel Compensation Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_CHAN_BW, 0x02);         /* Channel Filter Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_MDMCFG0, 0x05);         /* General Modem Parameter Configuration Reg. 0. */
-   cc1120_spi_single_write(CC1120_ADDR_AGC_REF, 0x20);         /* AGC Reference Level Configuration. */
-   cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, 0x19);      /* Carrier Sense Threshold Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_SYMBOL_RATE2, 0x99);    /* Symbol Rate Configuration Exponent and Mantissa [1... */
+   cc1120_spi_single_write(CC1120_ADDR_SYMBOL_RATE1, 0x99);    /* Symbol Rate Configuration Mantissa [15:8]. */
+   cc1120_spi_single_write(CC1120_ADDR_SYMBOL_RATE0, 0x99);    /* Symbol Rate Configuration Mantissa [7:0]. */
+   cc1120_spi_single_write(CC1120_ADDR_AGC_REF, 0x3C);         /* AGC Reference Level Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, 0xEF);      /* Carrier Sense Threshold Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_AGC_CFG1, 0xA9);        /* Automatic Gain Control Configuration Reg. 1. */
-   cc1120_spi_single_write(CC1120_ADDR_AGC_CFG0, 0xCF);        /* Automatic Gain Control Configuration Reg. 0. */
+   cc1120_spi_single_write(CC1120_ADDR_AGC_CFG0, 0xC0);        /* Automatic Gain Control Configuration Reg. 0. */
    cc1120_spi_single_write(CC1120_ADDR_FIFO_CFG, 0x00);        /* FIFO Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_SETTLING_CFG, 0x03);    /* Frequency Synthesizer Calibration and Settling Con... */
    cc1120_spi_single_write(CC1120_ADDR_FS_CFG, 0x12);          /* Frequency Synthesizer Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_PKT_CFG0, 0x20);        /* Packet Configuration Reg. 0. */
+   cc1120_spi_single_write(CC1120_ADDR_PA_CFG0, 0x79);         /* Power Amplifier Configuration Reg. 0. */
    cc1120_spi_single_write(CC1120_ADDR_PKT_LEN, 0xFF);         /* Packet Length Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_IF_MIX_CFG, 0x00);      /* IF Mix Configuration. */
-   cc1120_spi_single_write(CC1120_ADDR_FREQOFF_CFG, 0x22);     /* Frequency Offset Correction Configuration. */
+   cc1120_spi_single_write(CC1120_ADDR_TOC_CFG, 0x0A);         /* Timing Offset Correction Configuration. */
    cc1120_spi_single_write(CC1120_ADDR_FREQ2, 0x6C);           /* Frequency Configuration [23:16]. */
    cc1120_spi_single_write(CC1120_ADDR_FREQ1, 0x80);           /* Frequency Configuration [15:8]. */
    cc1120_spi_single_write(CC1120_ADDR_FS_DIG1, 0x00);         /* Frequency Synthesizer Digital Reg. 1. */

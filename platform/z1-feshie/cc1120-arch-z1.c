@@ -39,6 +39,7 @@
 
 #include "cc1120.h"
 #include "cc1120-arch.h"
+#include "cc1120-const.h"
 
 #include "dev/spi.h"
 
@@ -146,57 +147,9 @@ cc1120_arch_spi_rw_byte(uint8_t val)
 {
 	SPI_WAITFORTx_BEFORE();
 	SPI_TXBUF = val;
+	SPI_WAITFOREOTx();
 	SPI_WAITFOREORx();
 	return SPI_RXBUF;
-}
-
-/*---------------------------------------------------------------------------*/
-uint8_t
-cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len)
-{
-	uint8_t i, ret;
-	if(inBuf == NULL && outBuf == NULL) 	/* error: both buffers are NULL */
-	{
-		return 0x0f;		/* Return an odd status. */
-	}
-	else if(inBuf == NULL) 					/* Input buffer empty, TX only. */
-	{
-		for(i = 0; i < len; i++) 
-		{
-			SPI_WAITFORTx_BEFORE();			/* Wait for TX buf to be empty. */
-			SPI_TXBUF = outBuf[i];			/* Transmit current byte. */
-			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
-			if(i ==0)
-			{
-				ret = SPI_RXBUF;				/* Set return to be status byte */
-			}
-		}
-	} 
-	else if(outBuf == NULL) 				/* Output buffer empty, read only. */
-	{
-		for(i = 0; i < len; i++) 
-		{
-			SPI_WAITFORTx_BEFORE();			/* Wait for TX buf to be empty. */
-			SPI_TXBUF = 0;					/* Dummy TX to get RX. */
-			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
-			inBuf[i] = SPI_RXBUF;			/* Write read byte to the buffer. */
-		}
-	} 
-	else 
-	{
-		for(i = 0; i < len; i++) 
-		{
-			SPI_WAITFORTx_BEFORE();			/* Wait for TX buf to be empty. */
-			SPI_TXBUF = outBuf[i];			/* Transmit current byte. */
-			SPI_WAITFOREORx();				/* Wait for TX & RX to complete. */
-			inBuf[i] = SPI_RXBUF;			/* Write read byte to the buffer. */
-		}
-		ret = inBuf[0];						/* Get the status byte for return. */
-	}
-	
-	ret &= CC1120_STATUS_CHIP_RDY_MASK | CC1120_STATUS_STATE_MASK;	/* Get just the status and RDY for return. */
-	
-	return ret;
 }
 
 uint8_t 
@@ -205,6 +158,21 @@ cc1120_arch_read_cca(void)
 	return (CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN));
 }
 
+/*---------------------------------------------------------------------------*/
+uint8_t 
+cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
+{
+	uint8_t status, i;
+	status = cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
+	cc1120_arch_spi_rw_byte(packet_length);
+	for(i = 0; i < packet_length; i++)
+	{
+		cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
+		cc1120_arch_spi_rw_byte(packet[i]);
+	}
+	
+	return status;
+}
 
 /* -------------------------- Interrupt Functions -------------------------- */
 

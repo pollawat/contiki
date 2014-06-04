@@ -37,7 +37,7 @@
  * is 125KHz. Actual register setting is worked out as FREQ[2,1,0] = CC1120_BASE_FREQ + 
  * (Channel * CC1120_CHANNEL_MULTIPLIER) */
 #define CC1120_BASE_FREQ	0x6BE000
-#define CC1120_CHANNEL_MULTIPLIER	1024
+#define CC1120_CHANNEL_MULTIPLIER	0x400
 
 #elif CC1120_FHSS_FCC_50
 /* FHSS 902 -- 928 MHz (FCC Part 15.247; 15.249). BASE_FREQ gives 902.000000MHz.
@@ -71,7 +71,7 @@ uint8_t cc1120_set_channel(uint8_t channel);
 uint8_t cc1120_get_channel(void);
 uint8_t cc1120_read_txbytes(void);
 uint8_t cc1120_read_rxbytes(void);
-uint8_t cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len);
+
 
 
 /* ---------------------------- CC1120 State Functions ---------------------------- */
@@ -92,10 +92,8 @@ uint8_t cc1120_flush_tx(void);
 uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
 uint8_t cc1120_spi_single_read(uint16_t addr);
 uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
-void cc1120_spi_burst_read(uint16_t addr, uint8_t *buf, uint8_t len);
-void cc1120_spi_burst_write(uint16_t addr, uint8_t *buf, uint8_t len);
 uint8_t cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw);
-
+uint8_t cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len);
 
 /* -------------------------- CC1120 Interrupt Handler --------------------------- */
 int cc1120_rx_interrupt(void);

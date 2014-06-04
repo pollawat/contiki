@@ -45,7 +45,7 @@ void cc1120_arch_spi_enable(void);
 void cc1120_arch_spi_disable(void);
 
 uint8_t cc1120_arch_spi_rw_byte(uint8_t);
-uint8_t cc1120_arch_spi_rw_buf(uint8_t *inBuf, uint8_t *outBuf, uint8_t len);
+uint8_t cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length);
 void cc1120_arch_interrupt_enable(void);
 void cc1120_arch_interrupt_disable(void);
 
