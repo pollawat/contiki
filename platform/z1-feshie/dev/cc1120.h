@@ -67,6 +67,7 @@ int cc1120_driver_off(void);
 
 /* --------------------------- CC1120 Support Functions --------------------------- */
 void cc1120_gpio_config(void);
+void cc1120_misc_config(void);
 uint8_t cc1120_set_channel(uint8_t channel);
 uint8_t cc1120_get_channel(void);
 uint8_t cc1120_read_txbytes(void);

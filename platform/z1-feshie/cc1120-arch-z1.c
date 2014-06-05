@@ -174,6 +174,20 @@ cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
 	return status;
 }
 
+void 
+cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
+{
+	uint8_t i;
+	
+	for(i = 0; i < packet_length; i++)
+	{
+		(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		packet[i] = cc1120_arch_spi_rw_byte(0);
+	}
+	
+}
+
+
 /* -------------------------- Interrupt Functions -------------------------- */
 
 /* On the Z1, the interrupt is shared with the ADXL345 accelerometer.  
