@@ -213,6 +213,11 @@ cc1120_arch_interrupt_disable(void)
 	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
 }
 /*---------------------------------------------------------------------------*/
-
+void
+cc1120_arch_interrupt_acknowledge(void)
+{
+	/* Reset interrupt trigger */
+	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
+}
 
 

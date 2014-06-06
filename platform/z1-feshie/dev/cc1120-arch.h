@@ -49,6 +49,7 @@ uint8_t cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length);
 void cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length);
 void cc1120_arch_interrupt_enable(void);
 void cc1120_arch_interrupt_disable(void);
+void cc1120_arch_interrupt_acknowledge(void);
 
 void cc1120_arch_pin_init(void);
 

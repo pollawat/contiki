@@ -1190,6 +1190,8 @@ cc1120_rx_interrupt(void)
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 	printf("!!!!!!!!!!!!!!!!!!!!!! RX INTERRUPT !!!!!!!!!!!!!!!!!!!!!! \n");
 #endif
+	
+	cc1120_arch_interrupt_acknowledge();
 
 	//fifo_bytes = cc1120_read_rxbytes();
 	if(cc1120_read_rxbytes() == 0 || transmitting)
