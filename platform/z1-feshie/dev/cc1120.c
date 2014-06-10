@@ -48,7 +48,7 @@ typedef struct received_packet {
 
 /* Internal variables. */
 static volatile uint8_t current_channel, transmitting, radio_pending, radio_on, tx_error, txfirst, txlast = 0;
-static received_packet rx_packet;
+//static received_packet rx_packet;
 static volatile uint16_t bad_crc;
 
 
@@ -227,12 +227,22 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
 		ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 	
-		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
+		
 		
 		/* wait till we leave TX. */
+#if CC1120GPIOTXCHK		
+		marc_state = cc1120_arch_gpio0_read();
+		
+		while(!marc_state)
+		{
+			marc_state = cc1120_arch_gpio0_read();
+#else		
+		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
+		
 		while(marc_state == CC1120_MARC_STATE_MARC_STATE_TX)
 		{
 			marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
+#endif
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 			printf(".");
 #endif				
@@ -331,44 +341,88 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 #if CC1120DEBUG || CC1120RXDEBUG 
 	printf("**** Radio Driver: Read ****\n");
 #endif
-	uint8_t ret = 0;
+	uint8_t length, status = 0;
 	
-	if(buf_len < rx_packet.length)
+	if(cc1120_read_rxbytes() < CC1120_MIN_PAYLOAD)
 	{
-		/* Buffer too short for packet, send what we can. */
-		memcpy(buf, (void *)rx_packet.packet, buf_len);
-		ret = buf_len;
-	}
-	else
-	{
-		/* Buffer is large enough for our packet. */
-		memcpy(buf, (void *)rx_packet.packet, rx_packet.length);
-		ret = rx_packet.length;
+		/* not enough data. */
+		cc1120_flush_rx();
+		
+		RIMESTATS_ADD(tooshort);
+
+		return 0;
 	}
 	
-	/* Set RSSI and Link Quality Indicator. */
-	packetbuf_set_attr(PACKETBUF_ATTR_RSSI, rx_packet.rssi);
-	packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, (rx_packet.crc & CC1120_LQI_MASK));
+	
+	/* Read length byte. */
+	length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	
+	if(length > CC1120_MAX_PAYLOAD)
+	{
+		/* Packet too long, out of Sync? */
+		cc1120_flush_rx();
+		
+		RIMESTATS_ADD(badsynch);
+
+		return 0;
+	}
+	
+	if((length - 2) > buf_len) 
+	{
+		/* Packet is too long. */
+		cc1120_flush_rx();
+		
+		RIMESTATS_ADD(toolong);
+		
+		return 0;
+	}
+	
+	
+	/* Read the packet. */
+	//dint();
+	LOCK_SPI();
+	cc1120_arch_spi_enable();
+	
+	cc1120_arch_rxfifo_read(buf, length);	
+	
+	cc1120_arch_spi_disable();
+	RELEASE_SPI();
+	//eint();
+	
+	status = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);
+	if(status & CC1120_MODEM_STATUS1_RXFIFO_UNDERFLOW)
+	{
+		/* FIFO underflow */
+		cc1120_flush_rx();
+	
+		return 0;		
+	}
+	
+	/* Read RSSI. */
+	packetbuf_set_attr(PACKETBUF_ATTR_RSSI, cc1120_spi_single_read(CC1120_FIFO_ACCESS));
+
+	/* Read LQI. */
+	packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, (cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK));
 	
 	RIMESTATS_ADD(llrx);
 	
 	
-	/* Clear packet stats. */
-	rx_packet.length = 0;
-	rx_packet.crc = 0;
-	rx_packet.rssi = 0;
 	
-	/* Set packet not pending. */
-	radio_pending &= ~(PACKET_PENDING);
-	
-	/* See if we have any waiting RX. */
-	if(radio_pending & RX_PENDING)
+
+	if(status & CC1120_MODEM_STATUS1_RXFIFO_OVERFLOW)
 	{
-		cc1120_rx_interrupt();
+		/* FIFO overflow */
+		cc1120_flush_rx();		
 	}
-	
+	else if((cc1120_read_rxbytes() > 0) && !cc1120_driver_receiving_packet())
+	{
+		/* Another packet. */
+		process_poll(&cc1120_process);
+	}
+
+
 	/* Return read length. */
-	return ret;
+	return length;
 }
 
 int
@@ -423,10 +477,10 @@ cc1120_driver_channel_clear(void)
 	}
 
 	
-	//if(!radio_on)
-	//{
-	//	cc1120_driver_off();
-	//}
+	if(!radio_on)
+	{
+		cc1120_driver_off();
+	}
 	
 	return cca;
 }
@@ -456,6 +510,7 @@ cc1120_driver_receiving_packet(void)
 	}
 	else
 	{
+		// TODO: put this in arch
 		if(CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN))
 		{
 			/* Not receiving */
@@ -470,6 +525,7 @@ cc1120_driver_receiving_packet(void)
 #if CC1120DEBUG || DEBUG
 			printf(" Yes. ****\n");
 #endif
+			radio_pending |= PACKET_PENDING;
 			return 1;
 		}
 	}
@@ -478,6 +534,7 @@ cc1120_driver_receiving_packet(void)
 int
 cc1120_driver_pending_packet(void)
 {
+	//return 1;
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 	printf("**** Radio Driver: Pending Packet? ");
 #endif
@@ -486,7 +543,6 @@ cc1120_driver_pending_packet(void)
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 		printf(" yes ****\n");
 #endif
-		process_poll(&cc1120_process);
 		return 1;		
 	}
 	else
@@ -535,11 +591,11 @@ cc1120_driver_off(void)
 	// TODO: If TXOFF_MODE is set not to go to IDLE, shall we set it to do so?
 	
 
-	/* Flush the RX and TX FIFOs. */
+	/* Flush the RX FIFOs. */
 	cc1120_set_state(CC1120_STATE_IDLE);
 	ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 	
-	cc1120_flush_rx();
+	//cc1120_flush_rx();
 	
 	/* Put CC1120 into IDLE or sleep? Leave it up to platform-conf.h*/
 	cc1120_set_state(CC1120_OFF_STATE);
@@ -590,7 +646,7 @@ cc1120_set_channel(uint8_t channel)
 {
 	uint32_t freq_registers;
 	
-	dint();
+	//dint();
 	
 	freq_registers = CC1120_CHANNEL_MULTIPLIER;
 	freq_registers *= channel;
@@ -656,7 +712,7 @@ cc1120_set_channel(uint8_t channel)
 		while(cc1120_get_state() == CC1120_STATUS_CALIBRATE);
 	}
 	
-	eint();
+	//eint();
 	
 	current_channel = channel;
 	return current_channel;
@@ -685,7 +741,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 {
 	uint8_t i, fifo_len = 0;
 	
-	dint();
+	//dint();
 	LOCK_SPI();
 	cc1120_arch_spi_enable();
 	
@@ -693,6 +749,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	
 	cc1120_arch_spi_disable();
 	RELEASE_SPI();
+	//eint();
 	
 	
 	//clock_delay_usec(10);
@@ -1184,120 +1241,25 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 int
 cc1120_rx_interrupt(void)
 {
-	uint8_t fifo_bytes = 0;
-	leds_on(LEDS_RED);
 	
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG
+	leds_on(LEDS_RED);
+	/* Mark packet pending. */
+	radio_pending |= PACKET_PENDING;
+	
+	//printf("                    ");
+		
+#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
 	printf("!!!!!!!!!!!!!!!!!!!!!! RX INTERRUPT !!!!!!!!!!!!!!!!!!!!!! \n");
 #endif
 	
+	/* Poll radio process. */
+	process_poll(&cc1120_process);
+	
+	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
-
-	//fifo_bytes = cc1120_read_rxbytes();
-	if(cc1120_read_rxbytes() == 0 || transmitting)
-	{
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG		
-		printf("\tSpurious Interrupt.\n\n\n");
-#endif
-		/* Spurious interrupt. ignore. */
-		leds_off(LEDS_RED);
-		return 0;
-		
-	}	
-	else if(radio_pending & PACKET_PENDING)
-	{
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG		
-		printf("\tPacket already pending.\n\n\n");
-#endif
-		/* if we already have a packet pending mark 
-		 * that we have RX pending and do nothing 
-		 * else so that we do not lose a packet. */
-		radio_pending |= RX_PENDING;
-		leds_off(LEDS_RED);
-		return 1;	
-	}
-	else
-	{
-		//TODO: Handle FIFO Overflow.
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG		
-		printf("\tActual Packet...\n");
-#endif
-		/* Read the packet into the buffer and mark it pending. */
-		
-		/* Read length byte. */
-		rx_packet.length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG		
-		printf("\t\tLength = %d\n", rx_packet.length);
-#endif
-		
-		/* Read Payload. */
-		cc1120_arch_spi_enable();
-		cc1120_arch_rxfifo_read((void *)rx_packet.packet, rx_packet.length);
-		cc1120_arch_spi_disable();
-		
-		/* Read RSSI. */
-		rx_packet.rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-		
-		/* Read LQI. */
-		rx_packet.crc = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-		
-		/* Check CRC. */
-		if(!(rx_packet.crc & CC1120_LQI_PKT_CRC_OK_MASK))
-		{
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG			
-			printf("CRC not OK... \n");
-#endif
-			/* Bad CRC, ignore the packet. We should not get here as CRC is handled in radio. */
-			bad_crc++;
-			rx_packet.length = 0;
-			rx_packet.crc = 0;
-			rx_packet.rssi = 0;
-			radio_pending &= ~PACKET_PENDING;
-		}
-		else
-		{
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG			
-			printf("Packet Pending\n");
-#endif
-			/* Good CRC. Continue processing. */
-		
-			/* Mark packet pending. */
-			radio_pending |= PACKET_PENDING;
-		}
-		
-		
-		/* Handle RX Pending */
-		if(cc1120_read_rxbytes() > 0 && !(cc1120_driver_receiving_packet()))
-		{
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG			
-			printf("More data pendning.\n");
-#endif
-			/* We have data in FIFO and we are not receiving. */
-			
-			/* Set RX Pending bit. */
-			radio_pending |= RX_PENDING;
-		}
-		else
-		{
-			/* Clear RX Pending bit. */
-			radio_pending &= ~RX_PENDING;
-		}
-		
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG		
-		printf("Radio Pending = %02x\n", radio_pending);
-#endif		
-		
-		if(radio_pending & PACKET_PENDING)
-		{
-			leds_off(LEDS_RED);
-			return 1;
-		}
-		else
-		{
-			leds_off(LEDS_RED);
-			return 0;
-		}
-	}
+	
+	//leds_off(LEDS_RED);
+	return 1;
 }
 
 
@@ -1316,22 +1278,30 @@ PROCESS_THREAD(cc1120_process, ev, data)
 	while(1) 
 	{
 		PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+
 		
-		if(rx_packet.length > 0)
-		{
-			packetbuf_clear();
-			//packetbuf_set_attr(PACKETBUF_ATTR_TIMESTAMP, last_packet_timestamp);
-			len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
-			packetbuf_set_datalen(len);
+#if CC1120DEBUG || CC1120PROCESSDEBUG || DEBUG		
+		printf("**** Process Poll ****\n");
+#endif		
+			
+		packetbuf_clear();
+		len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
 		
-			NETSTACK_RDC.input();
-		}
-		else
-		{
-			/* Random trigger... */
-			radio_pending &= ~(PACKET_PENDING);
-		}
+#if CC1120DEBUG || CC1120PROCESSDEBUG || DEBUG		
+		printf("\t Packet Length: %d\n", len);
+#endif	
+		packetbuf_set_datalen(len);
+
+		NETSTACK_RDC.input();
+			
+		radio_pending &= ~PACKET_PENDING;
+		
+		leds_off(LEDS_RED);
 	}
+		
+
+		
+
 	PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_EXIT);
 
 	PROCESS_END();

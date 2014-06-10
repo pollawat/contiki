@@ -65,6 +65,9 @@ cc1120_arch_init(void)
 	CC1120_GDO0_PORT(SEL) &= ~BV(CC1120_GDO0_PIN);
 	CC1120_GDO0_PORT(DIR) &= ~BV(CC1120_GDO0_PIN);
 	
+	/* Set CC1120 to a rising edge interrupt. */
+	CC1120_GDO0_PORT(IES) &= ~BV(CC1120_GDO0_PIN);
+	
 #ifdef CC1120_GPIO2_FUNC	
 	CC1120_GDO2_PORT(SEL) &= ~BV(CC1120_GDO2_PIN);
 	CC1120_GDO2_PORT(DIR) &= ~BV(CC1120_GDO2_PIN);
@@ -152,12 +155,6 @@ cc1120_arch_spi_rw_byte(uint8_t val)
 	return SPI_RXBUF;
 }
 
-uint8_t 
-cc1120_arch_read_cca(void)
-{
-	return (CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN));
-}
-
 /*---------------------------------------------------------------------------*/
 uint8_t 
 cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
@@ -174,6 +171,8 @@ cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
 	return status;
 }
 
+
+/*---------------------------------------------------------------------------*/
 void 
 cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 {
@@ -187,6 +186,21 @@ cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 	
 }
 
+
+/*---------------------------------------------------------------------------*/
+uint8_t 
+cc1120_arch_read_cca(void)
+{
+	return (CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN));
+}
+
+
+/*---------------------------------------------------------------------------*/
+uint8_t
+cc1120_arch_gpio0_read(void)
+{
+	return (CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN));
+}
 
 /* -------------------------- Interrupt Functions -------------------------- */
 

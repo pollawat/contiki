@@ -43,7 +43,7 @@
 #define NETSTACK_CONF_NETWORK sicslowpan_driver
 #define NETSTACK_CONF_MAC     csma_driver
 #define NETSTACK_CONF_RDC     contikimac_driver
-#define NETSTACK_CONF_RADIO   cc11xx_driver
+#define NETSTACK_CONF_RADIO   cc1120_driver
 #define NETSTACK_CONF_FRAMER  framer_802154
 
 /* Specify a minimum packet size for 6lowpan compression to be
@@ -53,7 +53,7 @@
 #define SICSLOWPAN_CONF_COMPRESSION_THRESHOLD 63
 #define CONTIKIMAC_CONF_WITH_CONTIKIMAC_HEADER 0
 
-#define CC11xx_CONF_AUTOACK              1
+#define CC1120_CONF_AUTOACK              1
 #define NETSTACK_RDC_CHANNEL_CHECK_RATE  8
 #define RIME_CONF_NO_POLITE_ANNOUCEMENTS 0
 #define CXMAC_CONF_ANNOUNCEMENTS         0
