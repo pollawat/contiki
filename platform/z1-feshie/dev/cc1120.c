@@ -231,11 +231,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 		/* wait till we leave TX. */
 #if CC1120GPIOTXCHK		
-		marc_state = cc1120_arch_gpio0_read();
+		marc_state = cc1120_arch_read_gpio0();
 		
 		while(!marc_state)
 		{
-			marc_state = cc1120_arch_gpio0_read();
+			marc_state = cc1120_arch_read_gpio0();
 #else		
 		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
 		
@@ -511,7 +511,7 @@ cc1120_driver_receiving_packet(void)
 	else
 	{
 		// TODO: put this in arch
-		if(CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN))
+		if(cc1120_arch_read_gpio0())
 		{
 			/* Not receiving */
 #if CC1120DEBUG || DEBUG

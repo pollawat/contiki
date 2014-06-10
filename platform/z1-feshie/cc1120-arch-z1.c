@@ -191,15 +191,29 @@ cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 uint8_t 
 cc1120_arch_read_cca(void)
 {
-	return (CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN));
+	if(CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 
 /*---------------------------------------------------------------------------*/
 uint8_t
-cc1120_arch_gpio0_read(void)
+cc1120_arch_read_gpio0(void)
 {
-	return (CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN));
+	if(CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 /* -------------------------- Interrupt Functions -------------------------- */
