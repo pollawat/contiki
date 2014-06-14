@@ -59,6 +59,14 @@ clock_delay(unsigned int t)
 	} /* just something to wait, NOT the requested cycles */
 }
 
+void
+clock_delay_usec(uint16_t usec)
+{
+  // TODO: relate this to clock frequency.
+  clock_delay(usec * 48);
+}
+
+
 unsigned long
 clock_seconds(void)
 {

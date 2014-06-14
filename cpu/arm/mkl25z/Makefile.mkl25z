@@ -20,7 +20,7 @@ CONTIKI_CPU_DIRS = . ../common/dbg-io loader
 
 MKL25Z     =   kinetis_sysinit.c clock.c debug-uart.c \
                rtimer-arch.c serial.c spi.c nvic.c cpu.c clock.c \
-               kinetis_sysinit.c
+               kinetis_sysinit.c watchdog.c
                
 MKL25ZASM  = startup.S
 
