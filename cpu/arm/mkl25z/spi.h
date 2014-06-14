@@ -42,9 +42,12 @@
 
 
 void SPI0_init(void);		/* Initialise SPI0. */
+uint8_t SPI0_single_tx_rx(uint8_t in); /* SPI0 Single SPI Send/Recieve. */
+uint8_t SPI0_tx_and_rx(uint8_t addr, uint8_t value0); /* SPI0 Send data to SPI Address. */
 
-void SPI0_csn_low(void);	/* SPI0 CSn control */
-void SPI0_csn_high(void);	/* SPI0 CSn control */
+void SPI1_init(void);		/* Initialise SPI0. */
+uint8_t SPI1_single_tx_rx(uint8_t in); /* SPI0 Single SPI Send/Recieve. */
+uint8_t SPI1_tx_and_rx(uint8_t addr, uint8_t value0); /* SPI0 Send data to SPI Address. */
 
 uint8_t SPI_single_tx_rx(uint8_t in, uint8_t module); /* Single SPI Send/Recieve. */
 uint8_t SPI_tx_and_rx(uint8_t addr, uint8_t value, uint8_t module); /* Send data to SPI Address. */

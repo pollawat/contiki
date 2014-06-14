@@ -57,19 +57,11 @@
 
 #include <stdlib.h>
 
-void SPI0_init(void)
+void 
+SPI0_init(void)
 {
   port_enable(PORTD_EN_MASK | PORTC_EN_MASK); 				/* Make sure that clocks are enable to Port D and Port C */
-  
-  
-  /* Configure CSn pin on Port D, Pin 0 */
-  GPIOD_PDDR |= GPIO_PDDR_PDD(0x01); 						/* Set pin as Output. */                                                  
-  GPIOD_PDOR |= GPIO_PDOR_PDO(0x01);    					/* Set initialisation value on 1 */                                           
-
-  PORTD_PCR0 &= ~PORT_PCR_MUX_MASK;							/* Clear PCR Multiplex. */
-  PORTD_PCR0 |= PORT_PCR_ISF_MASK | PORT_PCR_MUX(0x01);		/* Clear ISF & set MUX to be basic pin. */
-  
-  
+   
   /* Configure SPI0. */
   SIM_SCGC4 |= SIM_SCGC4_SPI0_MASK;      					/* Enable clock to SPI Module */
   
@@ -91,25 +83,16 @@ void SPI0_init(void)
 }
 
 
-/* SPI CSn control */
-void SPI0_csn_low(void)
+/* Single SPI0 Send/Recieve. */
+uint8_t
+SPI0_single_tx_rx(uint8_t in) 
 {
-	FGPIOD_PCOR = 0x01;		/* Clear CSn bit. */
-}
-
-void SPI0_csn_high(void)
-{
-	FGPIOD_PSOR = 0x01;		/* Set CSn bit. */
-}
-
-
-/* Single SPI Send/Recieve. */
-uint8_t SPI_single_tx_rx(uint8_t in, uint8_t module) {
 	
 	uint8_t i = 1;
 	uint8_t tmp;
 	
 	while(i){
+		/* Wait for Transmitter Enmpty Flag. */
 		tmp = SPI0_S;
 		tmp &= SPI_S_SPTEF_MASK;
 		
@@ -121,11 +104,12 @@ uint8_t SPI_single_tx_rx(uint8_t in, uint8_t module) {
 	
 	i = 1;
 	while(i) {
+		/* Wait for Receiver Full Flag. */
 		tmp = SPI0_S;
 		tmp &= SPI_S_SPRF_MASK;
 		
 		if (tmp == SPI_S_SPRF_MASK) {
-			tmp = SPI0_D;
+			return SPI0_D;
 			i = 0;
 		}
 	}
@@ -133,11 +117,109 @@ uint8_t SPI_single_tx_rx(uint8_t in, uint8_t module) {
 	return (tmp);
 }
 
-/* Send data to SPI Address. */
-uint8_t SPI_tx_and_rx(uint8_t addr, uint8_t value, uint8_t module) {
+/* Send data to SPI0 Address. */
+uint8_t 
+SPI0_tx_and_rx(uint8_t addr, uint8_t value) 
+{
 
 	uint8_t result;
-	(void)SPI_single_tx_rx(addr,0); //Throw away the first received byte
-	result = SPI_single_tx_rx(value,0);
-	return result;
+	(void)SPI0_single_tx_rx(addr,0); 		//Throw away the first received byte
+	return = SPI0_single_tx_rx(value,0);
 }
+
+
+
+
+
+
+void 
+SPI0_init(void)
+{
+		
+}
+
+/* Single SPI1 Send/Recieve. */
+uint8_t 
+SPI1_single_tx_rx(uint8_t in) 
+{
+	
+	uint8_t i = 1;
+	uint8_t tmp;
+	
+	while(i){
+		/* Wait for Transmitter Enmpty Flag. */
+		tmp = SPI1_S;
+		tmp &= SPI_S_SPTEF_MASK;
+		
+		if (tmp == SPI_S_SPTEF_MASK) {
+			SPI1_D = in;
+			i = 0;
+		}
+	}
+	
+	i = 1;
+	while(i) {
+		/* Wait for Receiver Full Flag. */
+		tmp = SPI1_S;
+		tmp &= SPI_S_SPRF_MASK;
+		
+		if (tmp == SPI_S_SPRF_MASK) {
+			return SPI1_D;
+			i = 0;
+		}
+	}
+	
+	return (tmp);
+}
+
+/* Send data to SPI1 Address. */
+uint8_t 
+SPI1_tx_and_rx(uint8_t addr, uint8_t value) 
+{
+
+	uint8_t result;
+	(void)SPI1_single_tx_rx(addr,0); 		//Throw away the first received byte
+	return = SPI1_single_tx_rx(value,0);
+}
+
+
+
+
+uint8_t 
+SPI_single_tx_rx(uint8_t in, uint8_t module)
+{
+	if(module == 0)
+	{
+		return SPI0_single_tx_rx(in);
+	}
+	else if(module == 1)
+	{
+		return SPI1_single_tx_rx(in);
+	}
+	else
+	{
+		/* non-valid SPI Port. */
+		return 0xFF;
+	}
+}
+uint8_t 
+SPI_tx_and_rx(uint8_t addr, uint8_t value, uint8_t module)
+{
+	if(module == 0)
+	{
+		return SPI0_tx_and_rx(addr, value);
+	}
+	else if(module == 1)
+	{
+		return SPI1_tx_and_rx(addr, value);
+	}
+	else
+	{
+		/* non-valid SPI Port. */
+		return 0xFF;
+	}
+}
+
+
+
+
