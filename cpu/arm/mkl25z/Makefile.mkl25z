@@ -69,7 +69,7 @@ CFLAGSNO = -I. -L$(CONTIKI)/core -I$(CONTIKI_CPU) -I$(CONTIKI_CPU)/loader \
 			-I$(CONTIKI_CPU)/dbg-io -I$(CONTIKI)/dev \
             -I$(CONTIKI)/platform/$(TARGET)\
             ${addprefix -I,$(APPDIRS)} \
-            -DMCK=$(MCK) 
+            -DMCK=$(MCK) -DAUTOSTART_ENABLE
             
 CONTIKIFLAGS = -O -DRUN_AS_SYSTEM -DROM_RUN 
 LDFLAGSNO = -L$(CONTIKI_CPU)
