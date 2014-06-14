@@ -123,8 +123,8 @@ SPI0_tx_and_rx(uint8_t addr, uint8_t value)
 {
 
 	uint8_t result;
-	(void)SPI0_single_tx_rx(addr,0); 		//Throw away the first received byte
-	return = SPI0_single_tx_rx(value,0);
+	(void)SPI0_single_tx_rx(addr); 		//Throw away the first received byte
+	return SPI0_single_tx_rx(value);
 }
 
 
@@ -133,7 +133,7 @@ SPI0_tx_and_rx(uint8_t addr, uint8_t value)
 
 
 void 
-SPI0_init(void)
+SPI1_init(void)
 {
 		
 }
@@ -176,10 +176,9 @@ SPI1_single_tx_rx(uint8_t in)
 uint8_t 
 SPI1_tx_and_rx(uint8_t addr, uint8_t value) 
 {
-
 	uint8_t result;
-	(void)SPI1_single_tx_rx(addr,0); 		//Throw away the first received byte
-	return = SPI1_single_tx_rx(value,0);
+	(void)SPI1_single_tx_rx(addr); 		//Throw away the first received byte
+	return SPI1_single_tx_rx(value);
 }
 
 

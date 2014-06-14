@@ -24,7 +24,7 @@ MKL25Z     =   kinetis_sysinit.c clock.c debug-uart.c \
                
 MKL25ZASM  = startup.S
 
-UIPDRIVERS = me.c me_tabs.c slip.c crc16.c
+#UIPDRIVERS = me.c me_tabs.c slip.c crc16.c
 
 TARGETLIBS = random.c dbg-printf.c dbg-puts.c dbg-putchar.c dbg-sprintf.c dbg-snprintf.c strformat.c
 
@@ -58,7 +58,8 @@ LINKERSCRIPT = $(CONTIKI_CPU)/MKL25Z128_flash.ld
 
 ARCH_FLAGS= -mthumb
 MCFLAGS = -mcpu=$(MCU)
-CPFLAGS = -gdwarf-2 -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm -Wa,-ahlms=$(<:.c=.lst)
+CPFLAGS = -gdwarf-2 -fomit-frame-pointer -Wall -fverbose-asm -Wa,-adhlns="$@.lst"
+#-Wa,-ahlms=$(<:.c=.lst)
 
 DEFS = $(DDEFS) $(UDEFS)
 ADEFS = $(DADEFS) $(UADEFS)
@@ -104,7 +105,8 @@ CUSTOM_RULE_S_TO_OBJECTDIR_O = yes
 	@$(AS) -c $(ASFLAGS) $< -o $@
 
 $(OBJECTDIR)/%.o: %.S | $(OBJECTDIR)
-	$(AS) -c $(ASFLAGS) $< -o $@
+	@echo AS $@
+	@$(AS) -c $(ASFLAGS) $< -o $@
 
 %.out: $^
 	: | awk -f ../../tools/mknmlist > $ <at> _tmp.c && mv $ <at> _tmp.c $ <at> _nm.c
@@ -131,7 +133,8 @@ empty-symbols.c:
 
 CUSTOM_RULE_C_TO_CO=yes
 %.co: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo CC $@
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 CUSTOM_RULE_C_TO_CE=yes
 %.ce: %.o
@@ -139,8 +142,8 @@ CUSTOM_RULE_C_TO_CE=yes
 
 CUSTOM_RULE_LINK=yes
 %.$(TARGET): %.co $(PROJECT_OBJECTFILES) contiki-$(TARGET).a 
-	$(CC) $(LDFLAGS) $(CFLAGS) -nostartfiles -o $@ $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
-	$(CC) $(LDFLAGS) $(CFLAGS) -nostartfiles -o contiki-$(TARGET).elf $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o contiki-$(TARGET).elf $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
 
 %.srec: %.$(TARGET)
 	$(S19) contiki-$(TARGET).elf contiki-$(TARGET).srec

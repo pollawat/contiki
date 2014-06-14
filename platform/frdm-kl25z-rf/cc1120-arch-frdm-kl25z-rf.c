@@ -64,7 +64,7 @@ cc1120_arch_init(void)
 	cc1120_arch_pin_init();
 	
 	/* Init SPI.  May have already done but we need to ensure SPI is configured.  On Z1 this is done in main. */
-	spi_init();
+	SPI0_init();
 	
 #ifdef CC1120_GPIO2_FUNC	
 	CC1120_GDO2_PORT(PDDR) &= ~BV(CC1120_GDO2_PIN);					/* Set pin as Input. */
@@ -92,10 +92,10 @@ cc1120_arch_pin_init(void)
 	CC1120_SPI_CSN_PCR |= PORT_PCR_ISF_MASK | PORT_PCR_MUX(0x01);	/* Clear ISF & set MUX to be basic pin. */
                           
 	/* Setup !RESET pin. */
-	CC1120_SPI_RESET_PORT(PDDR) |= BV(CC1120_SPI_RESET_PIN);		/* Set pin as Output. */ 
-	CC1120_SPI_RESET_PORT(PSOR) = BV(CC1120_SPI_RESET_PIN);			/* Set CSn bit. */
-    CC1120_SPI_RESET_PCR &= ~PORT_PCR_MUX_MASK;						/* Clear PCR Multiplex. */
-	CC1120_SPI_RESET_PCR |= PORT_PCR_ISF_MASK | PORT_PCR_MUX(0x01);	/* Clear ISF & set MUX to be basic pin. */
+	CC1120_RESET_PORT(PDDR) |= BV(CC1120_RESET_PIN);				/* Set pin as Output. */ 
+	CC1120_RESET_PORT(PSOR) = BV(CC1120_RESET_PIN);				/* Set CSn bit. */
+    CC1120_RESET_PCR &= ~PORT_PCR_MUX_MASK;							/* Clear PCR Multiplex. */
+	CC1120_RESET_PCR |= PORT_PCR_ISF_MASK | PORT_PCR_MUX(0x01);		/* Clear ISF & set MUX to be basic pin. */
  	
 	/* Setup interrupt/GDO0 pin. */
 	CC1120_GDO0_PORT(PDDR) &= ~BV(CC1120_GDO0_PIN);				/* Set pin as Input. */
@@ -200,7 +200,7 @@ cc1120_arch_read_cca(void)
 
 /*---------------------------------------------------------------------------*/
 uint8_t
-cc1120_arch_gpio0_read(void)
+cc1120_arch_read_gpio0(void)
 {
 	if((CC1120_GDO0_PORT(PDIR) & BV(CC1120_GDO0_PIN)) == BV(CC1120_GDO0_PIN))
 	{
@@ -228,7 +228,7 @@ void
 cc1120_arch_interrupt_disable(void)
 {
 	/* Disable interrupt on the GDO0 pin */
-	CC1120_GDO0_PCR &= ~PORT_PCR_IRQC_MASK
+	CC1120_GDO0_PCR &= ~PORT_PCR_IRQC_MASK;
 	/* Reset interrupt trigger */
 	CC1120_GDO0_PCR |= PORT_PCR_ISF_MASK;
 }
