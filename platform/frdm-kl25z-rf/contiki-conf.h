@@ -18,19 +18,8 @@
 #define CCIF
 #define CLIF
 
-
-
-
 /* the low-level radio driver */
 #define NETSTACK_CONF_RADIO   cc1120_driver
-
-
-
-
-
-
-
-
 
 
 /* --------------------------- UIP Configuration. --------------------------- */

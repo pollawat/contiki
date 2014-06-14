@@ -11,7 +11,8 @@ MCK = 48000000
 
 CONTIKI_TARGET_MAIN = contiki-main.c 
 
-ARCH = cc1120-config.c cc1120.c cc1120-arch-frdm-kl25z-rf.c
+ARCH = cc1120-config.c cc1120.c cc1120-arch-frdm-kl25z-rf.c\
+		leds-arch.c
 
 CONTIKI_TARGET_SOURCEFILES += contiki-main.c
 CONTIKI_TARGET_SOURCEFILES += $(ARCH)

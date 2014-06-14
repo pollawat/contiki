@@ -2,7 +2,7 @@
 #define __PLATFORM_CONF_H__
 
 
-#define PLATFORM_HAS_LEDS   0
+#define PLATFORM_HAS_LEDS   1
 #define PLATFORM_HAS_BUTTON 0
 
 /* **************************************************************************** */
@@ -71,5 +71,21 @@
 #define CC1120_SPI_CLK_PIN		5
 #define CC1120_SPI_CLK_PCR		PORTC_PCR5
 
+
+/* ---------------------------- LED Pin Mappings. ----------------------------- */
+#define LED_RED_PORT_MASK			PORTB_EN_MASK
+#define LED_RED_PORT(type)			GPIOB_##type
+#define LED_RED_PIN				18
+#define LED_RED_PCR				PORTB_PCR18
+
+#define LED_GREEN_PORT_MASK			PORTB_EN_MASK
+#define LED_GREEN_PORT(type)		GPIOB_##type
+#define LED_GREEN_PIN			19
+#define LED_GREEN_PCR			PORTB_PCR19
+
+#define LED_BLUE_PORT_MASK			PORTD_EN_MASK
+#define LED_BLUE_PORT(type)			GPIOD_##type
+#define LED_BLUE_PIN			1
+#define LED_BLUE_PCR			PORTD_PCR1
 
 #endif /* __PLATFORM_CONF_H__ */
