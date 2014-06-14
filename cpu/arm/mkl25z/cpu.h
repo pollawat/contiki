@@ -29,6 +29,8 @@
 #ifndef __CPU_H
 #define __CPU_H
 
+#include <MKL25Z4.h>
+
 #define PORTB_EN_MASK	0x01
 #define PORTC_EN_MASK	0x02
 #define PORTD_EN_MASK	0x04
