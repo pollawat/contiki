@@ -52,8 +52,8 @@ clock_time(void)
 void
 clock_delay(unsigned int t)
 {
-	volatile uint8_t i;
-	for(i=0; i<(t*1.25); i++) {
+	volatile unsigned int i;
+	for(i=0; i<(t); i++) {
 		/* NOTE: this is not really accurate, as not sure yet about the cycle counts. Assuming 0.75 cycle for a NOP */
 		asm("nop \n\t");
 	} /* just something to wait, NOT the requested cycles */

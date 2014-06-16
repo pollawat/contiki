@@ -7,7 +7,7 @@
 #include <clock.h>
 #include <etimer.h>
 
-//#include <dev/leds.h>
+#include <dev/leds.h>
 
 #include <sys/process.h>
 #include <sys/procinit.h>
@@ -132,9 +132,16 @@ main(void)
   
   dbg_setup_uart();
   printf("Initialising\n");
+  leds_init();
+  
+  leds_on(LEDS_RED);
+  clock_delay_usec(100);
   
   printf("Clocks...\n");
   clock_init();
+  
+  printf("Rtimer...\n");
+  rtimer_init();
 
   /* Restore node id if such has been stored in external mem */
   node_id_restore();
@@ -187,6 +194,8 @@ main(void)
     //cc2420_set_pan_addr(IEEE802154_PANID, shortaddr, longaddr);
   }
   
+  
+  leds_off(LEDS_ALL);
   PRINTF(CONTIKI_VERSION_STRING " started. ");
 
   if(node_id > 0) {

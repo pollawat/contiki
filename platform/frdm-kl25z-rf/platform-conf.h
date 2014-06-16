@@ -19,6 +19,8 @@
 
 #define RF_CHANNEL				42
 
+#define CC1120LEDS				1
+
 #define CC1120_FHSS_ETSI_50		1
 #define CC1120_FHSS_FCC_50		0
 
