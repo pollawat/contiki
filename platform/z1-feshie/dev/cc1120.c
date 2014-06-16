@@ -8,7 +8,10 @@
  
 #include "contiki.h"
 #include "contiki-conf.h"
+
+#if CC1120LEDS
 #include "dev/leds.h"
+#endif
 
 /* CC1120 headers. */
 #include "cc1120.h"
@@ -74,13 +77,13 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-									printf("CC1120 Detected - Radio OK\n");
+									printf("CC1120 Detected - Radio OK");
 									break;
 		case CC1120_PART_NUM_CC1121:
-									printf("CC1121 Detected - Radio OK\n");
+									printf("CC1121 Detected - Radio OK");
 									break;
 		case CC1120_PART_NUM_CC1125:
-									printf("CC1125 Detected - Radio OK\n");
+									printf("CC1125 Detected - Radio OK");
 									break;
 		case CC1120_PART_NUM_CC1175:							
 									printf("CC1175 Detected\n");
@@ -93,6 +96,12 @@ cc1120_driver_init(void)
 						while(1);	/* Spin ad infinitum as we cannot continue. */
 						break;
 	}
+	
+#if CC1120LEDS
+	printf(" & using LEDs.");
+#endif
+
+	printf("\n");
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -204,7 +213,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	
 	transmitting = 1;
+#if CC1120LEDS	
 	leds_on(LEDS_GREEN);
+#endif
 
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tTX: Disabling RX Interrupt...\n");
@@ -250,8 +261,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 		ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 		transmitting = 0;
-		leds_off(LEDS_GREEN);
 		
+#if CC1120LEDS		
+		leds_off(LEDS_GREEN);
+#endif		
 		cur_state = cc1120_get_state();
 		if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX))
 		{
@@ -465,7 +478,9 @@ cc1120_driver_channel_clear(void)
 #if CC1120DEBUG || DEBUG
 		printf("\t Channel NOT clear.\n");
 #endif
+#if CC1120LEDS
 		leds_off(LEDS_BLUE);
+#endif		
 	}
 	else
 	{
@@ -473,7 +488,9 @@ cc1120_driver_channel_clear(void)
 #if CC1120DEBUG || DEBUG
 		printf("\t Channel clear.\n");
 #endif
+#if CC1120LEDS
 		leds_on(LEDS_BLUE);
+#endif		
 	}
 
 	
@@ -1241,8 +1258,9 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 int
 cc1120_rx_interrupt(void)
 {
-	
+#if CC1120LEDS	
 	leds_on(LEDS_RED);
+#endif	
 	/* Mark packet pending. */
 	radio_pending |= PACKET_PENDING;
 	
@@ -1258,7 +1276,6 @@ cc1120_rx_interrupt(void)
 	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
 	
-	//leds_off(LEDS_RED);
 	return 1;
 }
 
@@ -1295,8 +1312,10 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		NETSTACK_RDC.input();
 			
 		radio_pending &= ~PACKET_PENDING;
-		
+
+#if CC1120LEDS		
 		leds_off(LEDS_RED);
+#endif
 	}
 		
 
