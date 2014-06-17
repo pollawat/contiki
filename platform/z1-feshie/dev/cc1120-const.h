@@ -26,7 +26,7 @@
 
 
 
-/* ----------------------- CC1120 Config Memory Addresses ----------------------- */
+/* ----------------- CC1120 Config Memory Addresses ----------------------- */
 #define CC1120_ADDR_IOCFG3			0x00
 #define CC1120_ADDR_IOCFG2			0x01
 #define CC1120_ADDR_IOCFG1			0x02
@@ -77,7 +77,7 @@
 #define CC1120_ADDR_EXTENDED_MEMORY_ACCESS	0x2F
 
 
-/* --------------------- CC1120 Command Strobe Addresses --------------------- */
+/* ------------------ CC1120 Command Strobe Addresses --------------------- */
 /* Command strobes 0x30 to 0x3D do NOT function if the burst bit is set when strobing. */ 
 #define CC1120_STROBE_SRES			0x30
 #define CC1120_STROBE_SFSTXON		0x31
@@ -97,7 +97,7 @@
 #define CC1120_FIFO_ACCESS			0x3F
 
 
-/* ----------------------- CC1120 Extended Memory Addresses ----------------------- */
+/* --------------- CC1120 Extended Memory Addresses ----------------------- */
 #define CC1120_ADDR_IF_MIX_CFG			0x2F00
 #define CC1120_ADDR_FREQOFF_CFG			0x2F01
 #define CC1120_ADDR_TOC_CFG				0x2F02
@@ -228,14 +228,14 @@
 
 
 
-/* ---------------------- CC1120 Register Access Modifiers ---------------------- */
+/* ---------------- CC1120 Register Access Modifiers ---------------------- */
 #define CC1120_READ_BIT 			0x80
 #define CC1120_WRITE_BIT			0x00
 #define CC1120_BURST_BIT			0x40
 #define CC1120_STANDARD_BIT			0x00
 
 
-/* -------------------------------- CC1120 Masks -------------------------------- */
+/* ------------------------- CC1120 Masks -------------------------------- */
 #define CC1120_EXTENDED_MEMORY_ACCESS_MASK	0x2F00
 #define CC1120_ADDRESS_MASK					0xFF
 
@@ -282,7 +282,7 @@
 #define CC1120_MARC_STATE_MARC_STATE_ENDCAL			0x0C
 #define CC1120_MARC_STATE_MARC_STATE_RX				0x0D
 #define CC1120_MARC_STATE_MARC_STATE_RX_END			0x0E
-// Reserved 										0x0F
+// Reserved 						0x0F
 #define CC1120_MARC_STATE_MARC_STATE_TXRX_SWITCH	0x10
 #define CC1120_MARC_STATE_MARC_STATE_RX_FIFO_ERR	0x11
 #define CC1120_MARC_STATE_MARC_STATE_FSTXON			0x12
@@ -292,11 +292,11 @@
 #define CC1120_MARC_STATE_MARC_STATE_TX_FIFO_ERR	0x16
 #define CC1120_MARC_STATE_MARC_STATE_IFADCON_TXRX	0x17
 
-#define CC1120_STATUS_CHIP_RDY_MASK					0x80
-#define CC1120_STATUS_STATE_MASK					0x70 
-#define CC1120_STATUS_IDLE 							0x00
-#define CC1120_STATUS_RX 							0x10
-#define CC1120_STATUS_TX 							0x20				
+#define CC1120_STATUS_CHIP_RDY_MASK				0x80
+#define CC1120_STATUS_STATE_MASK				0x70 
+#define CC1120_STATUS_IDLE 					0x00
+#define CC1120_STATUS_RX					0x10
+#define CC1120_STATUS_TX 					0x20				
 #define CC1120_STATUS_FSTXON						0x30
 #define CC1120_STATUS_CALIBRATE						0x40
 #define CC1120_STATUS_SETTLING						0x50
@@ -304,14 +304,14 @@
 #define CC1120_STATUS_TX_FIFO_ERROR					0x70
 // bits 3:0 reserved
 
-// bit 7 not used.									0x80
+// bit 7 not used.				0x80
 #define CC1120_RSSI0_LSB_MASK_MASK					0x78
 #define CC1120_RSSI0_CARRIER_SENSE					0x04
 #define CC1120_CARRIER_SENSE_VALID					0x02
-#define CC1120_RSSI_VALID							0x01
+#define CC1120_RSSI_VALID						0x01
 
 #define CC1120_LQI_PKT_CRC_OK_MASK					0x80
-#define CC1120_LQI_MASK								0x2F
+#define CC1120_LQI_MASK							0x2F
 
 #define CC1120_PQT_SYNC_ERR_PQT_ERROR_MASK			0xF0
 #define CC1120_PQT_SYNC_ERR_SYNC_ERROR				0x0F
@@ -361,78 +361,83 @@
 
 
 
-/* ------------------------------- GPIO Functions ------------------------------- */
-#define CC1120_GPIO_RXFIFO_THR				0
-#define CC1120_GPIO_RXFIFO_THR_PKT			1
-#define CC1120_GPIO_TXFIFO_THR				2
-#define CC1120_GPIO_TXFIFO_THR_PKT			3
-#define CC1120_GPIO_RXFIFO_OVERFLOW			4
+/* ------------------------- GPIO Functions ------------------------------- */
+#define CC1120_GPIO_RXFIFO_THR			0
+#define CC1120_GPIO_RXFIFO_THR_PKT		1
+#define CC1120_GPIO_TXFIFO_THR			2
+#define CC1120_GPIO_TXFIFO_THR_PKT		3
+#define CC1120_GPIO_RXFIFO_OVERFLOW		4
 #define CC1120_GPIO_TXFIFO_UNDERFLOW		5
-#define CC1120_GPIO_PKT_SYNC_RXTX			6
-#define CC1120_GPIO_CRC_OK					7
-#define CC1120_GPIO_SERIAL_CLK				8
-#define CC1120_GPIO_SERIAL_RX				9
-// Reserved									10
-#define CC1120_GPIO_PQT_REACHED				11
-#define CC1120_GPIO_PQT_VALID				12
-#define CC1120_GPIO_RSSI_VALID				13
-#define CC1120_GPIO_RSSI_SIGNALS			14
+#define CC1120_GPIO_PKT_SYNC_RXTX		6
+#define CC1120_GPIO_CRC_OK			7
+#define CC1120_GPIO_SERIAL_CLK			8
+#define CC1120_GPIO_SERIAL_RX			9
+// Reserved					10
+#define CC1120_GPIO_PQT_REACHED			11
+#define CC1120_GPIO_PQT_VALID			12
+#define CC1120_GPIO_RSSI_VALID			13
+#define CC1120_GPIO_RSSI_SIGNALS		14
 #define CC1120_GPIO_CLEAR_CHANEL_ASSESSMENT	15
 #define CC1120_GPIO_CARRIER_SENSE_VALID		16
-#define CC1120_GPIO_CARRIER_SENSE 			17
-#define CC1120_GPIO_DSSS_SIGNALS			18
-#define CC1120_GPIO_PKT_CRC_OK				19
-#define CC1120_GPIO_MCU_WAKEUP				20
-#define CC1120_GPIO_SYNC_LOW0_HIGH1			21
-// Reserved									22
-#define CC1120_GPIO_LNA_PA_REG_PD			23
-#define CC1120_GPIO_LNA_PD					24
-#define CC1120_GPIO_PA_PD 					25
-#define CC1120_GPIO_RX0TX1_CFG				26
-// Reserved									27
-#define CC1120_GPIO_IMAGE_FOUND				28
-#define CC1120_GPIO_CLKEN_CFM				29
-#define CC1120_GPIO_CFM_TX_DATA_CLK			30
-// Reserved									31
-// Reserved									32
-#define CC1120_GPIO_RSSI_STEP_FOUND			33
-#define CC1120_GPIO_RSSI_STEP_EVENT			34
-#define CC1120_GPIO_LOCK					35
-#define CC1120_GPIO_ANTENNA_SELECT			36
+#define CC1120_GPIO_CARRIER_SENSE 		17
+#define CC1120_GPIO_DSSS_SIGNALS		18
+#define CC1120_GPIO_PKT_CRC_OK			19
+#define CC1120_GPIO_MCU_WAKEUP			20
+#define CC1120_GPIO_SYNC_LOW0_HIGH1		21
+// Reserved					22
+#define CC1120_GPIO_LNA_PA_REG_PD		23
+#define CC1120_GPIO_LNA_PD			24
+#define CC1120_GPIO_PA_PD 			25
+#define CC1120_GPIO_RX0TX1_CFG			26
+// Reserved					27
+#define CC1120_GPIO_IMAGE_FOUND			28
+#define CC1120_GPIO_CLKEN_CFM			29
+#define CC1120_GPIO_CFM_TX_DATA_CLK		30
+// Reserved					31
+// Reserved					32
+#define CC1120_GPIO_RSSI_STEP_FOUND		33
+#define CC1120_GPIO_RSSI_STEP_EVENT		34
+#define CC1120_GPIO_LOCK			35
+#define CC1120_GPIO_ANTENNA_SELECT		36
 #define CC1120_GPIO_MARC_2PIN_STATUS1		37
 #define CC1120_GPIO_MARC_2PIN_STATUS0		38
 #define CC1120_GPIO_2_TXFIFO_OVERFLOW		39 // pins 1 & 3 are reserved
 #define CC1120_GPIO_0_RXFIFO_UNDERFLOW		39
-#define CC1120_GPIO_3_MAGN_VALID			40
-#define CC1120_GPIO_2_CHFILT_VALID			40
-#define CC1120_GPIO_1_RCC_CAL_VALID			40
+#define CC1120_GPIO_3_MAGN_VALID		40
+#define CC1120_GPIO_2_CHFILT_VALID		40
+#define CC1120_GPIO_1_RCC_CAL_VALID		40
 #define CC1120_GPIO_0_CHFILT_STARTUP_VALID	40
 #define CC1120_GPIO_3_COLLISION_FOUND		41
-#define CC1120_GPIO_2_SYNC_EVENT			41
+#define CC1120_GPIO_2_SYNC_EVENT		41
 #define CC1120_GPIO_1_COLLISION_FOUND		41
 #define CC1120_GPIO_0_COLLISION_EVENT		41
-#define CC1120_GPIO_PA_RAMP_UP				42
-#define CC1120_GPIO_
-#define CC1120_GPIO_AGC_STABLE_GAIN			44
-#define CC1120_GPIO_AGC_UPDATE				45
-#define CC1120_GPIO_ADC_DATA				46
-// Reserved									47
-#define CC1120_GPIO_HIGHZ					48
-#define CC1120_GPIO_EXT_CLOCK				49
-#define CC1120_GPIO_CHIP_RDYN				50
-#define CC1120_GPIO_HW0						51
-// Reserved									52
-// Reserved									53
-#define CC1120_GPIO_CLOCK_32K				54
-#define CC1120_GPIO_WOR_EVENT0				55
-#define CC1120_GPIO_WOW_EVENT1				56
-#define CC1120_GPIO_WOR_EVENT2				57
-// Reserved									58
-#define CC1120_GPIO_XOSC_STABLE				59
-#define CC1120_GPIO_EXT_OSC_EN				60
-// Reserved									61
-// Reserved									62
-// Reserved									63
+#define CC1120_GPIO_PA_RAMP_UP			42
+
+#define CC1120_GPIO_0_UART_FRAMING_ERROR	43
+#define CC1120_GPIO_1_ADDR_FAILED		43
+#define CC1120_GPIO_2_LENGTH_FAILED		43
+#define CC1120_GPIO_3_CRC_FAILED		43
+
+#define CC1120_GPIO_AGC_STABLE_GAIN		44
+#define CC1120_GPIO_AGC_UPDATE			45
+#define CC1120_GPIO_ADC_DATA			46
+// Reserved				47
+#define CC1120_GPIO_HIGHZ			48
+#define CC1120_GPIO_EXT_CLOCK			49
+#define CC1120_GPIO_CHIP_RDYN			50
+#define CC1120_GPIO_HW0				51
+// Reserved				52
+// Reserved				53
+#define CC1120_GPIO_CLOCK_32K			54
+#define CC1120_GPIO_WOR_EVENT0			55
+#define CC1120_GPIO_WOW_EVENT1			56
+#define CC1120_GPIO_WOR_EVENT2			57
+// Reserved				58
+#define CC1120_GPIO_XOSC_STABLE			59
+#define CC1120_GPIO_EXT_OSC_EN			60
+// Reserved				61
+// Reserved				62
+// Reserved				63
 
 
 #endif /* CC1120_CONST_H */
