@@ -1,4 +1,3 @@
-
 #ifndef CC1120_H
 #define CC1120_H
 
@@ -53,7 +52,7 @@
 
 extern const struct radio_driver cc11xx_driver;
 
-/* ---------------------------- Radio Driver Functions ---------------------------- */
+/* --------------------- Radio Driver Functions ---------------------------- */
 int cc1120_driver_init(void);
 int cc1120_driver_prepare(const void *payload, unsigned short len);
 int cc1120_driver_transmit(unsigned short transmit_len);
@@ -66,7 +65,7 @@ int cc1120_driver_on(void);
 int cc1120_driver_off(void);
 
 
-/* --------------------------- CC1120 Support Functions --------------------------- */
+/* -------------------- CC1120 Support Functions --------------------------- */
 void cc1120_gpio_config(void);
 void cc1120_misc_config(void);
 uint8_t cc1120_set_channel(uint8_t channel);
@@ -76,13 +75,13 @@ uint8_t cc1120_read_rxbytes(void);
 
 
 
-/* ---------------------------- CC1120 State Functions ---------------------------- */
+/* --------------------- CC1120 State Functions ---------------------------- */
 uint8_t cc1120_set_state(uint8_t state);
 uint8_t cc1120_get_state(void);
 uint8_t cc1120_set_idle(void);
 
 
-/* -------------------------- CC1120 State Set Functions -------------------------- */
+/* ------------------- CC1120 State Set Functions -------------------------- */
 uint8_t cc1120_set_idle(void);
 uint8_t cc1120_set_rx(void);
 uint8_t cc1120_set_tx(void);
@@ -90,14 +89,14 @@ uint8_t cc1120_flush_rx(void);
 uint8_t cc1120_flush_tx(void);
 
 
-/* ----------------------------- CC1120 SPI Functions ----------------------------- */
+/* ---------------------- CC1120 SPI Functions ----------------------------- */
 uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
 uint8_t cc1120_spi_single_read(uint16_t addr);
 uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
 uint8_t cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw);
 uint8_t cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len);
 
-/* -------------------------- CC1120 Interrupt Handler --------------------------- */
+/* -------------------- CC1120 Interrupt Handler --------------------------- */
 int cc1120_rx_interrupt(void);
 
 

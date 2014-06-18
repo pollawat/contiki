@@ -12,9 +12,9 @@
 void
 rtimer_arch_init(void)
 {
-	LPTMR0_CSR &= ~0xFF;											/* Clear CSR settings. */
-	
 	SIM_SCGC5 |= SIM_SCGC5_LPTMR_MASK;								/* Set SIM_SCGC5: Enable LPTMR clock. LPTMR=1. Page 206. */
+	
+	LPTMR0_CSR &= ~0xFF;											/* Clear CSR settings. */
 	
 	LPTMR0_CSR |= LPTMR_CSR_TCF_MASK;								/* Clear TCF. */
 	

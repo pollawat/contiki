@@ -105,19 +105,17 @@ cc1120_arch_pin_init(void)
 
 
 /* ---------------------------- Reset Functions ---------------------------- */
-/*---------------------------------------------------------------------------*/
 void
 cc1120_arch_reset(void)
 {
-	CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);		/* Assert CSn to de-select CC1120. */
-	CC1120_RESET_PORT(OUT) &= ~BV(CC1120_RESET_PIN);		/* Clear !Reset pin. */
-	clock_delay_usec(CC1120_RESET_DELAY_USEC);				/* Delay for a little. */
-	CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);			/* Assert !Reset pin. */
+	CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);	/* Assert CSn to de-select CC1120. */
+	CC1120_RESET_PORT(OUT) &= ~BV(CC1120_RESET_PIN);	/* Clear !Reset pin. */
+	clock_delay_usec(CC1120_RESET_DELAY_USEC);	/* Delay for a little. */
+	CC1120_RESET_PORT(OUT) |= BV(CC1120_RESET_PIN);		/* Assert !Reset pin. */
 }
 
 
 /* ----------------------------- SPI Functions ----------------------------- */
-/*---------------------------------------------------------------------------*/
 void
 cc1120_arch_spi_enable(void)
 {

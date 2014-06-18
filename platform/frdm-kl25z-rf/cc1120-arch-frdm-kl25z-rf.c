@@ -60,9 +60,19 @@
 void
 cc1120_arch_init(void)
 {
+#ifdef CC1120ARCHDEBUG
+	printf("CC1120 Architecture Initialisation.\n");
+#endif
+
+#ifdef CC1120ARCHDEBUG
+	printf("\tPins...\n");
+#endif	
 	/* Configure pins.  This may have already been done but func is repeat-execution safe. */
 	cc1120_arch_pin_init();
-	
+
+#ifdef CC1120ARCHDEBUG
+	printf("\tSPI0...\n");
+#endif	
 	/* Init SPI.  May have already done but we need to ensure SPI is configured.  On Z1 this is done in main. */
 	SPI0_init();
 	
@@ -77,7 +87,9 @@ cc1120_arch_init(void)
 	CC1120_GDO3_PCR &= ~PORT_PCR_MUX_MASK;							/* Clear PCR Multiplex. */
 	CC1120_GDO3_PCR |= PORT_PCR_ISF_MASK | PORT_PCR_MUX(0x01);		/* Clear ISF & set MUX to be basic pin. */
 #endif
-	
+#ifdef CC1120ARCHDEBUG
+	printf("\tArchitecture initialisation done.\n");
+#endif
 }
 
 /*---------------------------------------------------------------------------*/
@@ -110,10 +122,16 @@ cc1120_arch_pin_init(void)
 void
 cc1120_arch_reset(void)
 {
+#ifdef CC1120ARCHDEBUG
+	printf("CC1120 Arch reset....");
+#endif
 	CC1120_SPI_CSN_PORT(PSOR) = BV(CC1120_SPI_CSN_PIN);		/* Assert CSn to de-select CC1120. */
 	CC1120_RESET_PORT(PCOR) = BV(CC1120_RESET_PIN);			/* Clear !Reset pin. */
-	clock_delay(600);										/* Delay for a little. */
+	clock_delay_usec(2);										/* Delay for a little. */
 	CC1120_RESET_PORT(PSOR) = BV(CC1120_RESET_PIN);			/* Assert !Reset pin. */
+#ifdef CC1120ARCHDEBUG
+	printf(" OK\n");
+#endif
 }
 
 

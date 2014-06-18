@@ -4,11 +4,15 @@
  * \author
  *         Graeme Bragg <g.bragg@ecs.soton.ac.uk>
  *         Phil Basford <pjb@ecs.soton.ac.uk>
+ *	ECS, University of Southampton
  */
  
 #include "contiki.h"
 #include "contiki-conf.h"
+
+#if CC1120LEDS
 #include "dev/leds.h"
+#endif
 
 /* CC1120 headers. */
 #include "cc1120.h"
@@ -20,24 +24,27 @@
 #define RELEASE_SPI() while(0) { }
 
 #define PACKET_PENDING		0x01
-#define RX_PENDING			0x02
+#define RX_PENDING		0x02
 
 PROCESS(cc1120_process, "CC1120 driver");
 
-/* ---------------------------- Radio Driver Structure ---------------------------- */
+/* -------------------- Radio Driver Structure ---------------------------- */
 const struct radio_driver cc1120_driver = {
-    cc1120_driver_init,
-    cc1120_driver_prepare,
-    cc1120_driver_transmit,
-    cc1120_driver_send_packet,
-    cc1120_driver_read_packet,
-    cc1120_driver_channel_clear,
-    cc1120_driver_receiving_packet,
-    cc1120_driver_pending_packet,
-    cc1120_driver_on,
-    cc1120_driver_off,
+	cc1120_driver_init,
+	cc1120_driver_prepare,
+	cc1120_driver_transmit,
+	cc1120_driver_send_packet,
+	cc1120_driver_read_packet,
+	cc1120_driver_channel_clear,
+	cc1120_driver_receiving_packet,
+	cc1120_driver_pending_packet,
+	cc1120_driver_on,
+	cc1120_driver_off,
 };
 
+/* ------------------- Packet structure-----------------------------------
+ * need +3 bytes for the buffer to incl length,RSSI and LQI bytes
+*/
 typedef struct received_packet {
 	uint8_t length;
 	uint8_t packet[CC1120_MAX_PAYLOAD + 3];
@@ -46,24 +53,23 @@ typedef struct received_packet {
 } received_packet;
 
 
-/* Internal variables. */
+/* ------------------- Internal variables -------------------------------- */
 static volatile uint8_t current_channel, transmitting, radio_pending, radio_on, tx_error, txfirst, txlast = 0;
 //static received_packet rx_packet;
 static volatile uint16_t bad_crc;
 
 
-/* ---------------------------- Radio Driver Functions ---------------------------- */
+/* ------------------- Radio Driver Functions ---------------------------- */
 int 
 cc1120_driver_init(void)
 {
 #if CC1120DEBUG || DEBUG
-	printf("**** Radio Driver: Init ****\n");
+	printf("**** CC1120 Radio Driver: Init ****\n");
 #endif
 	uint8_t part = 0;
-	
 	bad_crc = 0;
 	
-	/* Init arch */
+	/* Initialise arch  - pins, spi, turn off cc2420 */
 	cc1120_arch_init();
 	
 	/* Reset CC1120 */
@@ -74,25 +80,31 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-									printf("CC1120 Detected - Radio OK\n");
-									break;
+			printf("CC1120 Detected - Radio OK");
+			break;
 		case CC1120_PART_NUM_CC1121:
-									printf("CC1121 Detected - Radio OK\n");
-									break;
+			printf("CC1121 Detected - Radio OK");
+			break;
 		case CC1120_PART_NUM_CC1125:
-									printf("CC1125 Detected - Radio OK\n");
-									break;
-		case CC1120_PART_NUM_CC1175:							
-									printf("CC1175 Detected\n");
-									printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n");
-									while(1);	/* Spin ad infinitum as we cannot continue. */
-									break;
+			printf("CC1125 Detected - Radio OK");
+			break;
+		case CC1120_PART_NUM_CC1175:
+			printf("CC1175 Detected\n");
+			printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n");
+			while(1);	/* Spin ad infinitum as we cannot continue. */
+			break; /* spurious but.... */
 		default:	/* Not a supported chip or no chip present... */
-						printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %02x detected) ***\n", part);
-						printf("*** Check radio and reset ***\n");
-						while(1);	/* Spin ad infinitum as we cannot continue. */
-						break;
+			printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %02x detected) ***\n", part);
+			printf("*** Check radio and reset ***\n");
+			while(1);	/* Spin ad infinitum as we cannot continue. */
+			break;
 	}
+	
+#if CC1120LEDS
+	printf(" & using LEDs.");
+#endif
+
+	printf("\n"); /* maybe trying too much printing here? */
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -208,7 +220,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	
 	transmitting = 1;
+#if CC1120LEDS	
 	leds_on(LEDS_GREEN);
+#endif
 
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tTX: Disabling RX Interrupt...\n");
@@ -259,8 +273,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 		ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 		transmitting = 0;
-		leds_off(LEDS_GREEN);
 		
+#if CC1120LEDS		
+		leds_off(LEDS_GREEN);
+#endif		
 		cur_state = cc1120_get_state();
 		if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX))
 		{
@@ -482,7 +498,9 @@ cc1120_driver_channel_clear(void)
 #if CC1120DEBUG || DEBUG
 		printf("\t Channel NOT clear.\n");
 #endif
+#if CC1120LEDS
 		leds_off(LEDS_BLUE);
+#endif		
 	}
 	else
 	{
@@ -490,7 +508,9 @@ cc1120_driver_channel_clear(void)
 #if CC1120DEBUG || DEBUG
 		printf("\t Channel clear.\n");
 #endif
+#if CC1120LEDS
 		leds_on(LEDS_BLUE);
+#endif		
 	}
 
 	
@@ -1262,8 +1282,9 @@ cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 int
 cc1120_rx_interrupt(void)
 {
-	
+#if CC1120LEDS	
 	leds_on(LEDS_RED);
+#endif	
 	/* Mark packet pending. */
 	radio_pending |= PACKET_PENDING;
 	
@@ -1279,7 +1300,6 @@ cc1120_rx_interrupt(void)
 	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
 	
-	//leds_off(LEDS_RED);
 	return 1;
 }
 
@@ -1316,8 +1336,10 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		NETSTACK_RDC.input();
 			
 		radio_pending &= ~PACKET_PENDING;
-		
+
+#if CC1120LEDS		
 		leds_off(LEDS_RED);
+#endif
 	}
 		
 

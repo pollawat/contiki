@@ -75,7 +75,7 @@ CONTIKIFLAGS = -O -DRUN_AS_SYSTEM -DROM_RUN
 LDFLAGSNO = -L$(CONTIKI_CPU)
 		   
  
-ASFLAGS = $(MCFLAGS) $(ARCH_FLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.S=.lst) $(ADEFS)		   
+ASFLAGS = $(MCFLAGS) $(ARCH_FLAGS) -g -gdwarf-2 -Wa,-adhlns="$@.lst" $(ADEFS)		   
 CFLAGS  += $(MCFLAGS) $(OPT)  $(ARCH_FLAGS) $(CFLAGSNO) $(CONTIKIFLAGS) $(CPFLAGS) $(DEFS)
 LDFLAGS += $(MCFLAGS) $(ARCH_FLAGS) -nostartfiles -T$(LINKERSCRIPT) -Wl,-Map=$(FULL_PRJ).map,--cref,--no-warn-mismatch $(LDFLAGSNO)
 
@@ -142,11 +142,17 @@ CUSTOM_RULE_C_TO_CE=yes
 
 CUSTOM_RULE_LINK=yes
 %.$(TARGET): %.co $(PROJECT_OBJECTFILES) contiki-$(TARGET).a 
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
-	$(CC) $(LDFLAGS) $(CFLAGS) -o contiki-$(TARGET).elf $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
+	@echo Link $@ 
+	@$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
+
+
+%.elf: %.$(TARGET) %.co $(PROJECT_OBJECTFILES) contiki-$(TARGET).a 
+	@echo Link $@ 
+	@$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(filter-out %.a,$^) $(filter %.a,$^) -lc $(filter %.a,$^)
 
 %.srec: %.$(TARGET)
-	$(S19) contiki-$(TARGET).elf contiki-$(TARGET).srec
+	@echo CP -O srec $< $@
+	@$(S19) $< $@
 
 clean: clean_cpu
 

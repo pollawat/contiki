@@ -57,7 +57,8 @@
 #endif
 
 
-#define TMP102_READ_INTERVAL (CLOCK_SECOND/2)
+//#define TMP102_READ_INTERVAL (CLOCK_SECOND/2)
+#define TMP102_READ_INTERVAL (CLOCK_SECOND)
 
 PROCESS(temp_process, "Test Temperature process");
 AUTOSTART_PROCESSES(&temp_process);
@@ -94,6 +95,7 @@ PROCESS_THREAD(temp_process, ev, data)
     tempfrac = ((absraw >> 4) % 16) * 625;	// Info in 1/10000 of degree
     minus = ((tempint == 0) & (sign == -1)) ? '-' : ' ';
     PRINTF("Temp = %c%d.%04d\n", minus, tempint, tempfrac);
+    PRINTF("raw = %d %x\n", raw, raw);
   }
   PROCESS_END();
 }
