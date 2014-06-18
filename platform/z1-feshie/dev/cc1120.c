@@ -194,10 +194,14 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: wrong number of bytes in FIFO. Wanted %d + 1, have %d !!!\n", transmit_len, txbytes);
 #endif	
+		cc1120_flush_tx();
 		return RADIO_TX_ERR;
 	}
 	else
 	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf("\tStoring txfirst and txlast\n", transmit_len, txbytes);
+#endif			
 		/* Store TX Pointers. */
 		txfirst =  cc1120_spi_single_read(CC1120_ADDR_TXFIRST);
 		txlast = cc1120_spi_single_read(CC1120_ADDR_TXLAST);
@@ -233,20 +237,25 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120GPIOTXCHK		
 		marc_state = cc1120_arch_read_gpio0();
 		
-		while(!marc_state)
+		while(marc_state == 0)
 		{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+			printf(".");
+#endif					
 			marc_state = cc1120_arch_read_gpio0();
+		}	
 #else		
 		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
 		
 		while(marc_state == CC1120_MARC_STATE_MARC_STATE_TX)
 		{
 			marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
-#endif
+
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 			printf(".");
 #endif				
 		}
+#endif
 		
 		ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 		transmitting = 0;
@@ -262,8 +271,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		printf(" TX OK.\n");
 #endif			
 		
-		/* Enable CC120 Interrupt. */
-		cc1120_arch_interrupt_enable();
+
 		
 		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 		{
@@ -279,6 +287,8 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		}
 		else if(radio_on)
 		{
+			/* Enable CC120 Interrupt. */
+			cc1120_arch_interrupt_enable();
 			ENERGEST_ON(ENERGEST_TYPE_LISTEN);
 		}
 		
@@ -289,6 +299,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			printf("!!! TX ERROR: FIFO error. !!!\n");
 #endif			
 			tx_error = 0;
+			cc1120_flush_tx();
 			return RADIO_TX_ERR;
 		}
 		
@@ -301,6 +312,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: have not transmitted everything: %d bytes left in TX FIFO !!!\n",  txbytes);
 #endif			
+			cc1120_flush_tx();
 			return RADIO_TX_ERR;
 		}
 		
@@ -418,6 +430,11 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	{
 		/* Another packet. */
 		process_poll(&cc1120_process);
+	}
+
+	if((radio_on))
+	{
+		cc1120_driver_on();
 	}
 
 
@@ -1083,29 +1100,33 @@ cc1120_set_rx(void)
 uint8_t
 cc1120_set_tx(void)
 {
-	uint8_t cur_state;
+	uint8_t cur_state, marc_state;
 
 	/* Enter TX. */
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 	
 	cur_state = cc1120_get_state();
+	marc_state = cc1120_arch_read_gpio0();
 	
 	/* If we are NOT in TX, Spin until we are in TX. */
 	if(cur_state != CC1120_STATUS_TX)
 	{
-		while(cur_state != CC1120_STATUS_TX)
+		while((cur_state != CC1120_STATUS_TX) || (marc_state == 1))
 		{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+			printf(",");
+#endif				
 			cur_state = cc1120_get_state();
+			marc_state = cc1120_arch_read_gpio0();
 			if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 			{	
 				/* TX FIFO Error - flush TX. */	
 				return cc1120_flush_tx();
 			}
-			
-			
-			clock_delay(10);
+			clock_delay(1);
 		}		
 	}
+	
 	// TODO: give this a timeout?
 
 	/* Return TX state. */
@@ -1280,14 +1301,14 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
 		
-#if CC1120DEBUG || CC1120PROCESSDEBUG || DEBUG		
+#if C1120PROCESSDEBUG		
 		printf("**** Process Poll ****\n");
 #endif		
 			
 		packetbuf_clear();
 		len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
 		
-#if CC1120DEBUG || CC1120PROCESSDEBUG || DEBUG		
+#if C1120PROCESSDEBUG		
 		printf("\t Packet Length: %d\n", len);
 #endif	
 		packetbuf_set_datalen(len);
