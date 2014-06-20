@@ -93,7 +93,7 @@
 #define PACKETBUF_CONF_ATTRS_INLINE 1
 
 #ifndef RF_CHANNEL
-#define RF_CHANNEL              26
+#define RF_CHANNEL              28
 #endif /* RF_CHANNEL */
 
 #define IEEE802154_CONF_PANID       0xABCD

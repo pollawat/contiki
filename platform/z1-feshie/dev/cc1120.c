@@ -184,7 +184,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	if(transmit_len > CC1120_MAX_PAYLOAD)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: Packet too large. !!!\n");
 #endif
 		return RADIO_TX_ERR;
@@ -203,7 +203,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	else if((transmit_len + 1) != txbytes)
 	{
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: wrong number of bytes in FIFO. Wanted %d + 1, have %d !!!\n", transmit_len, txbytes);
 #endif	
 		cc1120_flush_tx();
@@ -311,7 +311,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		if(tx_error)
 		{
 			/* we have had a FIFO error. */
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: FIFO error. !!!\n");
 #endif			
 			tx_error = 0;
@@ -325,7 +325,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		if(txbytes != 0)
 		{
 			/* we have not transmitted what we wanted to. */
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: have not transmitted everything: %d bytes left in TX FIFO !!!\n",  txbytes);
 #endif			
 			cc1120_flush_tx();
@@ -342,7 +342,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	{
 		/* We didn't TX... */
 		transmitting = 0;
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 	printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 #endif			
 		return RADIO_TX_ERR;
