@@ -177,6 +177,9 @@ typedef unsigned long off_t;
 
 #define RF_CHANNEL				42
 
+#define CC1120_CS_THRESHOLD		0xB0
+//#define CC1120_RSSI_OFFSET	0x9A
+
 #define CC1120LEDS				1
 
 #define CC1120_FHSS_ETSI_50		1

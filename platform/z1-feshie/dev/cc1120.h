@@ -10,7 +10,7 @@
 #include "net/packetbuf.h"
 #include "net/rime/rimestats.h"
 #include "net/netstack.h"
-#include "net/mac/frame802154.h"
+
 
 /* CC1120 headers. */
 #include "cc1120-const.h"
@@ -78,23 +78,8 @@ uint8_t cc1120_read_rxbytes(void);
 /* --------------------- CC1120 State Functions ---------------------------- */
 uint8_t cc1120_set_state(uint8_t state);
 uint8_t cc1120_get_state(void);
-uint8_t cc1120_set_idle(void);
 
 
-/* ------------------- CC1120 State Set Functions -------------------------- */
-uint8_t cc1120_set_idle(void);
-uint8_t cc1120_set_rx(void);
-uint8_t cc1120_set_tx(void);
-uint8_t cc1120_flush_rx(void);
-uint8_t cc1120_flush_tx(void);
-
-
-/* ---------------------- CC1120 SPI Functions ----------------------------- */
-uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
-uint8_t cc1120_spi_single_read(uint16_t addr);
-uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
-uint8_t cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw);
-uint8_t cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len);
 
 /* -------------------- CC1120 Interrupt Handler --------------------------- */
 int cc1120_rx_interrupt(void);
