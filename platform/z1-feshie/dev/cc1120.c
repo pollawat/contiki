@@ -227,11 +227,18 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	leds_on(LEDS_GREEN);
 #endif
 	
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-	printf("\tTX: Disabling RX Interrupt...\n");
-#endif	
+
 	/* Disable CC1120 interrupt to prevent a spurious trigger. */
-	cc1120_arch_interrupt_disable();
+	
+	if(radio_on)
+	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf("\tTX: Disabling RX Interrupt...\n");
+#endif	
+		cc1120_arch_interrupt_disable();		/* Disable CC1120 Interrupt. */
+		ENERGEST_OFF(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
+	}
+	
 	
 	/* check that we have data in the FIFO */
 	txbytes = cc1120_read_txbytes();
@@ -365,6 +372,14 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 #endif			
 		RELEASE_SPI();
+		
+		if(radio_on)
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+			cc1120_arch_interrupt_enable();			/* Enable CC120 Interrupt. */
+			ENERGEST_ON(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
+		}
+		
 		return RADIO_TX_ERR;
 	}
 #endif /* WITH_SEND_CCA */	
@@ -426,16 +441,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		cur_state = cc1120_get_state();
 	}
 		
-	if(radio_on)
-	{
-		if(cur_state != CC1120_STATUS_RX)
-		{
-			cc1120_set_state(CC1120_STATE_RX);
-		}
-		cc1120_arch_interrupt_enable();
-		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
-	}
-	
 	txbytes = cc1120_read_txbytes();
 	if(txbytes != 0)
 	{
@@ -448,6 +453,13 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	
 	RELEASE_SPI();
+	
+	if(radio_on)
+	{
+		cc1120_set_state(CC1120_STATE_RX);
+		cc1120_arch_interrupt_enable();
+		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
+	}
 	
 	if(tx_error)
 	{	
