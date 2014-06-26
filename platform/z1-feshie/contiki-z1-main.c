@@ -51,6 +51,8 @@
 #include "dev/adxl345.h"
 #include "sys/clock.h"
 
+#include "dev/spi.h"
+
 #if WITH_UIP6
 #include "net/uip-ds6.h"
 #endif /* WITH_UIP6 */

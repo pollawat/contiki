@@ -182,6 +182,8 @@ typedef unsigned long off_t;
 
 #define CC1120LEDS				1
 
+#define WITH_SEND_CCA			1
+
 #define CC1120_FHSS_ETSI_50		1
 #define CC1120_FHSS_FCC_50		0
 

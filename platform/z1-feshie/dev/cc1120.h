@@ -73,6 +73,10 @@ uint8_t cc1120_get_channel(void);
 uint8_t cc1120_read_txbytes(void);
 uint8_t cc1120_read_rxbytes(void);
 
+/* ---------------------- CC1120 SPI Functions ----------------------------- */
+uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
+uint8_t cc1120_spi_single_read(uint16_t addr);
+uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
 
 
 /* --------------------- CC1120 State Functions ---------------------------- */
