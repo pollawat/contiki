@@ -244,9 +244,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	txbytes = cc1120_read_txbytes();
 	if(txbytes == 0)
 	{
-//#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tRetransmit last packet.\n");
-//#endif	
+#endif	
 		/* Retransmit last packet. */
 		cc1120_set_state(CC1120_STATE_IDLE);
 		
@@ -326,20 +326,21 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 			transmitting = 0;
 			
-			if(radio_on)
-			{
-				cc1120_set_state(CC1120_STATE_RX);
-				cc1120_arch_interrupt_enable();			/* Enable CC120 Interrupt. */
-				ENERGEST_ON(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
-			}
-
+			
 #if CC1120LEDS		
 			/* Turn off LED if it is being used. */
 			leds_off(LEDS_GREEN);
 #endif				
 			
 			transmitting = 0;
-			RELEASE_SPI();
+			RELEASE_SPI();	
+					
+			if(radio_on)
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+				cc1120_arch_interrupt_enable();			/* Enable CC120 Interrupt. */
+				ENERGEST_ON(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
+			}
 			
 #if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
@@ -474,7 +475,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tTX OK.\n");
 #endif	
-		printf("\tTX OK.\n");
 		return RADIO_TX_OK;
 	}
 	return RADIO_TX_OK;
@@ -508,7 +508,10 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(tooshort);
-
+		
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
+	printf("\tERROR: Packet too short\n");
+#endif
 		return 0;
 	}
 	
@@ -522,17 +525,21 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(badsynch);
-
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
+	printf("\tERROR: Packet longer than FIFO or bad sync\n");
+#endif
 		return 0;
 	}
 	
-	if((length - 2) > buf_len) 
+	if((length) > buf_len) 
 	{
 		/* Packet is too long. */
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(toolong);
-		
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
+	printf("\tERROR: Packet too long for buffer\n");
+#endif		
 		return 0;
 	}
 	
@@ -553,7 +560,10 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	{
 		/* FIFO underflow */
 		cc1120_flush_rx();
-	
+		RELEASE_SPI();
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
+		printf("\tERROR: RX FIFO underflow\n");
+#endif		
 		return 0;		
 	}
 	
@@ -569,11 +579,14 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	
 	
-
+	status = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);
 	if(status & CC1120_MODEM_STATUS1_RXFIFO_OVERFLOW)
 	{
 		/* FIFO overflow */
-		cc1120_flush_rx();		
+		cc1120_flush_rx();	
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
+		printf("\tERROR: RX FIFO Overflow\n");
+#endif			
 	}
 	else if((cc1120_read_rxbytes() > 0) && !cc1120_driver_receiving_packet())
 	{
@@ -586,7 +599,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		cc1120_driver_on();
 	}
 
-
+#if CC1120DEBUG || CC1120RXDEBUG
+	printf("\tRX OK - %d byte packet.\n", length);
+#endif	
 	/* Return read length. */
 	return length;
 }
