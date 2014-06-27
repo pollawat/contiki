@@ -227,9 +227,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	leds_on(LEDS_GREEN);
 #endif
 	
-
 	/* Disable CC1120 interrupt to prevent a spurious trigger. */
-	
 	if(radio_on)
 	{
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
@@ -238,8 +236,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		cc1120_arch_interrupt_disable();		/* Disable CC1120 Interrupt. */
 		ENERGEST_OFF(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
 	}
-	
-	
+
 	/* check that we have data in the FIFO */
 	txbytes = cc1120_read_txbytes();
 	if(txbytes == 0)
@@ -253,12 +250,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		/* These registers should only be written in IDLE. */
 		cc1120_spi_single_write(CC1120_ADDR_TXFIRST, txfirst);
 		cc1120_spi_single_write(CC1120_ADDR_TXLAST, txlast);
-		
-		/* If radio is meant to be in RX, put it back in. */
-		if(radio_on)
-		{	
-			cc1120_set_state(CC1120_STATE_RX);
-		}
+	
 	}
 	else
 	{
@@ -288,6 +280,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		cc1120_set_state(CC1120_STATE_RX);
 	}
 
+
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("\tWait for valid RSSI.");
 #endif		
@@ -310,6 +303,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	cur_state = cc1120_get_state();
 	marc_state = cc1120_arch_read_gpio0();
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);	/* Strobe TX. */
+	
 	
 	/* Block till in TX. */ 
 	/* If reach timeout, strobe IDLE and reset CCA to clear TX & flush FIFO. */
@@ -362,6 +356,16 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("\tTX: Enter TX\n");
 #endif
+
+	/* Disable CC1120 interrupt to prevent a spurious trigger. */
+	if(radio_on)
+	{
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+		printf("\tTX: Disabling RX Interrupt...\n");
+#endif	
+		cc1120_arch_interrupt_disable();		/* Disable CC1120 Interrupt. */
+	}
+
 	/* Enter TX. */
 	cur_state = cc1120_set_state(CC1120_STATE_TX);
 
@@ -392,7 +396,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	printf("\tTX: in TX.");
 #endif	
 	ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
-	ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 	
 	/* Block till TX is complete. */	
 	marc_state = cc1120_arch_read_gpio0();
@@ -635,20 +638,12 @@ cc1120_driver_channel_clear(void)
 	uint8_t rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
 	
 	/* Wait till the CARRIER_SENSE is valid. */
-    while(!(rssi0 & (CC1120_CARRIER_SENSE_VALID | CC1120_RSSI_VALID)))
+    while(!(rssi0 & CC1120_CARRIER_SENSE_VALID))
 	{
 		rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
 	}
-
-#if CC1120DEBUG || DEBUG
-	uint8_t rssi = cc1120_spi_single_read(CC1120_ADDR_RSSI1);
-	uint8_t rssi_0 = rssi0;
-	rssi_0 = (rssi_0 >> 3);
-	rssi_0 &= 0x07;
-	printf("\tRSSI = %02x%01x", rssi, rssi_0); 
-#endif	
 	
-	if((rssi0 & CC1120_RSSI0_CARRIER_SENSE) == CC1120_RSSI0_CARRIER_SENSE)
+	if(rssi0 & CC1120_RSSI0_CARRIER_SENSE)
 	{
 		cca = 0;
 #if CC1120DEBUG || DEBUG
@@ -693,7 +688,7 @@ cc1120_driver_receiving_packet(void)
 #endif
 		return 0;
 	}
-	else if(! radio_on)
+	else if(!radio_on)
 	{
 #if CC1120DEBUG || DEBUG
 		printf(" - NO, Radio OFF. ****\n");
@@ -729,7 +724,7 @@ cc1120_driver_pending_packet(void)
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 	printf("**** Radio Driver: Pending Packet? ");
 #endif
-	if(radio_pending & PACKET_PENDING)
+	if((radio_pending & PACKET_PENDING) || (cc1120_read_rxbytes() > 0))
 	{
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 		printf(" yes ****\n");
@@ -834,6 +829,12 @@ cc1120_misc_config(void)
 	
 	/* Set PKT_CFG1 for variable length packet. */
 	cc1120_spi_single_write(CC1120_ADDR_PKT_CFG0, 0x20);
+	
+	/* Set RXEND to go back into RX after good packet and to never timeout. */
+	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG1, 0x3E);
+	
+	/* Set TXOFF to go to IDLE and to stay in RX on bad packet. */
+	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);
 	
 	
 	/* Set the RSSI Offset.  This is a two's compliment number and
@@ -1484,6 +1485,8 @@ cc1120_rx_interrupt(void)
 	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
 	
+	cc1120_set_state(CC1120_STATE_IDLE);
+	
 	/* Mark packet pending. */
 	radio_pending |= PACKET_PENDING;
 		
@@ -1504,7 +1507,9 @@ cc1120_rx_interrupt(void)
 	packetbuf_set_datalen(len);
 
 	NETSTACK_RDC.input();
-		
+	
+	cc1120_flush_rx();
+	
 	radio_pending &= ~PACKET_PENDING;
 
 #if CC1120LEDS		
