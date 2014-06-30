@@ -40,7 +40,7 @@
 
 /* Configure BATV12_2 to sample channel 11 (voltage) and use */
 /* the Vref+ as reference (SREF_1) since it is a stable reference */
-#define INPUT_CHANNEL          0x07
+#define INPUT_CHANNEL          (1 << INCH_7)
 #define INPUT_REFERENCE        SREF_0
 #define BATV_MEM      ADC12MEM7
 
