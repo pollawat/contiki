@@ -55,9 +55,9 @@ PROCESS_THREAD(test_batv_process, ev, data)
 
   while(1) {
     uint16_t value = batv_sensor.value(0);
-
+    uint16_t voltage = value / 273;
     printf("Batv Value: %i\n", value);
-//    printf("Approx Voltage: %f\n", (273 * (float)value));
+    printf("Approx Voltage: %iV\n", voltage);
   }
 
   SENSORS_DEACTIVATE(batv_sensor);
