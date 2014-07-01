@@ -255,7 +255,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	else
 	{
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-		printf("\tStoring txfirst and txlast\n", transmit_len, txbytes);
+		printf("\tStoring txfirst and txlast\n");
 #endif			
 		/* Store TX Pointers. */
 		txfirst =  cc1120_spi_single_read(CC1120_ADDR_TXFIRST);
@@ -328,13 +328,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			
 			transmitting = 0;
 			RELEASE_SPI();	
-					
-			if(radio_on)
-			{
-				cc1120_set_state(CC1120_STATE_RX);
-				cc1120_arch_interrupt_enable();			/* Enable CC120 Interrupt. */
-				ENERGEST_ON(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
-			}
 			
 #if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
@@ -458,10 +451,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	
 	RELEASE_SPI();
 	
-	if(radio_on)
+	/* Turn on RX for ACK but leave interrupt disabled. */
+	if(cur_state != CC1120_STATUS_RX)
 	{
 		cc1120_set_state(CC1120_STATE_RX);
-		cc1120_arch_interrupt_enable();
 		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
 	}
 	
@@ -510,6 +503,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	if(rxbytes < CC1120_MIN_PAYLOAD)
 	{
 		/* not enough data. */
+		
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(tooshort);
@@ -522,8 +516,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	
 	/* Read length byte. */
+	rxbytes = cc1120_read_rxbytes();
 	length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-	if((length + 1) > rxbytes)
+	if((length + 2) > rxbytes)
 	{
 		/* Packet too long, out of Sync? */
 		cc1120_flush_rx();
@@ -833,8 +828,8 @@ cc1120_misc_config(void)
 	/* Set RXEND to go back into RX after good packet and to never timeout. */
 	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG1, 0x3E);
 	
-	/* Set TXOFF to go to IDLE and to stay in RX on bad packet. */
-	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);
+	/* Set TXOFF to go to RX for ACK and to stay in RX on bad packet. */
+	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);
 	
 	
 	/* Set the RSSI Offset.  This is a two's compliment number and
@@ -1137,7 +1132,6 @@ cc1120_set_state(uint8_t state)
 								|| (cur_state == CC1120_STATUS_RX))
 								{
 									/* Return TX state. */
-									// TODO: do we want to set PKT_CFG2.CCA_MODE = 100b (Listen Before Talk) so that TX is entered if in RX and channel is ! clear?
 #if CC1120STATEDEBUG
 									printf("\t\tSet TX 797\n");
 #endif										
@@ -1485,7 +1479,7 @@ cc1120_rx_interrupt(void)
 	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
 	
-	cc1120_set_state(CC1120_STATE_IDLE);
+	//cc1120_set_state(CC1120_STATE_IDLE);
 	
 	/* Mark packet pending. */
 	radio_pending |= PACKET_PENDING;
@@ -1495,35 +1489,10 @@ cc1120_rx_interrupt(void)
 #endif
 
 	/* Poll radio process. */
-	//process_poll(&cc1120_process);
+	process_poll(&cc1120_process);
 	
-	int len;
-	packetbuf_clear();
-	len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
-	
-#if C1120PROCESSDEBUG		
-	printf("\t Packet Length: %d\n", len);
-#endif	
-	packetbuf_set_datalen(len);
 
-	NETSTACK_RDC.input();
-	
-	cc1120_flush_rx();
-	
-	radio_pending &= ~PACKET_PENDING;
-
-#if CC1120LEDS		
-	leds_off(LEDS_RED);
-#endif
-	
-	if(radio_on & (cc1120_get_state() != CC1120_STATUS_RX))
-	{
-#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
-		printf("Re-start RX\n");
-#endif		
-		cc1120_set_state(CC1120_STATE_RX);
-	}
-	
+		
 	return 1;
 }
 
@@ -1550,20 +1519,42 @@ PROCESS_THREAD(cc1120_process, ev, data)
 #endif		
 			
 		packetbuf_clear();
+		
+#if C1120PROCESSDEBUG		
+		printf("\tRead Packet\n");
+#endif			
 		len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
 		
 #if C1120PROCESSDEBUG		
-		printf("\t Packet Length: %d\n", len);
+		printf("\tPacket Length: %d\n", len);
 #endif	
-		packetbuf_set_datalen(len);
+		
 
-		NETSTACK_RDC.input();
+		if(len != 0)
+		{
+#if C1120PROCESSDEBUG		
+			printf("\tProcess Packet\n");
+#endif	
+			packetbuf_set_datalen(len);
+			NETSTACK_RDC.input();
+		}
+		
+		if(!cc1120_arch_read_gpio0() && (cc1120_read_rxbytes() > 0)
+		{
+			process_poll(&cc1120_process);
+			// TODO: flush RX FIFO instead of polling?
+		}
 			
 		radio_pending &= ~PACKET_PENDING;
 
 #if CC1120LEDS		
 		leds_off(LEDS_RED);
 #endif
+
+		if(radio_on && (cc1120_get_state() != CC1120_STATUS_RX))
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+		}
 	}
 		
 

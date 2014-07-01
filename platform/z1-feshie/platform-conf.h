@@ -192,12 +192,10 @@ typedef unsigned long off_t;
 
 #define CC1120_OFF_STATE CC1120_STATE_IDLE
 
-#define CC1120_CCA_PIN_PRESENT 1
-
 
 #define CC1120_GPIO0_FUNC	(CC1120_GPIO_PKT_SYNC_RXTX| CC1120_GPIO_INV_MASK)	
 //#define CC1120_GPIO2_FUNC
-#define CC1120_GPIO3_FUNC	CC1120_GPIO_CLEAR_CHANEL_ASSESSMENT
+#define CC1120_GPIO3_FUNC	CC1120_GPIO_RXFIFO_THR_PKT
 
 
 /* --------------------------- CC1120 Pin Mappings. --------------------------- */

@@ -189,14 +189,14 @@ cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 uint8_t 
 cc1120_arch_read_cca(void)
 {
-	if(CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN))
+	/*if(CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN))
 	{
 		return 1;
 	}
 	else
-	{
+	{*/
 		return 0;
-	}
+	//}
 }
 
 
