@@ -401,7 +401,7 @@ ISR(PORT1, port1_isr)
     }
   } else {
     /* CC1120 interrupt */
-    if(cc1120_rx_interrupt()) {
+    if(cc1120_interrupt_handler()) {
       LPM4_EXIT;
     }
   }

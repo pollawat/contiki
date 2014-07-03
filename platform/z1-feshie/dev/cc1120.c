@@ -47,8 +47,14 @@
 #define CC1120_RSSI_OFFSET		0x9A
 #endif
 
-#define PACKET_PENDING			0x01
-#define RX_PENDING				0x02
+#define RX_PENDING				0x01
+#define RX_FIFO_OVER			0x02
+#define RX_FIFO_UNDER			0x04
+#define TX_FIFO_ERROR			0x08
+#define TX_COMPLETE				0x10
+#define TX_ERROR				0x20
+#define TRANSMITTING			0x40
+#define ON						0x80
 
 
 /* -------------------- Internal Function Definitions. -------------------- */
@@ -88,8 +94,7 @@ const struct radio_driver cc1120_driver = {
 
 
 /* ------------------- Internal variables -------------------------------- */
-static volatile uint8_t current_channel, transmitting, radio_pending, radio_on, tx_error, txfirst, txlast = 0;
-static volatile uint16_t bad_crc;
+static volatile uint8_t current_channel, packet_pending, radio_pending, radio_on, txfirst, txlast = 0;
 static uint8_t locked, lock_on, lock_off;
 
 
@@ -100,10 +105,9 @@ int
 cc1120_driver_init(void)
 {
 #if CC1120DEBUG || DEBUG
-	printf("**** CC1120 Radio Driver: Init ****\n");
+	printf("**** CC1120 Radio  Driver: Init ****\n");
 #endif
 	uint8_t part = 0;
-	bad_crc = 0;
 	
 	/* Initialise arch  - pins, spi, turn off cc2420 */
 	cc1120_arch_init();
@@ -163,6 +167,11 @@ cc1120_driver_init(void)
 	
 	process_start(&cc1120_process, NULL);
 	
+	/* Enable CC1120 interrupt. */
+	cc1120_arch_interrupt_enable();
+	radio_pending = 0;
+	packet_pending = 0;
+	
 #if CC1120DEBUG || DEBUG
 	printf("\tCC1120 Initialised and OFF\n");
 #endif
@@ -204,7 +213,6 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
-	
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("\n\n**** Radio Driver: Transmit ****\n");
 #endif
@@ -222,7 +230,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	}
 	
 	LOCK_SPI();
-	transmitting = 1;
+	radio_pending |= TRANSMITTING;
+	radio_pending &= ~(TX_COMPLETE);
+	
 #if CC1120LEDS	
 	leds_on(LEDS_GREEN);
 #endif
@@ -233,7 +243,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tTX: Disabling RX Interrupt...\n");
 #endif	
-		cc1120_arch_interrupt_disable();		/* Disable CC1120 Interrupt. */
+		radio_on = 0;		/* Disable CC1120 Interrupt. */
 		ENERGEST_OFF(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
 	}
 
@@ -301,63 +311,56 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #endif	
 	t0 = RTIMER_NOW();
 	cur_state = cc1120_get_state();
-	marc_state = cc1120_arch_read_gpio0();
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);	/* Strobe TX. */
 	
 	
 	/* Block till in TX. */ 
 	/* If reach timeout, strobe IDLE and reset CCA to clear TX & flush FIFO. */
-	while((cur_state != CC1120_STATUS_TX) || (marc_state == 1))
+	while(cur_state != CC1120_STATUS_TX)
 	{
-		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND), RTIMER_NOW()))
+		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND), RTIMER_NOW()) || (radio_pending & TX_ERROR))
 		{
-			/* 1 second Timeout reached. */
+			/* 1 second Timeout reached or failed on CCA. */
 			cc1120_set_state(CC1120_STATE_IDLE);
 			
 			// TODO: Do we need to reset the CCA mode?
 			
 			/* Set Energest and TX flag. */
 			ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
-			transmitting = 0;
-			
+			radio_pending &= ~(TRANSMITTING);
 			
 #if CC1120LEDS		
 			/* Turn off LED if it is being used. */
 			leds_off(LEDS_GREEN);
-#endif				
+#endif		
+
+			if(radio_pending & TX_FIFO_ERROR)
+			{
+				cc1120_flush_tx();
+			}		
 			
-			transmitting = 0;
+			radio_pending &= ~(TRANSMITTING | TX_ERROR);
 			RELEASE_SPI();	
 			
 #if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 			printf("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
 #endif	
+			cc1120_flush_tx();
 			RIMESTATS_ADD(contentiondrop);
 			/* Return Collision. */
 			return RADIO_TX_COLLISION;
 		}
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		cur_state = cc1120_get_state();
-		marc_state = cc1120_arch_read_gpio0();
 	}
 	
 #else /* WITH_SEND_CCA */
 
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("\tTransmitting without LBT.\n");
-#endif	
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+	
 	printf("\tTX: Enter TX\n");
 #endif
-
-	/* Disable CC1120 interrupt to prevent a spurious trigger. */
-	if(radio_on)
-	{
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-		printf("\tTX: Disabling RX Interrupt...\n");
-#endif	
-		cc1120_arch_interrupt_disable();		/* Disable CC1120 Interrupt. */
-	}
 
 	/* Enter TX. */
 	cur_state = cc1120_set_state(CC1120_STATE_TX);
@@ -365,105 +368,102 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	if(cur_state != CC1120_STATUS_TX)
 	{
 		/* We didn't TX... */
-		transmitting = 0;
+		radio_pending &= ~(TRANSMITTING);
 #if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
 		printf("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
-#endif			
+#endif	
+		
+		if(radio_pending & TX_FIFO_ERROR)
+		{
+			cc1120_flush_tx();
+		}
+
 		RELEASE_SPI();
 		
-		if(radio_on)
-		{
-			cc1120_set_state(CC1120_STATE_RX);
-			cc1120_arch_interrupt_enable();			/* Enable CC120 Interrupt. */
-			ENERGEST_ON(ENERGEST_TYPE_LISTEN);		/* Set Energest for RX. */
-		}
+#if CC1120LEDS		
+		/* Turn off LED if it is being used. */
+		leds_off(LEDS_GREEN);
+#endif				
 		
 		return RADIO_TX_ERR;
 	}
 #endif /* WITH_SEND_CCA */	
 	
 	
-	
-	
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 	printf("\tTX: in TX.");
 #endif	
 	ENERGEST_ON(ENERGEST_TYPE_TRANSMIT);
+	t0 = RTIMER_NOW();
 	
 	/* Block till TX is complete. */	
-	marc_state = cc1120_arch_read_gpio0();
-	while(marc_state == 0)
+	while(!(radio_pending & TX_COMPLETE))
 	{
+		/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
+		watchdog_periodic();	/* Feed the dog to stop reboots. */
+		
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf(".");
-#endif					
-		marc_state = cc1120_arch_read_gpio0();
-		watchdog_periodic();	/* Feed the dog to stop reboots. */
-	}	
-
+#endif	
+		
+		if(radio_pending & TX_FIFO_ERROR)
+		{
+			/* TX FIFO has underflowed or overflowed.  Need to flush TX FIFO. */
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
+			printf("!!! TX ERROR: TX FIFO ERROR !!!\n");
+#endif						
+			cc1120_flush_tx();
+			break;
+		}
+		
+		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
+		{
+			/* Timeout for TX. At 802.15.4 50kbps data rate, 
+			 * the entire TX FIFO (all 128 bits) should be 
+			 * transmitted in 0.02 seconds. Timeout set to
+			 * 0.05 seconds to be sure.  If the interrupt has
+			 * not fired by this time then something went wrong. 
+			 * 
+			 * This timeout needs to be adjusted if lower data 
+			 * rates are used. */	 
+			 
+			if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
+			{
+				/* We have actually transmitted everything in the FIFO. */
+				radio_pending |= TX_COMPLETE;
+			}
+			else
+			{
+				cc1120_set_state(CC1120_STATE_IDLE);
+#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
+				printf("!!! TX ERROR: TX timeout reached !!!\n");
+#endif						
+			}
+			break;
+		}
+	}
+	
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\n");
 #endif		
 	
 	ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
-	transmitting = 0;
+	radio_pending &= ~(TRANSMITTING);
 		
 #if CC1120LEDS		
 	leds_off(LEDS_GREEN);
 #endif		
-	cur_state = cc1120_get_state();
-	
-	if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-	{
-		/* TX FIFO Error. Need to clear it... */
-#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
-		printf("!!! TX ERROR: TXFIFO Error - flushing. !!!\n");
-#endif	
-		cc1120_flush_tx();
-		tx_error = 1;
-	}
-	
-	marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;	
-	if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX))
-	{
-		cc1120_set_state(CC1120_STATE_IDLE);
-		cur_state = cc1120_get_state();
-	}
-	
-	if(cur_state == CC1120_STATUS_TX)
-	{
-		/* Should never get here, just here for security. */
-		printf("!!!!! TX ERROR: Still in TX according to status byte. !!!\n");
-		cc1120_set_state(CC1120_STATE_IDLE);
-		cur_state = cc1120_get_state();
-	}
-		
-	txbytes = cc1120_read_txbytes();
-	if(txbytes != 0)
-	{
-		/* we have not transmitted what we wanted to. */
-#if CC1120DEBUG || CC1120TXERDEBUG || DEBUG || CC1120TXDEBUG
-		printf("!!! TX ERROR: have not transmitted everything: %d bytes left in TX FIFO !!!\n",  txbytes);
-#endif			
-		cc1120_flush_tx();
-		tx_error = 1;
-	}
-	
+
 	RELEASE_SPI();
 	
-	/* Turn on RX for ACK but leave interrupt disabled. */
-	if(cur_state != CC1120_STATUS_RX)
-	{
-		cc1120_set_state(CC1120_STATE_RX);
-		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
-	}
-	
-	if(tx_error)
+	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0))
 	{	
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG || CC1120TXERDEBUG
 		printf("\tTX NOT OK.\n");
 #endif		
-		tx_error = 0;
+		cc1120_flush_tx();
+		
+		radio_pending &= ~(TX_ERROR);
 		return RADIO_TX_ERR;
 	}
 	else
@@ -471,9 +471,36 @@ cc1120_driver_transmit(unsigned short transmit_len)
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf("\tTX OK.\n");
 #endif	
+		radio_pending &= ~(TX_ERROR);
+		
+		cur_state = cc1120_get_state();
+		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;	
+		
+		if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX))
+		{
+			cc1120_set_state(CC1120_STATE_IDLE);
+		}
+		else if(cur_state == CC1120_STATUS_TX)
+		{
+			/* Should never get here, just here for security. */
+			printf("!!!!! TX ERROR: Still in TX according to status byte. !!!\n");
+			cc1120_set_state(CC1120_STATE_IDLE);
+		}
+		else if(cur_state != CC1120_STATUS_IDLE)
+		{
+			cc1120_set_state(CC1120_STATE_IDLE);
+		}	
+		
+		/* Flush RX FIFO. */
+		cc1120_flush_rx();
+		
+		/* Turn on RX for ACK but leave interrupt disabled. */
+		cc1120_set_state(CC1120_STATE_RX);
+		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
+		
 		return RADIO_TX_OK;
 	}
-	return RADIO_TX_OK;
+	return RADIO_TX_ERR;
 }
 
 int
@@ -497,6 +524,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	printf("**** Radio Driver: Read ****\n");
 #endif
 	uint8_t length, status, rxbytes = 0;
+	
+	watchdog_periodic();
 	
 	rxbytes = cc1120_read_rxbytes();
 	
@@ -554,20 +583,14 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		return 0;
 	}
 	
-	
 	/* Read the packet. */
-	//dint();
 	LOCK_SPI();
 	cc1120_arch_spi_enable();
-	
 	cc1120_arch_rxfifo_read(buf, length);	
-	
 	cc1120_arch_spi_disable();
 	
-	//eint();
-	
-	status = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);
-	if(status & CC1120_MODEM_STATUS1_RXFIFO_UNDERFLOW)
+	watchdog_periodic();
+	if(radio_pending & RX_FIFO_UNDER)
 	{
 		/* FIFO underflow */
 		cc1120_flush_rx();
@@ -585,10 +608,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, (cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK));
 	RELEASE_SPI();
 	
-	
 	RIMESTATS_ADD(llrx);
-	
-	
 	
 	status = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);
 	if(status & CC1120_MODEM_STATUS1_RXFIFO_OVERFLOW)
@@ -598,11 +618,6 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 #if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG
 		printf("\tERROR: RX FIFO Overflow\n");
 #endif			
-	}
-
-	if((radio_on))
-	{
-		cc1120_driver_on();
 	}
 
 #if CC1120DEBUG || CC1120RXDEBUG
@@ -675,7 +690,7 @@ cc1120_driver_receiving_packet(void)
 	printf("**** Radio Driver: Receiving Packet? ");
 #endif
 
-	if(transmitting)
+	if(radio_pending & TRANSMITTING)
 	{
 		/* Can't be receiving in TX. */
 #if CC1120DEBUG || DEBUG
@@ -693,7 +708,7 @@ cc1120_driver_receiving_packet(void)
 	}
 	else
 	{
-		if(cc1120_arch_read_gpio0())
+		if(cc1120_arch_read_gpio3())
 		{
 			/* Not receiving */
 #if CC1120DEBUG || DEBUG
@@ -719,7 +734,7 @@ cc1120_driver_pending_packet(void)
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 	printf("**** Radio Driver: Pending Packet? ");
 #endif
-	if((radio_pending & PACKET_PENDING) || (cc1120_read_rxbytes() > 0))
+	if((packet_pending > 0) || (cc1120_read_rxbytes() > 0))
 	{
 #if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 		printf(" yes ****\n");
@@ -808,9 +823,9 @@ cc1120_gpio_config(void)
 #ifdef CC1120_GPIO2_FUNC
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO2_FUNC);
 #endif
-#ifdef CC1120_GPIO3_FUNC
+
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, CC1120_GPIO3_FUNC);
-#endif
+
 }
 
 void
@@ -825,8 +840,8 @@ cc1120_misc_config(void)
 	/* Set PKT_CFG1 for variable length packet. */
 	cc1120_spi_single_write(CC1120_ADDR_PKT_CFG0, 0x20);
 	
-	/* Set RXEND to go back into RX after good packet and to never timeout. */
-	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG1, 0x3E);
+	/* Set RXEND to go into IDLE after good packet and to never timeout. */
+	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG1, 0x0F);
 	
 	/* Set TXOFF to go to RX for ACK and to stay in RX on bad packet. */
 	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);
@@ -953,8 +968,11 @@ cc1120_read_rxbytes(void)
 static void
 on(void)
 {
-	/* Enable CC1120 RX interrupt*/
-	cc1120_arch_interrupt_enable();
+	if(radio_pending & RX_FIFO_UNDER)
+	{
+		/* RX FIFO has previously overflowed, flush to be sure. */
+		cc1120_flush_rx();
+	}
 	
 	/* Put radio into RX. */
 	cc1120_set_state(CC1120_STATE_RX);
@@ -967,9 +985,6 @@ on(void)
 static void
 off(void)
 {
-	/* Disable CC1120 RX interrupt. */
-	cc1120_arch_interrupt_disable();
-	
 	/* Wait for any current TX to end */
 	BUSYWAIT_UNTIL((cc1120_get_state() != CC1120_STATUS_TX), RTIMER_SECOND/10);
 	
@@ -1311,32 +1326,29 @@ cc1120_set_rx(void)
 uint8_t
 cc1120_set_tx(void)
 {
-	uint8_t cur_state, marc_state;
+	uint8_t cur_state;
 
 	/* Enter TX. */
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 	
 	cur_state = cc1120_get_state();
-	marc_state = cc1120_arch_read_gpio0();
 	
 	/* If we are NOT in TX, Spin until we are in TX. */
-	if(cur_state != CC1120_STATUS_TX)
+
+	while(cur_state != CC1120_STATUS_TX)
 	{
-		while((cur_state != CC1120_STATUS_TX) || (marc_state == 1))
-		{
 #if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-			printf(",");
+		printf(",");
 #endif				
-			cur_state = cc1120_get_state();
-			marc_state = cc1120_arch_read_gpio0();
-			if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-			{	
-				/* TX FIFO Error - flush TX. */	
-				return cc1120_flush_tx();
-			}
-			clock_delay(1);
-		}		
-	}
+		cur_state = cc1120_get_state();
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
+		{	
+			/* TX FIFO Error - flush TX. */	
+			return cc1120_flush_tx();
+		}
+		clock_delay(1);
+	}		
+
 	
 	// TODO: give this a timeout?
 
@@ -1353,6 +1365,10 @@ cc1120_flush_rx(void)
 	/* Spin until we are in IDLE. */
 	BUSYWAIT_UNTIL((cc1120_get_state() == CC1120_STATUS_IDLE), RTIMER_SECOND/10);
 
+	radio_pending &= ~(RX_FIFO_UNDER);
+	radio_pending &= ~(RX_FIFO_OVER);
+	packet_pending = 0;
+	
 	/* Return IDLE state. */
 	return CC1120_STATUS_IDLE;
 }
@@ -1363,33 +1379,55 @@ cc1120_flush_tx(void)
 	uint8_t cur_state = cc1120_get_state();
 	rtimer_clock_t t0 = RTIMER_NOW();
 
-	if(cur_state == CC1120_STATUS_IDLE || cur_state == CC1120_STATUS_TX_FIFO_ERROR)
+	if((cur_state != CC1120_STATUS_IDLE) || (cur_state != CC1120_STATUS_TX_FIFO_ERROR))
 	{
-		/* FLush TX FIFO. */
-		cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
+		/* If not in IDLE or TXERROR, get to IDLE. */
+		if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
+		{
+			/* RX FIFO Error.  Flush RX FIFO. */
+			cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
+		}
+		while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10)))
+		{
+			if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
+			{
+				/* RX FIFO Error.  Flush RX FIFO. */
+				cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
+			}
+			/* Get the current state and strobe IDLE. */
+			cur_state = cc1120_get_state();
+			cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
+		}
 	}
 	
+	/* FLush TX FIFO. */
+	cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
+	
 	/* Spin until we have flushed TX and are in IDLE. */
-	while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10)))
+	while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 5)))
 	{
 		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 		{
+			/* (Another) TX FIFO error, flush. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
 		}
 		else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
 		{
+			/* RX FIFO Error. Flush it. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 		}
 		else if (cur_state != CC1120_STATUS_IDLE)
 		{
-				/* NotSend IDLE strobe. */
+			/* Not in IDLE - re-strobe. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
 		}
-		clock_delay_usec(1);
-		
+		/* Get the current state. */
 		cur_state = cc1120_get_state();
 	}
 
+	/* Clear TX_FIFO_ERROR Flag. */
+	radio_pending &= ~(TX_FIFO_ERROR);
+	
 	/* Return last state. */
 	return cur_state;
 }
@@ -1471,27 +1509,215 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 
 /* -------------------------- CC1120 Interrupt Handler --------------------------- */
 int
-cc1120_rx_interrupt(void)
+cc1120_interrupt_handler(void)
 {
-#if CC1120LEDS	
-	leds_on(LEDS_RED);
-#endif	
 	/* Acknowledge the interrupt. */
 	cc1120_arch_interrupt_acknowledge();
 	
-	//cc1120_set_state(CC1120_STATE_IDLE);
+	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	
-	/* Mark packet pending. */
-	radio_pending |= PACKET_PENDING;
-		
-#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
-	printf("!!!!!!!!!!!!!!!!!!!!!! RX INTERRUPT !!!!!!!!!!!!!!!!!!!!!! \n");
+	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
+	{
+		return 1;
+	}
+	
+	#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
+	printf("!!!!!!!!!!!!!!!!!!!!!! CC1120 INTERRUPT !!!!!!!!!!!!!!!!!!!!!! \n");
 #endif
 
-	/* Poll radio process. */
-	process_poll(&cc1120_process);
+#if CC1120LEDS	
+	leds_on(LEDS_RED);
+#endif	
 	
-
+	switch (marc_status){
+		case CC1120_MARC_STATUS_OUT_NO_FAILURE:	
+			/* No failure. */
+#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
+			printf("\tNo Failure.\n");
+#endif
+			
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif									
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
+			/* RX terminated due to timeout.  Should not get here as there is  */
+#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
+			printf("\tRX Timeout.\n");
+#endif			
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif												
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
+			/* RX Terminated on CS or PQT. */
+#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
+			printf("\tRX Terminated.\n");
+#endif						
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
+			/* EWOR Sync lost. */
+#if CC1120DEBUG || CC1120INTDEBUG || DEBUG
+			printf("\teWOR Sync Lost.\n");
+#endif						
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
+			/* Packet discarded due to being too long. Flush RX FIFO? */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXERDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\t!!! RX Error: Packet discarded due to being too long. !!!\n");
+#endif	
+			
+			cc1120_set_state(CC1120_STATE_IDLE);
+			cc1120_flush_rx();
+				
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
+			/* Packet discarded due to bad address - should not get here 
+			 * as address matching is not being used. Flush RX FIFO? */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXERDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\t!!! RX Error: Packet discarded due to bad address. !!!\n");
+#endif						 
+			 
+			cc1120_set_state(CC1120_STATE_IDLE);
+			cc1120_flush_rx();	
+			cc1120_set_state(CC1120_STATE_RX);
+				
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif										
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
+			/* Packet discarded due to bad CRC. Should not need to flush 
+			 * RX FIFI as CRC_AUTOFLUSH is set in FIFO_CFG*/
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXERDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\t!!! RX Error: Packet discarded due to bad CRC. !!!\n");
+#endif				
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
+			/* TX FIFO has overflowed. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120TXERDEBUG || CC1120TXDEBUG || DEBUG
+			printf("\t!!! TX FIFO Error: Overflow. !!!\n");
+#endif
+				
+			radio_pending |= TX_FIFO_ERROR;
+				
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
+			/* TX FIFO has underflowed. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120TXERDEBUG || CC1120TXDEBUG || DEBUG
+			printf("\t!!! TX FIFO Error: Underflow. !!!\n");
+#endif
+			radio_pending |= TX_FIFO_ERROR;
+			
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif												
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
+			/* RX FIFO has overflowed. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXERDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\t!!! RX FIFO Error: Overflow. !!!\n");
+#endif
+				
+			radio_pending |= RX_FIFO_OVER;
+		
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
+			/* RX FIFO has underflowed. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXERDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\t!!! RX FIFO Error: Underflow. !!!\n");
+#endif
+			
+			radio_pending |= RX_FIFO_UNDER;
+			
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif												
+			break;	
+			
+		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
+			/* TX on CCA Failed due to busy channel. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120TXERDEBUG || CC1120TXDEBUG || DEBUG
+			printf("\t!!! TX ON CCA ERROR - send failed due to busy channel. !!!\n");
+#endif
+			cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
+			radio_pending |= TX_ERROR;
+			
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif												
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_TX_FINISHED:	
+			/* TX Finished. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120TXDEBUG || DEBUG
+			printf("\tTX Complete.\n");
+#endif
+			
+			radio_pending |= TX_COMPLETE;
+			radio_pending &= ~(TX_ERROR);
+						
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif												
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_RX_FINISHED:
+			/* RX Finished successfully. Packet in FIFO, poll process. */
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXDEBUG || DEBUG
+			printf("\tPacket Received - ");
+#endif		
+			packet_pending++; //radio_pending |= PACKET_PENDING;
+			
+			if(radio_on)
+			{
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXDEBUG || DEBUG
+				printf("processing.\n");
+#endif					
+				process_poll(&cc1120_process);
+			}
+#if CC1120DEBUG || CC1120INTDEBUG || CC1120RXDEBUG || DEBUG			
+			else
+			{
+				printf("ignoring as interrupt disabled.\n");
+			}
+#endif													
+			break;
+			
+		default:
+#if CC1120LEDS		
+			leds_off(LEDS_RED);
+#endif	
+			break;
+	}
 		
 	return 1;
 }
@@ -1517,7 +1743,11 @@ PROCESS_THREAD(cc1120_process, ev, data)
 #if C1120PROCESSDEBUG		
 		printf("**** Process Poll ****\n");
 #endif		
-			
+	
+#if CC1120LEDS		
+		leds_on(LEDS_RED);
+#endif
+		
 		packetbuf_clear();
 		
 #if C1120PROCESSDEBUG		
@@ -1529,7 +1759,6 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		printf("\tPacket Length: %d\n", len);
 #endif	
 		
-
 		if(len != 0)
 		{
 #if C1120PROCESSDEBUG		
@@ -1539,28 +1768,43 @@ PROCESS_THREAD(cc1120_process, ev, data)
 			NETSTACK_RDC.input();
 		}
 		
-		if(!cc1120_arch_read_gpio0() && (cc1120_read_rxbytes() > 0)
+		if(packet_pending > 0)
 		{
-			process_poll(&cc1120_process);
-			// TODO: flush RX FIFO instead of polling?
+			packet_pending--;
 		}
-			
-		radio_pending &= ~PACKET_PENDING;
-
+		else
+		{
+			packet_pending = 0;
+		}
+		
 #if CC1120LEDS		
 		leds_off(LEDS_RED);
 #endif
-
-		if(radio_on && (cc1120_get_state() != CC1120_STATUS_RX))
+		
+		/* Deal with any left over data. */
+		if(packet_pending > 0)
 		{
-			cc1120_set_state(CC1120_STATE_RX);
+			process_poll(&cc1120_process);
+		}
+		else if(radio_pending & RX_FIFO_OVER)  
+		{
+			if(cc1120_read_rxbytes() > 0)
+			{
+				packet_pending ++;
+				process_poll(&cc1120_process);
+			}
+			else
+			{
+				cc1120_flush_rx();
+			}
+		}
+		else if ((cc1120_get_state() != CC1120_STATUS_RX) && (cc1120_read_rxbytes() > 0))
+		{
+			packet_pending ++;
+			process_poll(&cc1120_process);
 		}
 	}
-		
-
-		
-
-	PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_EXIT);
+	
 
 	PROCESS_END();
 }

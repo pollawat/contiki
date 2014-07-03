@@ -86,7 +86,7 @@ uint8_t cc1120_get_state(void);
 
 
 /* -------------------- CC1120 Interrupt Handler --------------------------- */
-int cc1120_rx_interrupt(void);
+int cc1120_interrupt_handler(void);
 
 
 #endif /* CC11xx_H */

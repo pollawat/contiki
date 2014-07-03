@@ -73,10 +73,10 @@ cc1120_arch_init(void)
 	CC1120_GDO2_PORT(DIR) &= ~BV(CC1120_GDO2_PIN);
 #endif
 
-#ifdef CC1120_GPIO3_FUNC
+
 	CC1120_GDO3_PORT(SEL) &= ~BV(CC1120_GDO3_PIN);
 	CC1120_GDO3_PORT(DIR) &= ~BV(CC1120_GDO3_PIN);
-#endif
+
 	
 }
 
@@ -202,9 +202,9 @@ cc1120_arch_read_cca(void)
 
 /*---------------------------------------------------------------------------*/
 uint8_t
-cc1120_arch_read_gpio0(void)
+cc1120_arch_read_gpio3(void)
 {
-	if(CC1120_GDO0_PORT(IN) & BV(CC1120_GDO0_PIN))
+	if(CC1120_GDO3_PORT(IN) & BV(CC1120_GDO3_PIN))
 	{
 		return 1;
 	}
