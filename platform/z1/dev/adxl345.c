@@ -43,7 +43,7 @@
 #include "contiki.h"
 #include "adxl345.h"
 #include "cc2420.h"
-#include "i2cmaster.h"
+#include "uart1_i2c_master.h"
 #include "isr_compat.h"
 
 /* Callback pointers when interrupt occurs */

@@ -38,7 +38,7 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
-#include "i2cmaster.h"
+#include "uart1_i2c_master.h"
 #include "isr_compat.h"
 
 signed   char tx_byte_ctr, rx_byte_ctr;

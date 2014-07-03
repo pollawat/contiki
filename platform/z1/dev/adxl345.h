@@ -41,7 +41,7 @@
 #ifndef __ADXL345_H__
 #define __ADXL345_H__
 #include <stdio.h>
-#include "dev/i2cmaster.h"
+#include "uart1_i2c_master.h"
 
 #define DEBUGLEDS 0
 #if DEBUGLEDS
