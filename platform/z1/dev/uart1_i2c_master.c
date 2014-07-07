@@ -295,7 +295,7 @@ uart1_init(unsigned long ubr)
 
   UCA1CTL0 = 0x00;
   UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
-  UCA1BR0 = BAUD2UBR(38400);
+  UCA1BR0 = BAUD2UBR(38400); /*Hard coded as passing an arg in didn't work */
   UCA1BR1 = 0x00;
   UCA1MCTL = UCBRS_2;                        /* Modulation UCBRSx = 4 */
   UCA1CTL1 &= ~UCSWRST;                     /* Initialize USCI state machine */
