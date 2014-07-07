@@ -40,6 +40,12 @@
 
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
+#include "contiki.h"
+#include <stdlib.h>
+#include "dev/watchdog.h"
+#include "lib/ringbuf.h"
+#include "isr_compat.h"
+#include <stdio.h>
 
 signed   char tx_byte_ctr, rx_byte_ctr;
 unsigned char rx_buf[2];
@@ -50,6 +56,24 @@ unsigned char transmit_data1;
 unsigned char transmit_data2;
 volatile unsigned int i;	// volatile to prevent optimization
 
+
+
+static int (*uart1_input_handler)(unsigned char c);
+
+static volatile uint8_t serial_transmitting;
+
+#ifdef UART1_CONF_TX_WITH_INTERRUPT
+#define TX_WITH_INTERRUPT UART1_CONF_TX_WITH_INTERRUPT
+#else /* UART1_CONF_TX_WITH_INTERRUPT */
+#define TX_WITH_INTERRUPT 1
+#endif /* UART1_CONF_TX_WITH_INTERRUPT */
+
+#if TX_WITH_INTERRUPT
+#define TXBUFSIZE 64
+
+static struct ringbuf txbuf;
+static uint8_t txbuf_data[TXBUFSIZE];
+#endif /* TX_WITH_INTERRUPT */
 //------------------------------------------------------------------------------
 // void i2c_receiveinit(unsigned char slave_address, 
 //                              unsigned char prescale)
@@ -208,10 +232,88 @@ i2c_transmit_n(uint8_t byte_ctr, uint8_t *tx_buf) {
   tx_buf_ptr  = tx_buf;
   UCB1CTL1 |= UCTR + UCTXSTT;	   // I2C TX, start condition
 }
+/*----------------------------------------------------------------------------*/
+uint8_t
+uart1_active(void)
+{
+  return (UCA1STAT & UCBUSY) | serial_transmitting;
+}
+/*---------------------------------------------------------------------------*/
+void
+uart1_set_input(int (*input)(unsigned char c))
+{
+  uart1_input_handler = input;
+}
+/*---------------------------------------------------------------------------*/
+
+void
+uart1_writeb(unsigned char c)
+{
+  printf("UART1 writeb **\n");
+  /* watchdog_periodic(); */
+//#if TX_WITH_INTERRUPT
+//  printf("Uart1 write with interrupt\n");
+  /* Put the outgoing byte on the transmission buffer. If the buffer
+     is full, we just keep on trying to put the byte into the buffer
+     until it is possible to put it there. */
+ // while(ringbuf_put(&txbuf, c) == 0);
+
+  /* If there is no transmission going, we need to start it by putting
+     the first byte into the UART. */
+//  if(serial_transmitting == 0) {
+//    serial_transmitting = 1;
+//    UCA1TXBUF = ringbuf_get(&txbuf);
+//  }
+
+//#else /* TX_WITH_INTERRUPT */
+  printf("UART1 tx without interrupt\n");
+  /* Loop until the transmission buffer is available. */
+  while(!(IFG2 & UCA1TXIFG));
+
+  /* Transmit the data. */
+  UCA1TXBUF = 'c';
+//  UCA1TXBUF = 0x23;
+  printf("char written to UCA1TXBUF\n");
+//#endif /* TX_WITH_INTERRUPT */
+}
+
+
 
 /*----------------------------------------------------------------------------*/
-ISR(USCIAB1TX, i2c_tx_interrupt)
+/**
+ * Initalize the RS232 port.
+ *
+ */
+void
+uart1_init(unsigned long ubr)
 {
+  UCA1CTL1 |= UCSWRST;            /* Hold peripheral in reset state */
+  P3SEL |= 0xC0;                            /* P3.6,7 = USCI_A1 TXD/RXD */
+/*  P3SEL2 &= ~0xC0; This register doesn't seem to be defined anywhere */
+  P3DIR &= ~0x80;                 /*3.7 as input*/
+  P3DIR |= 0x40;                    /*3.6 as output*/
+
+  UCA1CTL0 = 0x00;
+  UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
+  UCA1BR0 = BAUD2UBR(38400);
+  UCA1BR1 = 0x00;
+  UCA1MCTL = UCBRS_2;                        /* Modulation UCBRSx = 4 */
+  UCA1CTL1 &= ~UCSWRST;                     /* Initialize USCI state machine */
+
+  serial_transmitting = 0;
+
+  /* XXX Clear pending interrupts before enable */
+  IFG2 &= ~UCA1RXIFG;
+  IFG2 &= ~UCA1TXIFG;
+  UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine
+  **before** enabling interrupts */
+
+  UC1IE |= UCB1RXIE;
+}
+/*----------------------------------------------------------------------------*/
+ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
+{
+  printf("ISR TX\n");
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
     if (tx_byte_ctr == 0) {
@@ -236,13 +338,42 @@ ISR(USCIAB1TX, i2c_tx_interrupt)
     }
   }
 #endif
+#if TX_WITH_INTERRUPT
+  else if(IFG2 & UCA1TXIFG) {
+    if(ringbuf_elements(&txbuf) == 0) {
+      serial_transmitting = 0;
+    } else {
+      UCA0TXBUF = ringbuf_get(&txbuf);
+    }
+  }
+#endif /* TX_WITH_INTERRUPT */
 }
 
-ISR(USCIAB1RX, i2c_rx_interrupt)
+ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
+  uint8_t c;
+  printf("ISR\n"); 
+#if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
     PRINTFDEBUG("!!! NACK received in RX\n");
+    printf("i2c int");
     UCB1CTL1 |= UCTXSTP;
     UCB1STAT &= ~UCNACKIFG;
+  }
+#endif
+  if( UC1IFG & UCA1RXIFG){
+    printf("Char recieved\n");
+    if(UCA1STAT & UCRXERR) {
+      printf("Serial1 RX error");
+    /* Check status register for receive errors. */
+      c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
+    } else {
+      c = UCA1RXBUF;
+      if(uart1_input_handler != NULL) {
+        if(uart1_input_handler(c)) {
+          LPM4_EXIT;
+        }
+      }
+    }
   }
 }

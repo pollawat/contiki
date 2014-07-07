@@ -60,6 +60,7 @@ process_event_t serial_timeout_event_message;
 int
 serial_timeout_input_byte(unsigned char c)
 {
+  printf("Byte recieved");
   r0 = RTIMER_NOW();
   if(bytes ==0){
     /* First byte of transmission*/
@@ -85,6 +86,9 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
+#if TX_WITH_INTERRUPT
+  printf("With TX Interrupt\n");
+#endif
   static uint8_t buf[BUFSIZE];
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);

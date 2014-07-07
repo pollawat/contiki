@@ -38,8 +38,8 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
-#ifndef __I2CMASTER_H__
-#define __I2CMASTER_H__
+#ifndef __UART1I2CMASTER_H__
+#define __UART1I2CMASTER_H__
 
 #include "contiki.h"
 
@@ -86,5 +86,15 @@ uint8_t i2c_busy(void);
 #else
 #define PRINTFDEBUG(...)
 #endif
+
+
+
+
+#define UART1_BAUD2UBR(baud) ((MSP430_CPU_SPEED)/(baud))
+
+void uart1_set_input(int (*input)(unsigned char c));
+void uart1_writeb(unsigned char c);
+void uart1_init(unsigned long ubr);
+uint8_t uart1_active(void);
 
 #endif    /* #ifdef __I2CMASTER_H__ */
