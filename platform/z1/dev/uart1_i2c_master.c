@@ -298,6 +298,7 @@ uart1_init(unsigned long ubr)
   UCA1BR0 = BAUD2UBR(38400); /*Hard coded as passing an arg in didn't work */
   UCA1BR1 = 0x00;
   UCA1MCTL = UCBRS_2;                        /* Modulation UCBRSx = 4 */
+
   UCA1CTL1 &= ~UCSWRST;                     /* Initialize USCI state machine */
 
   serial_transmitting = 0;
@@ -305,10 +306,14 @@ uart1_init(unsigned long ubr)
   /* XXX Clear pending interrupts before enable */
   IFG2 &= ~UCA1RXIFG;
   IFG2 &= ~UCA1TXIFG;
-  UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine
-  **before** enabling interrupts */
-
-  UC1IE |= UCB1RXIE;
+  UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
+  printf("Uart 1 configured\n");
+  UC1IE |= UCA1RXIE;
+  printf("Uart 1 interupt enabled\n");
+  printf("int reg:%i",(int)UC1IE);
+  printf("****************");
+  printf("%i",(int)UCA1RXBUF);
+  printf("****************\n");
 }
 /*----------------------------------------------------------------------------*/
 ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
@@ -352,7 +357,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
   uint8_t c;
-  printf("ISR\n"); 
+  printf("ISR RX\n"); 
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
     PRINTFDEBUG("!!! NACK received in RX\n");
