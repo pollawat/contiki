@@ -96,9 +96,6 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
-#if TX_WITH_INTERRUPT
-  printf("With TX Interrupt\n");
-#endif
   static uint8_t buf[BUFSIZE];
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
@@ -108,6 +105,9 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
     if (bytes > BUFSIZE){
       printf("Serial recieve overflow");
     }else{
+#ifdef SERIAL_TIMEOUT_DEBUG
+      printf("Timeout reached\n");
+#endif
       memcpy( buf, rxbuf_data, sizeof(rxbuf_data)); 
       bytes = 0;
       /* Broadcast event */
