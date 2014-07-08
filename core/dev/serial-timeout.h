@@ -43,7 +43,7 @@
 #include "contiki.h"
 
 #ifndef SERIAL_TIMEOUT_VALUE
-	#define SERIAL_TIMEOUT_VALUE  100
+	#define SERIAL_TIMEOUT_VALUE  1000
 #endif
 
 /**

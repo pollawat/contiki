@@ -36,6 +36,8 @@
 #include "contiki.h"
 #include "contiki-conf.h"
 
+#define SERIAL_TIMEOUT_DEBUG
+
 #ifdef SERIAL_TIMEOUT_CONF_BUFSIZE
 #define BUFSIZE SERIAL_TIMEOUT_CONF_BUFSIZE
 #else /* SERIAL_LINE_CONF_BUFSIZE */
@@ -60,14 +62,22 @@ process_event_t serial_timeout_event_message;
 int
 serial_timeout_input_byte(unsigned char c)
 {
-  printf("Byte recieved");
+#ifdef SERIAL_TIMEOUT_DEBUG
+  printf("Byte recieved...");
+#endif
   r0 = RTIMER_NOW();
   if(bytes ==0){
+#ifdef SERIAL_TIMEOUT_DEBUG
+  printf("first\n");
+#endif
     /* First byte of transmission*/
     memset(rxbuf_data, 0, sizeof(rxbuf_data)); 
     rxbuf_data[bytes++] = c;
     process_poll(&serial_timeout_process);
   }else{
+#ifdef SERIAL_TIMEOUT_DEBUG
+  printf("not first\n");
+#endif
     /* Already read atleast one byte */
     if(bytes >= BUFSIZE){
       /* Overflow */
@@ -99,6 +109,7 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
       printf("Serial recieve overflow");
     }else{
       memcpy( buf, rxbuf_data, sizeof(rxbuf_data)); 
+      bytes = 0;
       /* Broadcast event */
       process_post(PROCESS_BROADCAST, serial_timeout_event_message, buf);
       if(PROCESS_ERR_OK ==
