@@ -38,6 +38,8 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
+#define UART1_DEBUG
+
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
 #include "contiki.h"
@@ -307,13 +309,7 @@ uart1_init(unsigned long ubr)
   IFG2 &= ~UCA1RXIFG;
   IFG2 &= ~UCA1TXIFG;
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
-  printf("Uart 1 configured\n");
   UC1IE |= UCA1RXIE;
-  printf("Uart 1 interupt enabled\n");
-  printf("int reg:%i",(int)UC1IE);
-  printf("****************");
-  printf("%i",(int)UCA1RXBUF);
-  printf("****************\n");
 }
 /*----------------------------------------------------------------------------*/
 ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
@@ -357,8 +353,10 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
   uint8_t c;
+#ifdef UART1_DEBUG
   printf("ISR RX\n"); 
-#if I2C_RX_WITH_INTERRUPT
+#endif
+#ifdef I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
     PRINTFDEBUG("!!! NACK received in RX\n");
     printf("i2c int");
@@ -367,13 +365,18 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
   }
 #endif
   if( UC1IFG & UCA1RXIFG){
-    printf("Char recieved\n");
+#ifdef UART1_DEBUG
+    printf("Char recieved...");
+#endif
     if(UCA1STAT & UCRXERR) {
-      printf("Serial1 RX error");
+      printf("Serial1 RX error\n");
     /* Check status register for receive errors. */
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
       c = UCA1RXBUF;
+#ifdef UART1_DEBUG
+      printf("%i\n", c);
+#endif
       if(uart1_input_handler != NULL) {
         if(uart1_input_handler(c)) {
           LPM4_EXIT;
