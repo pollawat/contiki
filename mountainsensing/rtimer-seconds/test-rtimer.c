@@ -41,8 +41,8 @@
 #include <stdio.h>		
 
 static rtimer_clock_t t0;
-//#define delay RTIMER_SECOND
-uint32_t delay =65535;
+//#define delay (RTIMER_SECOND * 2)
+uint32_t delay =((uint32_t)RTIMER_SECOND);
 
 /*---------------------------------------------------------------------------*/
 PROCESS(test_rtimer_second, "Testing rtimer_second length");
@@ -55,10 +55,10 @@ PROCESS_THREAD(test_rtimer_second, ev, data)
   P4SEL &= ~0x01;
   P4DIR |= 0x01;
   P4REN |= 0x01;
-  printf("Delay = %u\n", delay);
   while(1) {
     t0 = RTIMER_NOW();
     P4OUT = P4OUT ^ 0x01; //toggle output
+    printf("Delay = %lu T0: %d\n", (t0 + delay), t0);
     printf("toggled: %i\n", (int)P4OUT);
     while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + delay)));
   }
