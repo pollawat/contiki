@@ -35,29 +35,37 @@
  */
 #include "contiki.h"
 #include "reg.h"
+#include "spi-arch.h"
 #include "dev/ioc.h"
 #include "dev/sys-ctrl.h"
 #include "dev/spi.h"
 #include "dev/ssi.h"
 #include "dev/gpio.h"
-#include "spi-arch.h"
+
+#define SPI_CLK_PORT_BASE        GPIO_PORT_TO_BASE(SPI_CLK_PORT)
+#define SPI_CLK_PIN_MASK         GPIO_PIN_MASK(SPI_CLK_PIN)
+#define SPI_MOSI_PORT_BASE       GPIO_PORT_TO_BASE(SPI_MOSI_PORT)
+#define SPI_MOSI_PIN_MASK        GPIO_PIN_MASK(SPI_MOSI_PIN)
+#define SPI_MISO_PORT_BASE       GPIO_PORT_TO_BASE(SPI_MISO_PORT)
+#define SPI_MISO_PIN_MASK        GPIO_PIN_MASK(SPI_MISO_PIN)
 
 /**
  * \brief Initialize the SPI bus.
  *
  * This SPI init() function uses the following #defines to set the pins:
- *    CC2538_SPI_CLK_PORT_NUM    CC2538_SPI_CLK_PIN_NUM
- *    CC2538_SPI_MOSI_PORT_NUM   CC2538_SPI_MOSI_PIN_NUM
- *    CC2538_SPI_MISO_PORT_NUM   CC2538_SPI_MISO_PIN_NUM
- *    CC2538_SPI_SEL_PORT_NUM    CC2538_SPI_SEL_PIN_NUM
+ *    SPI_CLK_PORT               SPI_CLK_PIN
+ *    SPI_MOSI_PORT              SPI_MOSI_PIN
+ *    SPI_MISO_PORT              SPI_MISO_PIN
  *
- * This sets the SPI data width to 8 bits and the mode to Freescale mode 3.
+ * This sets the mode to Motorola SPI with the following format options:
+ *    Clock phase:               1; data captured on second (rising) edge
+ *    Clock polarity:            1; clock is high when idle
+ *    Data size:                 8 bits
  */
 void
 spi_init(void)
 {
-  /* Enable the SSI peripheral */
-  REG(SYS_CTRL_RCGCSSI) |= 1;
+  spi_enable();
 
   /* Start by disabling the peripheral before configuring it */
   REG(SSI0_BASE + SSI_CR1) = 0;
@@ -66,33 +74,67 @@ spi_init(void)
   REG(SSI0_BASE + SSI_CC) = 1;
 
   /* Set the mux correctly to connect the SSI pins to the correct GPIO pins */
-  ioc_set_sel(CC2538_SPI_CLK_PORT_NUM, CC2538_SPI_CLK_PIN_NUM, IOC_PXX_SEL_SSI0_CLKOUT);
-  ioc_set_sel(CC2538_SPI_MOSI_PORT_NUM, CC2538_SPI_MOSI_PIN_NUM, IOC_PXX_SEL_SSI0_TXD);
-  REG(IOC_SSIRXD_SSI0) = (CC2538_SPI_MISO_PORT_NUM * 8) + CC2538_SPI_MISO_PIN_NUM;
-  ioc_set_sel(CC2538_SPI_SEL_PORT_NUM, CC2538_SPI_SEL_PIN_NUM, IOC_PXX_SEL_SSI0_FSSOUT);
+  ioc_set_sel(SPI_CLK_PORT, SPI_CLK_PIN, IOC_PXX_SEL_SSI0_CLKOUT);
+  ioc_set_sel(SPI_MOSI_PORT, SPI_MOSI_PIN, IOC_PXX_SEL_SSI0_TXD);
+  REG(IOC_SSIRXD_SSI0) = (SPI_MISO_PORT * 8) + SPI_MISO_PIN;
 
   /* Put all the SSI gpios into peripheral mode */
-  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(CC2538_SPI_CLK_PORT_NUM), GPIO_PIN_MASK(CC2538_SPI_CLK_PIN_NUM));
-  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(CC2538_SPI_MOSI_PORT_NUM), GPIO_PIN_MASK(CC2538_SPI_MOSI_PIN_NUM));
-  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(CC2538_SPI_MISO_PORT_NUM), GPIO_PIN_MASK(CC2538_SPI_MISO_PIN_NUM));
-  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(CC2538_SPI_SEL_PORT_NUM), GPIO_PIN_MASK(CC2538_SPI_SEL_PIN_NUM));
+  GPIO_PERIPHERAL_CONTROL(SPI_CLK_PORT_BASE, SPI_CLK_PIN_MASK);
+  GPIO_PERIPHERAL_CONTROL(SPI_MOSI_PORT_BASE, SPI_MOSI_PIN_MASK);
+  GPIO_PERIPHERAL_CONTROL(SPI_MISO_PORT_BASE, SPI_MISO_PIN_MASK);
 
   /* Disable any pull ups or the like */
-  ioc_set_over(CC2538_SPI_CLK_PORT_NUM, CC2538_SPI_CLK_PIN_NUM, IOC_OVERRIDE_DIS);
-  ioc_set_over(CC2538_SPI_MOSI_PORT_NUM, CC2538_SPI_MOSI_PIN_NUM, IOC_OVERRIDE_DIS);
-  ioc_set_over(CC2538_SPI_MISO_PORT_NUM, CC2538_SPI_MISO_PIN_NUM, IOC_OVERRIDE_DIS);
-  ioc_set_over(CC2538_SPI_SEL_PORT_NUM, CC2538_SPI_SEL_PIN_NUM, IOC_OVERRIDE_DIS);
+  ioc_set_over(SPI_CLK_PORT, SPI_CLK_PIN, IOC_OVERRIDE_DIS);
+  ioc_set_over(SPI_MOSI_PORT, SPI_MOSI_PIN, IOC_OVERRIDE_DIS);
+  ioc_set_over(SPI_MISO_PORT, SPI_MISO_PIN, IOC_OVERRIDE_DIS);
 
   /* Configure the clock */
   REG(SSI0_BASE + SSI_CPSR) = 2;
 
-  /* Put the ssi in motorola SPI mode with 8 bit data */
-  REG(SSI0_BASE + SSI_CR0) = SSI_CR0_SPH_M | SSI_CR0_SPO_M | (7);
+  /* Configure the default SPI options.
+   *   mode:  Motorola frame format
+   *   clock: High when idle
+   *   data:  Valid on rising edges of the clock
+   *   bits:  8 byte data
+   */
+  REG(SSI0_BASE + SSI_CR0) = SSI_CR0_SPH | SSI_CR0_SPO | (0x07);
 
   /* Enable the SSI */
   REG(SSI0_BASE + SSI_CR1) |= SSI_CR1_SSE;
+}
+/*---------------------------------------------------------------------------*/
+void
+spi_cs_init(uint8_t port, uint8_t pin)
+{
+  GPIO_SOFTWARE_CONTROL(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+  ioc_set_over(port, pin, IOC_OVERRIDE_DIS);
+  GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+  GPIO_SET_PIN(GPIO_PORT_TO_BASE(port), GPIO_PIN_MASK(pin));
+}
+/*---------------------------------------------------------------------------*/
+void
+spi_enable(void)
+{
+  /* Enable the clock for the SSI peripheral */
+  REG(SYS_CTRL_RCGCSSI) |= 1;
+}
+/*---------------------------------------------------------------------------*/
+void
+spi_disable(void)
+{
+  /* Gate the clock for the SSI peripheral */
+  REG(SYS_CTRL_RCGCSSI) &= ~1;
+}
+/*---------------------------------------------------------------------------*/
+void spi_set_mode(uint32_t frame_format, uint32_t clock_polarity, uint32_t clock_phase, uint32_t data_size)
+{
+  /* Disable the SSI peripheral to configure it */
+  REG(SSI0_BASE + SSI_CR1) = 0;
 
-  /* Clear the RX FIFO */
-  SPI_WAITFOREORx();
+  /* Configure the SSI options */
+  REG(SSI0_BASE + SSI_CR0) = clock_phase | clock_polarity | frame_format | (data_size - 1);
+
+  /* Re-enable the SSI */
+  REG(SSI0_BASE + SSI_CR1) |= SSI_CR1_SSE;
 }
 /** @} */
