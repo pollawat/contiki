@@ -95,7 +95,7 @@ ISR(WDT, watchdog_interrupt)
   printchar('\n');
 #endif /* PRINT_STACK_ON_REBOOT */
 #endif /* CONTIKI_TARGET_SKY */
-
+  printf("\n\nWatchdog Reboot. \n\n");
   watchdog_reboot();
 }
 /*---------------------------------------------------------------------------*/
