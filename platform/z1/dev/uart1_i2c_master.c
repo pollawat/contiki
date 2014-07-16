@@ -38,6 +38,8 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
+#define UART1_DEBUG
+
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
 #include "contiki.h"
@@ -297,9 +299,10 @@ uart1_init(unsigned long ubr)
 
   UCA1CTL0 = 0x00;
   UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
-  UCA1BR0 = BAUD2UBR(38400);
+  UCA1BR0 = BAUD2UBR(38400); /*Hard coded as passing an arg in didn't work */
   UCA1BR1 = 0x00;
   UCA1MCTL = UCBRS_2;                        /* Modulation UCBRSx = 4 */
+
   UCA1CTL1 &= ~UCSWRST;                     /* Initialize USCI state machine */
 
   serial_transmitting = 0;
@@ -307,10 +310,8 @@ uart1_init(unsigned long ubr)
   /* XXX Clear pending interrupts before enable */
   IFG2 &= ~UCA1RXIFG;
   IFG2 &= ~UCA1TXIFG;
-  UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine
-  **before** enabling interrupts */
-
-  UC1IE |= UCB1RXIE;
+  UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
+  UC1IE |= UCA1RXIE;
 }
 
 
@@ -373,6 +374,9 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
       c = UCA1RXBUF;
+#ifdef UART1_DEBUG
+      printf("%i\n", c);
+#endif
       if(uart1_input_handler != NULL) {
         if(uart1_input_handler(c)) {
           LPM4_EXIT;

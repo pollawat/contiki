@@ -30,11 +30,21 @@
  *
  */
 #include "dev/serial-timeout.h"
+#include "dev/protobuf-handler.h"
 #include <string.h> /* for memcpy() */
 #include <stdio.h>
 #include "lib/ringbuf.h"
 #include "contiki.h"
 #include "contiki-conf.h"
+
+#define SERIAL_TIMEOUT_DEBUG
+
+#ifdef SERIAL_TIMEOUT_DEBUG
+#define PRINTF(...) printf(__VA_ARGS__)
+#else
+#define PRINTF(...) do {} while (0)
+#endif
+
 
 #ifdef SERIAL_TIMEOUT_CONF_BUFSIZE
 #define BUFSIZE SERIAL_TIMEOUT_CONF_BUFSIZE
@@ -49,8 +59,8 @@
 
 
 static uint8_t rxbuf_data[BUFSIZE];
-static rtimer_clock_t r0;
-static uint8_t bytes;
+volatile static rtimer_clock_t r0;
+volatile static uint8_t rxbytes;
 
 PROCESS(serial_timeout_process, "Serial timeout driver");
 
@@ -60,19 +70,22 @@ process_event_t serial_timeout_event_message;
 int
 serial_timeout_input_byte(unsigned char c)
 {
-  printf("Byte recieved");
-  r0 = RTIMER_NOW();
-  if(bytes ==0){
-    /* First byte of transmission*/
-    memset(rxbuf_data, 0, sizeof(rxbuf_data)); 
-    rxbuf_data[bytes++] = c;
-    process_poll(&serial_timeout_process);
-  }else{
-    /* Already read atleast one byte */
-    if(bytes >= BUFSIZE){
+  r0 = RTIMER_NOW(); /*Reset the timeout timer */
+  PRINTF("Byte recieved...");
+  if(rxbytes ==0){
+    /*This was the first in a potential batch */
+    PRINTF("first\n");
+    rxbuf_data[rxbytes++] = c; /* Store byte in buffer */
+    process_poll(&serial_timeout_process); /* Start process */
+  }else{ /*We're still in the timeout period from another byte */
+    PRINTF("not first\n");
+    if(rxbytes >= BUFSIZE){
       /* Overflow */
+      PRINTF("OVERFLOW\n");
+      //TODO handle this
     }else{
-      rxbuf_data[bytes++] = c;
+      PRINTF("Storing rxbytes in %i\n", rxbytes);
+      rxbuf_data[rxbytes++] = c;
 
     }
   }
@@ -86,24 +99,31 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
-#if TX_WITH_INTERRUPT
-  printf("With TX Interrupt\n");
-#endif
-  static uint8_t buf[BUFSIZE];
+  uint8_t buf[BUFSIZE];
+  uint8_t bytes;
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
     
 
     while (RTIMER_CLOCK_LT(RTIMER_NOW(), (r0 + SERIAL_TIMEOUT_VALUE)));
-    if (bytes > BUFSIZE){
-      printf("Serial recieve overflow");
+    if (rxbytes > BUFSIZE){
+      PRINTF("Serial recieve overflow");
     }else{
-      memcpy( buf, rxbuf_data, sizeof(rxbuf_data)); 
-      /* Broadcast event */
-      process_post(PROCESS_BROADCAST, serial_timeout_event_message, buf);
-      if(PROCESS_ERR_OK ==
-        process_post(PROCESS_CURRENT(), PROCESS_EVENT_CONTINUE, NULL)) {
-        PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
+#ifdef SERIAL_TIMEOUT_DEBUG
+      printf("Timeout reached\n");
+      printf("Recieved Bytes: %i\n", rxbytes);
+      int i = 0;
+      while (i < BUFSIZE){
+        printf("%i:", (int)rxbuf_data[i++]);
+      }
+      printf("\n");
+#endif
+      memcpy( buf, rxbuf_data, rxbytes); 
+      bytes = rxbytes;
+      rxbytes = 0;
+      memset(rxbuf_data, 0, BUFSIZE); /*Reset buffer*/ 
+      if (bytes != 0){
+        protobuf_process_message(buf, bytes);    
       }
     }
   }
@@ -113,8 +133,8 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 void
 serial_timeout_init(void)
 {
-  bytes = 0;
-  memset(rxbuf_data, 0, sizeof(rxbuf_data)); 
+  rxbytes = 0; /*Intially no bytes recieved */
+  memset(rxbuf_data, 0, BUFSIZE); /*Set buffer to 0 */ 
   process_start(&serial_timeout_process, NULL);
 }
 /*---------------------------------------------------------------------------*/

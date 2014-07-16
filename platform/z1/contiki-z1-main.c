@@ -210,7 +210,6 @@ main(int argc, char **argv)
   slip_arch_init(BAUD2UBR(115200));
 #endif /* WITH_UIP */
 
-  uart1_init(BAUD2UBR(9600)); 
   
   xmem_init();
 
@@ -370,7 +369,7 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
-
+uart1_init('b'); /* It ignores the input to the func */
 uart1_set_input(serial_timeout_input_byte);
 serial_timeout_init();
 uart1_writeb('*');
