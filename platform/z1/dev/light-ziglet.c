@@ -41,7 +41,7 @@
 
 #include <stdio.h>
 #include "contiki.h"
-#include "i2cmaster.h"
+#include "uart1_i2c_master.h"
 #include "light-ziglet.h"
 
 #if 0

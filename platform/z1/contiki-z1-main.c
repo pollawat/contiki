@@ -36,6 +36,7 @@
 #include "dev/cc2420.h"
 #include "dev/leds.h"
 #include "dev/serial-line.h"
+#include "dev/serial-timeout.h"
 #include "dev/slip.h"
 #include "dev/uart0.h"
 #include "dev/watchdog.h"
@@ -46,7 +47,7 @@
 #include "dev/button-sensor.h"
 #include "dev/adxl345.h"
 #include "sys/clock.h"
-
+#include "dev/uart1_i2c_master.h"
 #if WITH_UIP6
 #include "net/uip-ds6.h"
 #endif /* WITH_UIP6 */
@@ -209,6 +210,8 @@ main(int argc, char **argv)
   slip_arch_init(BAUD2UBR(115200));
 #endif /* WITH_UIP */
 
+  uart1_init(BAUD2UBR(9600)); 
+  
   xmem_init();
 
   rtimer_init();
@@ -368,6 +371,11 @@ main(int argc, char **argv)
   serial_line_init();
 #endif
 
+uart1_set_input(serial_timeout_input_byte);
+serial_timeout_init();
+uart1_writeb('*');
+uart1_writeb('c');
+uart1_writeb('c');
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
