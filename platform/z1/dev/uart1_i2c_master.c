@@ -232,6 +232,8 @@ i2c_transmit_n(uint8_t byte_ctr, uint8_t *tx_buf) {
   tx_buf_ptr  = tx_buf;
   UCB1CTL1 |= UCTR + UCTXSTT;	   // I2C TX, start condition
 }
+
+
 /*----------------------------------------------------------------------------*/
 uint8_t
 uart1_active(void)
@@ -310,10 +312,12 @@ uart1_init(unsigned long ubr)
 
   UC1IE |= UCB1RXIE;
 }
+
+
 /*----------------------------------------------------------------------------*/
 ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 {
-  printf("ISR TX\n");
+//  printf("ISR TX\n");
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
     if (tx_byte_ctr == 0) {
@@ -352,19 +356,19 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
   uint8_t c;
-  printf("ISR\n"); 
+//  printf("ISR\n"); 
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
-    PRINTFDEBUG("!!! NACK received in RX\n");
-    printf("i2c int");
+//    PRINTFDEBUG("!!! NACK received in RX\n");
+//    printf("i2c int");
     UCB1CTL1 |= UCTXSTP;
     UCB1STAT &= ~UCNACKIFG;
   }
 #endif
   if( UC1IFG & UCA1RXIFG){
-    printf("Char recieved\n");
+//    printf("Char recieved\n");
     if(UCA1STAT & UCRXERR) {
-      printf("Serial1 RX error");
+//      printf("Serial1 RX error");
     /* Check status register for receive errors. */
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
