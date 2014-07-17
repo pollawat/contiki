@@ -41,7 +41,7 @@
 #ifndef __TLC59116_H__
 #define __TLC59116_H__
 #include <stdio.h>
-#include "dev/i2cmaster.h"
+#include "uart1_i2c_master.h"
 
 #if 0
 #include <stdio.h>

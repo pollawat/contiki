@@ -1,10 +1,9 @@
 ifndef TARGET
 TARGET=z1
 endif
- 
-CONTIKI_PROJECT = test-adxl345 tmp102-test
-CONTIKI_SOURCEFILES += cc2420-arch.c sensors.c  
-PROJECT_SOURCEFILES = i2cmaster.c tmp102.c adxl345.c sky-sensors.c
+
+CONTIKI_PROJECT = test-adxl345 tmp102-test batv-test adc1-test adc2-test
+ROJECT_SOURCEFILES = i2cmaster.c tmp102.c adxl345.c sky-sensors.c batv-sensor.c
 APPS=serial-shell
  
 all: $(CONTIKI_PROJECT)

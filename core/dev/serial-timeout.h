@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2005, Swedish Institute of Computer Science
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,40 +29,50 @@
  * This file is part of the Contiki operating system.
  *
  */
-
 /**
  * \file
- *         Testing the Potentiometer in Zolertia Z1 Starter Platform.
+ * Generic serial I/O process header filer waits for timeout
  * \author
- *         Enric M. Calvo <ecalvo@zolertia.com>
+ * Philip Basford
+ * Adam Dunkels
+ *
  */
+#ifndef __SERIAL_TIMEOUT_H__
+#define __SERIAL_TIMEOUT_H__
 
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
-#include <stdio.h>		
 
+#ifndef SERIAL_TIMEOUT_VALUE
+	#define SERIAL_TIMEOUT_VALUE  9000
+#endif
 
-/*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
-{
+/**
+ * Event posted when a timeout has expired after the end of data recieving.
+ *
+ */
+extern process_event_t serial_timeout_event_message;
 
-  PROCESS_BEGIN();
+/**
+ * Get one byte of input from the serial driver.
+ *
+ * This function is to be called from the actual RS232 driver to get
+ * one byte of serial data input.
+ *
+ * For systems using low-power CPU modes, the return value of the
+ * function can be used to determine if the CPU should be woken up or
+ * not. If the function returns non-zero, the CPU should be powered
+ * up. If the function returns zero, the CPU can continue to be
+ * powered down.
+ *
+ * \param c The data that is received.
+ *
+ * \return Non-zero if the CPU should be powered up, zero otherwise.
+ */
 
-  SENSORS_ACTIVATE(potentiometer_sensor);
+int serial_timeout_input_byte(unsigned char c);
 
-  while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
+void serial_timeout_init(void);
 
-    printf("Potentiometer Value: %i\n", value);
-  }
+PROCESS_NAME(serial_timeout_process);
 
-  SENSORS_DEACTIVATE(potentiometer_sensor);
-
-  PROCESS_END();
-}
-
-/*---------------------------------------------------------------------------*/
-
+#endif /* __SERIAL_TIMEOUT_H__ */

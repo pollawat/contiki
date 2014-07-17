@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2011 Zolertia(TM) is a trademark by Advancare,SL
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,43 +26,42 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This file is part of the Contiki operating system.
  *
+ * -----------------------------------------------------------------
+ *
+ * Author  : Enric M. Calvo (based on work by A. Dunkels, J. Eriksson, N. Finne)
+ * Created : 2011-02-22
+ *           $Revision: 1.0 $
  */
 
-/**
- * \file
- *         Testing the Potentiometer in Zolertia Z1 Starter Platform.
- * \author
- *         Enric M. Calvo <ecalvo@zolertia.com>
- */
-
+#include "dev/adc2-sensor.h"
+#include "dev/sky-sensors.h"
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
-#include <stdio.h>		
 
+/* Configure ADC212_2 to sample channel 11 (voltage) and use */
+/* the Vref+ as reference (SREF_1) since it is a stable reference */
+#define INPUT_CHANNEL          (1 << INCH_2)
+#define INPUT_REFERENCE        SREF_0
+#define ADC2_MEM      ADC12MEM2
 
+const struct sensors_sensor adc2_sensor;
 /*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
+static int
+value(int type)
 {
-
-  PROCESS_BEGIN();
-
-  SENSORS_ACTIVATE(potentiometer_sensor);
-
-  while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
-  }
-
-  SENSORS_DEACTIVATE(potentiometer_sensor);
-
-  PROCESS_END();
+  return ADC2_MEM;
 }
-
 /*---------------------------------------------------------------------------*/
-
+static int
+configure(int type, int c)
+{
+  return sky_sensors_configure(INPUT_CHANNEL, INPUT_REFERENCE, type, c);
+}
+/*---------------------------------------------------------------------------*/
+static int
+status(int type)
+{
+  return sky_sensors_status(INPUT_CHANNEL, type);
+}
+/*---------------------------------------------------------------------------*/
+SENSORS_SENSOR(adc2_sensor, ADC2_SENSOR, value, configure, status);

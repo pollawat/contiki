@@ -11,6 +11,7 @@
 *.econotag 
 *.native
 *.z1
+*.z1sp
 *.minimal-net
 *.sky
 *.wismote
@@ -84,3 +85,7 @@ contiki-cc2530dk.lib
 
 #regression tests artifacts
 *.testlog
+
+# vim temp files
+.*.swp
+

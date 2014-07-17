@@ -28,7 +28,7 @@
  *
  * This file is part of the Contiki operating system.
  *
- */
+*/ 
 
 /**
  * \file
@@ -38,28 +38,30 @@
  */
 
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
 #include <stdio.h>		
-
+#include "sys/timer.h"
+static struct timer t;
+unsigned delay = 5;
 
 /*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
+PROCESS(test_timer_second, "Testing timer_second length");
+AUTOSTART_PROCESSES(&test_timer_second);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
+PROCESS_THREAD(test_timer_second, ev, data)
 {
 
   PROCESS_BEGIN();
-
-  SENSORS_ACTIVATE(potentiometer_sensor);
-
+  P4SEL &= ~0x01;
+  P4DIR |= 0x01;
+  P4REN |= 0x01;
+  timer_set(&t, CLOCK_SECOND *delay);
   while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
+    P4OUT = P4OUT ^ 0x01; //toggle output
+    printf("toggled: %i\n", (int)P4OUT);
+    while(!timer_expired(&t));
+    timer_reset(&t);
   }
 
-  SENSORS_DEACTIVATE(potentiometer_sensor);
 
   PROCESS_END();
 }

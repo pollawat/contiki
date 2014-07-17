@@ -38,28 +38,31 @@
  */
 
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
 #include <stdio.h>		
 
+static rtimer_clock_t t0;
+//#define delay (RTIMER_SECOND * 2)
+uint32_t delay =((uint32_t)RTIMER_SECOND);
 
 /*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
+PROCESS(test_rtimer_second, "Testing rtimer_second length");
+AUTOSTART_PROCESSES(&test_rtimer_second);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
+PROCESS_THREAD(test_rtimer_second, ev, data)
 {
 
   PROCESS_BEGIN();
-
-  SENSORS_ACTIVATE(potentiometer_sensor);
-
+  P4SEL &= ~0x01;
+  P4DIR |= 0x01;
+  P4REN |= 0x01;
   while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
+    t0 = RTIMER_NOW();
+    P4OUT = P4OUT ^ 0x01; //toggle output
+    printf("Delay = %lu T0: %d\n", (t0 + delay), t0);
+    printf("toggled: %i\n", (int)P4OUT);
+    while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + delay)));
   }
 
-  SENSORS_DEACTIVATE(potentiometer_sensor);
 
   PROCESS_END();
 }

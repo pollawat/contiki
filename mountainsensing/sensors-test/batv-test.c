@@ -38,28 +38,29 @@
  */
 
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
+#include "dev/batv-sensor.h"
 #include <stdio.h>		
 
 
 /*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
+PROCESS(test_batv_process, "Testing Batv measurementin Z1 Feshie");
+AUTOSTART_PROCESSES(&test_batv_process);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
+PROCESS_THREAD(test_batv_process, ev, data)
 {
 
   PROCESS_BEGIN();
 
-  SENSORS_ACTIVATE(potentiometer_sensor);
+  SENSORS_ACTIVATE(batv_sensor);
 
   while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
+    uint16_t value = batv_sensor.value(0);
+    uint16_t voltage = value / 273;
+    printf("Batv Value: %i\n", value);
+    printf("Approx Voltage: %iV\n", voltage);
   }
 
-  SENSORS_DEACTIVATE(potentiometer_sensor);
+  SENSORS_DEACTIVATE(batv_sensor);
 
   PROCESS_END();
 }

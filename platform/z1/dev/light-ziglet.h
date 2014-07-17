@@ -41,7 +41,7 @@
 #ifndef __LIGHT_ZIGLET_H__
 #define __LIGHT_ZIGLET_H__
 #include <stdio.h>
-#include "i2cmaster.h"
+#include "uart1_i2c_master.h"
 
 /* -------------------------------------------------------------------------- */
 /* Init the light ziglet sensor: ports, pins, I2C, interrupts (XXX none so far),

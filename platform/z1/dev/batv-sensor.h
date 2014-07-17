@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2011 Zolertia(TM) is a trademark by Advancare,SL
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,43 +26,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This file is part of the Contiki operating system.
  *
+ * -----------------------------------------------------------------
+ *
+ * Author  : Enric M. Calvo (based on work by A. Dunkels, J. Eriksson, N. Finne)
+ * Created : 2011-02-22
+ *           $Revision: 1.0 $
  */
 
-/**
- * \file
- *         Testing the Potentiometer in Zolertia Z1 Starter Platform.
- * \author
- *         Enric M. Calvo <ecalvo@zolertia.com>
- */
+#ifndef __BATV_SENSOR_H__
+#define __BATV_SENSOR_H__
 
-#include "contiki.h"
-#include "dev/potentiometer-sensor.h"
-#include <stdio.h>		
+#include "lib/sensors.h"
 
+extern const struct sensors_sensor batv_sensor;
 
-/*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
-{
+#define BATV_SENSOR "Batv"
 
-  PROCESS_BEGIN();
-
-  SENSORS_ACTIVATE(potentiometer_sensor);
-
-  while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
-  }
-
-  SENSORS_DEACTIVATE(potentiometer_sensor);
-
-  PROCESS_END();
-}
-
-/*---------------------------------------------------------------------------*/
-
+#endif /* __BATV_SENSOR_H__ */

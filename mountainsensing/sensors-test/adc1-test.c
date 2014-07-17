@@ -38,28 +38,27 @@
  */
 
 #include "contiki.h"
-#include "dev/potentiometer-sensor.h"
+#include "dev/adc1-sensor.h"
 #include <stdio.h>		
 
 
 /*---------------------------------------------------------------------------*/
-PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
-AUTOSTART_PROCESSES(&test_potent_process);
+PROCESS(test_adc_process, "Testing ADC  measurementin Z1 Feshie");
+AUTOSTART_PROCESSES(&test_adc_process);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_potent_process, ev, data)
+PROCESS_THREAD(test_adc_process, ev, data)
 {
 
   PROCESS_BEGIN();
 
-  SENSORS_ACTIVATE(potentiometer_sensor);
+  SENSORS_ACTIVATE(adc1_sensor);
 
   while(1) {
-    uint16_t value = potentiometer_sensor.value(0);
-
-    printf("Potentiometer Value: %i\n", value);
+    uint16_t value = adc1_sensor.value(0);
+    printf("ADC1 Value: %i \n", value);
   }
 
-  SENSORS_DEACTIVATE(potentiometer_sensor);
+  SENSORS_DEACTIVATE(adc1_sensor);
 
   PROCESS_END();
 }
