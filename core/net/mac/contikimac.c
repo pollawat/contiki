@@ -626,6 +626,13 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr,
   }
 #endif
 
+  packetbuf_compact();
+
+#ifdef NETSTACK_ENCRYPT
+  NETSTACK_ENCRYPT();
+#endif /* NETSTACK_ENCRYPT */
+
+
   /* Make sure that the packet is longer or equal to the shortest
      packet length. */
   transmit_len = packetbuf_totlen();
@@ -636,18 +643,10 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr,
     memset(ptr + packetbuf_datalen(), 0, SHORTEST_PACKET_SIZE - packetbuf_totlen());
 
     PRINTF("contikimac: shorter than shortest (%d)\n", packetbuf_totlen());
+    
     transmit_len = SHORTEST_PACKET_SIZE;
   }
-
-
-  packetbuf_compact();
-
-#ifdef NETSTACK_ENCRYPT
-  NETSTACK_ENCRYPT();
-#endif /* NETSTACK_ENCRYPT */
-
-  transmit_len = packetbuf_totlen();
-
+  
   NETSTACK_RADIO.prepare(packetbuf_hdrptr(), transmit_len);
 
   /* Remove the MAC-layer header since it will be recreated next time around. */
