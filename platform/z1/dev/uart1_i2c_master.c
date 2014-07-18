@@ -47,8 +47,9 @@
 #include "dev/watchdog.h"
 #include "lib/ringbuf.h"
 #include "isr_compat.h"
-#include <stdio.h>
 
+#include <stdio.h>
+#define PRINTFDEBUG(...) printf(__VA_ARGS__)
 signed   char tx_byte_ctr, rx_byte_ctr;
 unsigned char rx_buf[2];
 unsigned char* tx_buf_ptr;
@@ -253,7 +254,7 @@ uart1_set_input(int (*input)(unsigned char c))
 void
 uart1_writeb(unsigned char c)
 {
-  printf("UART1 writeb **\n");
+  PRINTFDEBUG("UART1 writeb **\n");
   /* watchdog_periodic(); */
 //#if TX_WITH_INTERRUPT
 //  printf("Uart1 write with interrupt\n");
@@ -270,14 +271,14 @@ uart1_writeb(unsigned char c)
 //  }
 
 //#else /* TX_WITH_INTERRUPT */
-  printf("UART1 tx without interrupt\n");
+  PRINTFDEBUG("UART1 tx without interrupt\n");
   /* Loop until the transmission buffer is available. */
   while(!(IFG2 & UCA1TXIFG));
 
   /* Transmit the data. */
   UCA1TXBUF = 'c';
 //  UCA1TXBUF = 0x23;
-  printf("char written to UCA1TXBUF\n");
+  PRINTFDEBUG("char written to UCA1TXBUF\n");
 //#endif /* TX_WITH_INTERRUPT */
 }
 
@@ -321,6 +322,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 //  printf("ISR TX\n");
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
+    PRINTFDEBUG("I2C TX int \n");
     if (tx_byte_ctr == 0) {
       UCB1CTL1 |= UCTXSTP;	   // I2C stop condition
       UC1IFG &= ~UCB1TXIFG;	   // Clear USCI_B1 TX int flag
@@ -333,6 +335,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   // RX Part
 #if I2C_RX_WITH_INTERRUPT
   else if (UC1IFG & UCB1RXIFG){    // RX int. condition
+    PRINTFDEBUG("USCIAB1TX: UCB1RXIFG\n");
     rx_buf_ptr[rx_byte_tot - rx_byte_ctr] = UCB1RXBUF;
     rx_byte_ctr--;
     if (rx_byte_ctr == 1){ //stop condition should be set before receiving last byte
@@ -345,6 +348,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 #endif
 #if TX_WITH_INTERRUPT
   else if(IFG2 & UCA1TXIFG) {
+  PRINTFDEBUG("USCIAB1TX: UCA1TXIFG\n");
     if(ringbuf_elements(&txbuf) == 0) {
       serial_transmitting = 0;
     } else {
@@ -357,26 +361,19 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
   uint8_t c;
-//  printf("ISR\n"); 
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
-//    PRINTFDEBUG("!!! NACK received in RX\n");
-//    printf("i2c int");
     UCB1CTL1 |= UCTXSTP;
     UCB1STAT &= ~UCNACKIFG;
   }
 #endif
   if( UC1IFG & UCA1RXIFG){
-//    printf("Char recieved\n");
     if(UCA1STAT & UCRXERR) {
-//      printf("Serial1 RX error");
     /* Check status register for receive errors. */
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
       c = UCA1RXBUF;
-#ifdef UART1_DEBUG
-      printf("%i\n", c);
-#endif
+      PRINTFDEBUG("%i\n", c);
       if(uart1_input_handler != NULL) {
         if(uart1_input_handler(c)) {
           LPM4_EXIT;
