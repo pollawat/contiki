@@ -44,7 +44,7 @@
 #include "uart1_i2c_master.h"
 #include "tmp102.h"
 
-
+#define PRINTFDEBUG(...) printf(__VA_ARGS__)
 
 /* Bitmasks and bit flag variable for keeping track of tmp102 status. */
 enum TMP102_STATUSTYPES

@@ -42,9 +42,9 @@
 
 #include "contiki.h"
 
-#ifndef SERIAL_TIMEOUT_VALUE
-	#define SERIAL_TIMEOUT_VALUE  9000
-#endif
+//#ifndef SERIAL_TIMEOUT_VALUE
+	#define SERIAL_TIMEOUT_VALUE   RTIMER_SECOND
+//#endif
 
 /**
  * Event posted when a timeout has expired after the end of data recieving.
