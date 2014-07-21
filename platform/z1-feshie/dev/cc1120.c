@@ -153,7 +153,7 @@ const struct radio_driver cc1120_driver = {
 
 
 /* ------------------- Internal variables -------------------------------- */
-static uint8_t current_channel, packet_pending, broadcast, ack_seq, tx_seq, lbt_success, radio_pending, int_enabled, radio_on, txfirst, txlast = 0;
+static uint8_t current_channel, packet_pending, fifo_access, broadcast, ack_seq, tx_seq, lbt_success, radio_pending, int_enabled, radio_on, txfirst, txlast = 0;
 static uint8_t locked, lock_on, lock_off;
 
 static uint8_t ack_buf[ACK_LEN];
@@ -230,6 +230,8 @@ cc1120_driver_init(void)
 	cc1120_arch_interrupt_enable();
 	radio_pending = 0;
 	packet_pending = 0;
+	fifo_access = 0;
+	locked = 0;
 	
 #if CC1120DEBUG || DEBUG
 	printf("\tCC1120 Initialised and OFF\n");
@@ -259,7 +261,9 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	}
 		
 	/* Write to the FIFO. */
+	fifo_access = 1;
 	cc1120_write_txfifo(payload, len);
+	fifo_access = 0;
 	RIMESTATS_ADD(lltx);
 	
 	if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) 
@@ -601,7 +605,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	PRINTF("**** Radio Driver: Read ****\n");
 
 	uint8_t length, i, rxbytes = 0;
-	
+		
 	if(radio_pending & RX_FIFO_UNDER)
 	{
 		/* FIFO underflow */
@@ -656,15 +660,15 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		return 0;
 	}
 	
-	
+	LOCK_SPI();
 	if((length == ACK_LEN) && (radio_pending & ACK_PENDING))
 	{
 		PRINTFRX("\tACK Received.\n");
 		/* We have received an ACK that we were expecting. */
-		LOCK_SPI();
 		cc1120_arch_spi_enable();
 		cc1120_arch_rxfifo_read(ack_buf, length);
 		cc1120_arch_spi_disable();
+		fifo_access = 0;
 		
 		watchdog_periodic();
 		
@@ -674,9 +678,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		if(radio_pending & RX_FIFO_UNDER)
 		{
 			/* FIFO underflow */
-			RELEASE_SPI();	
+			cc1120_flush_rx();	
 		}
-		
+		RELEASE_SPI();
 		return 0;
 	}
 	else
@@ -691,21 +695,22 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		
 		/* We have received a normal packet. Read the packet. */
 		PRINTFRX("\tRead FIFO.\n");
-		//LOCK_SPI();
 		cc1120_arch_spi_enable();
 		cc1120_arch_rxfifo_read(buf, length);
 		cc1120_arch_spi_disable();
-		printf("PacketRead\n");
+		PRINTFRX("\tPacketRead\n");
 		
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		if(radio_pending & RX_FIFO_UNDER)
 		{
 			/* FIFO underflow */
-			cc1120_flush_rx();
 			RELEASE_SPI();
+			cc1120_flush_rx();
 			PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", length);	
 			return 0;		
 		}
+		
+		RELEASE_SPI();
 		
 		if(buf == packetbuf_dataptr())
 		{
@@ -721,12 +726,11 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 			{
 				/* FIFO underflow */
 				cc1120_flush_rx();
-				RELEASE_SPI();
 				PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
 				return 0;		
 			}
 			
-			RELEASE_SPI();
+			
 			
 			/* Work out if we need to send an ACK. */
 			if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_node_addr))
@@ -756,7 +760,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	if(packet_pending > 1)
 	{
-		packet_pending--;
+		cc1120_flush_rx();
 	}
 	else
 	{
@@ -772,52 +776,61 @@ cc1120_driver_channel_clear(void)
 {
 	PRINTF("**** Radio Driver: CCA ****\n");
 
-	uint8_t cca, cur_state;
-	rtimer_clock_t t0;
-	uint8_t rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
-	
-	cur_state = cc1120_get_state();
-	
-	if(cur_state == CC1120_STATUS_TX)
+	if(locked)
 	{
-		/* Channel can't be clear in TX. */
-		PRINTF(" - NO, in TX. ****\n");
-		return 0;
-	}
-	//if(cur_state != CC1120_STATUS_RX)
-	//{
-		/* Not in RX... */
-	//	cc1120_set_state(CC1120_STATE_RX);
-	//}
-	
-	/* Wait till the CARRIER_SENSE is valid. */
-    t0 = RTIMER_NOW();
-    while(!(rssi0 & CC1120_CARRIER_SENSE_VALID))
-	{
-		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
-		{
-			printf("\t RSSI Timeout.\n");		
-			LEDS_OFF(LEDS_BLUE);
-			return 0;
-		}
-		rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
-		watchdog_periodic();
-	}
-	
-	if(rssi0 & CC1120_RSSI0_CARRIER_SENSE)
-	{
-		cca = 0;
-		PRINTF("\t Channel NOT clear.\n");
-		LEDS_OFF(LEDS_BLUE);	
+		PRINTF("SPI Locked\n");
+		return 1;
 	}
 	else
 	{
-		cca = 1;
-		PRINTF("\t Channel clear.\n");
-		LEDS_ON(LEDS_BLUE);
+		uint8_t cca, cur_state;
+		rtimer_clock_t t0;
+		uint8_t rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
+		
+		cur_state = cc1120_get_state();
+		
+		if(cur_state == CC1120_STATUS_TX)
+		{
+			/* Channel can't be clear in TX. */
+			PRINTF(" - NO, in TX. ****\n");
+			return 0;
+		}
+		if(cur_state != CC1120_STATUS_RX)
+		{
+			/* Not in RX... */
+			return 1;
+		}
+		
+		/* Wait till the CARRIER_SENSE is valid. */
+		t0 = RTIMER_NOW();
+		
+		while(!(rssi0 & CC1120_CARRIER_SENSE_VALID))
+		{
+			if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
+			{
+				printf("\t RSSI Timeout.\n");		
+				LEDS_OFF(LEDS_BLUE);
+				return 0;
+			}
+			rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
+			watchdog_periodic();
+		}
+		
+		if(rssi0 & CC1120_RSSI0_CARRIER_SENSE)
+		{
+			cca = 0;
+			PRINTF("\t Channel NOT clear.\n");
+			LEDS_OFF(LEDS_BLUE);	
+		}
+		else
+		{
+			cca = 1;
+			PRINTF("\t Channel clear.\n");
+			LEDS_ON(LEDS_BLUE);
+		}
+		
+		return cca;
 	}
-	
-	return cca;
 }
 
 int
@@ -825,36 +838,43 @@ cc1120_driver_receiving_packet(void)
 {
 	PRINTF("**** Radio Driver: Receiving Packet? ");
 	uint8_t pqt;
-
-	if(radio_pending & TRANSMITTING)
+	if(locked)
 	{
-		/* Can't be receiving in TX. */
-		PRINTF(" - NO, in TX. ****\n");
-		return 0;
-	}
-	else if(cc1120_get_state() != CC1120_STATUS_RX)
-	{
-		PRINTF(" - NO, Radio OFF. ****\n");
-		/* cannot be receiving with the radio off. */
+		PRINTF("SPI Locked\n");
 		return 0;
 	}
 	else
 	{
-		pqt = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);			/* Check PQT. */
-		if((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) || (pqt & CC1120_MODEM_STATUS1_PQT_VALID)
-			|| (pqt & CC1120_MODEM_STATUS1_SYNC_FOUND) || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
+		if(radio_pending & TRANSMITTING)
 		{
-			PRINTF(" Yes. ****\n");
-			return 1;
+			/* Can't be receiving in TX. */
+			PRINTF(" - NO, in TX. ****\n");
+			return 0;
+		}
+		else if(cc1120_get_state() != CC1120_STATUS_RX)
+		{
+			PRINTF(" - NO, Radio OFF. ****\n");
+			/* cannot be receiving with the radio off. */
+			return 0;
 		}
 		else
 		{
-			/* Not receiving */
-			PRINTF(" - NO. ****\n");
-			return 0;
+			pqt = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);			/* Check PQT. */
+			if((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) || (pqt & CC1120_MODEM_STATUS1_PQT_VALID)
+				|| (pqt & CC1120_MODEM_STATUS1_SYNC_FOUND))// || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
+			{
+				PRINTF(" Yes. ****\n");
+				return 1;
+			}
+			else
+			{
+				/* Not receiving */
+				PRINTF(" - NO. ****\n");
+				return 0;
+			}
 		}
+		return 0;
 	}
-	return 0;
 }
 
 int
@@ -882,16 +902,12 @@ cc1120_driver_on(void)
 	/* Set CC1120 into RX. */
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	
-	if(packet_pending > 0)
+	if(locked)
 	{
-		return 0;
+		lock_on = 1;
+		lock_off = 0;
+		return 1;
 	}
-	
-	//if(locked)
-	//{
-	//	lock_on = 1;
-	//	return 1;
-	//}
 	
 	on();
 	return 1;
@@ -902,12 +918,13 @@ cc1120_driver_off(void)
 {
 	PRINTF("**** Radio Driver: Off ****\n");
 
-	//if(locked)
-	//{
+	if(locked)
+	{
 		/* Radio is locked, indicate that we want to turn off. */
-	//	lock_off = 1;
-	//	return 1;
-	//}
+		lock_off = 1;
+		lock_on = 0;
+		return 1;
+	}
 	
 	off();
 	return 1;
@@ -1097,11 +1114,6 @@ off(void)
 	
 	/* Put radio into the off state defined in platform-conf.h. */
 	cc1120_set_state(CC1120_OFF_STATE);
-	
-	if(packet_pending)
-	{
-		process_poll(&cc1120_process);
-	}
 }
 
 static void
@@ -1113,7 +1125,10 @@ LOCK_SPI(void)
 static void 
 RELEASE_SPI(void)
 {
-	if(locked == 1) 
+	locked--;
+	//printf("Release %u\n", locked);
+	
+	if(locked == 0) 
 	{
 		if(lock_on) 
 		{
@@ -1126,7 +1141,6 @@ RELEASE_SPI(void)
 			lock_off = 0;
 		}
 	}
-	locked--;
 }
 
 
@@ -1498,10 +1512,8 @@ cc1120_flush_rx(void)
 
 	radio_pending &= ~(RX_FIFO_OVER | RX_FIFO_UNDER);
 	packet_pending = 0;
-#if CC1120LEDS		
-	leds_off(LEDS_RED);
-#endif
-	
+	LEDS_OFF(LEDS_RED);
+
 	/* Return IDLE state. */
 	return CC1120_STATUS_IDLE;
 }
@@ -1769,27 +1781,28 @@ void processor(void)
 	int len;	
 			
 	PRINTFPROC("** Process Poll **\n");
-	while(packet_pending > 0)
+
+	watchdog_periodic();		
+	LEDS_ON(LEDS_RED);
+	
+	PRINTFPROC("\tRead Packet\n");
+	
+	len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
+	
+	PRINTFPROC("\tPacket Length: %d\n", len);	
+	
+	if(len != 0)
+	{		
+		PRINTFPROC("\tProcess Packet\n");
+		watchdog_periodic();	/* Feed the dog to stop reboots. */
+		NETSTACK_RDC.input();
+		PRINTFPROC("\tPacket Processed.\n");
+	}	
+	LEDS_OFF(LEDS_RED);
+	if(locked)
 	{
-		watchdog_periodic();		
-		LEDS_ON(LEDS_RED);
-		
-		PRINTFPROC("\tRead Packet\n");
-		
-		len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
-		
-		PRINTFPROC("\tPacket Length: %d\n", len);	
-		
-		if(len != 0)
-		{		
-			PRINTFPROC("\tProcess Packet\n");
-			watchdog_periodic();	/* Feed the dog to stop reboots. */
-			NETSTACK_RDC.input();
-			
-		}
-		PRINTFPROC("\tCheck for extra packets.\n");
-	} 
-	//cc1120_flush_rx();
+		printf("Locked %u\n", locked); 
+	}
 }
 	
 

@@ -441,7 +441,6 @@ powercycle(struct rtimer *t, void *ptr)
       while(we_are_sending == 0 && radio_is_on &&
             RTIMER_CLOCK_LT(RTIMER_NOW(),
                             (start + LISTEN_TIME_AFTER_PACKET_DETECTED))) {
-
         /* Check for a number of consecutive periods of
              non-activity. If we see two such periods, we turn the
              radio off. Also, if a packet has been successfully

@@ -123,7 +123,10 @@ cc1120_arch_spi_enable(void)
 	CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
 
 	/* The MISO pin should go LOW before chip is fully enabled. */
-	while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0);
+	while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
+	{
+		printf(".");
+	}
 	// TODO: Include a timeout here and change to have a return code?
 }
 
