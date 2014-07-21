@@ -686,6 +686,8 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr,
     we_are_sending = 0;
     PRINTF("contikimac: collision receiving %d, pending %d\n",
            NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());
+           printf("contikimac: collision receiving %d, pending %d\n",
+           NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());
     return MAC_TX_COLLISION;
   }
   

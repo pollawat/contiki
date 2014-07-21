@@ -261,9 +261,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	}
 		
 	/* Write to the FIFO. */
-	fifo_access = 1;
 	cc1120_write_txfifo(payload, len);
-	fifo_access = 0;
 	RIMESTATS_ADD(lltx);
 	
 	if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) 
@@ -775,10 +773,9 @@ int
 cc1120_driver_channel_clear(void)
 {
 	PRINTF("**** Radio Driver: CCA ****\n");
-
 	if(locked)
 	{
-		PRINTF("SPI Locked\n");
+		printf("SPI Locked\n");
 		return 1;
 	}
 	else
@@ -860,7 +857,7 @@ cc1120_driver_receiving_packet(void)
 		else
 		{
 			pqt = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);			/* Check PQT. */
-			if((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) || (pqt & CC1120_MODEM_STATUS1_PQT_VALID)
+			if(((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) && (pqt & CC1120_MODEM_STATUS1_PQT_VALID))
 				|| (pqt & CC1120_MODEM_STATUS1_SYNC_FOUND))// || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
 			{
 				PRINTF(" Yes. ****\n");
@@ -898,7 +895,6 @@ int
 cc1120_driver_on(void)
 {
 	PRINTF("**** Radio Driver: On ****\n");
-
 	/* Set CC1120 into RX. */
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	
@@ -1647,10 +1643,8 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	
 	cc1120_arch_spi_disable();
 	
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG	
-	uint8_t fifo_len = cc1120_read_txbytes();
-	printf("\t%d bytes in fifo (%d + length byte requested)\n", fifo_len, payload_len);
-#endif
+	PRINTFTX("\t%d bytes in fifo (%d + length byte requested)\n", cc1120_read_txbytes());
+
 }
 
 
