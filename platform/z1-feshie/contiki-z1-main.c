@@ -306,7 +306,6 @@ main(int argc, char **argv)
   //printf("Set channel to 42...");
   //cc1120_set_channel(RF_CHANNEL);
   //printf("OK\n\r");
-
   leds_off(LEDS_ALL);
 
   PRINTF(CONTIKI_VERSION_STRING " started. ");

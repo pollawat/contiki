@@ -148,7 +148,7 @@ cc1120_arch_spi_rw_byte(uint8_t val)
 {
 	SPI_WAITFORTx_BEFORE();
 	SPI_TXBUF = val;
-	SPI_WAITFOREOTx();
+	//SPI_WAITFOREOTx(); /* Causes SPI hanging when used with burst read/write. */
 	SPI_WAITFOREORx();
 	return SPI_RXBUF;
 }
@@ -158,11 +158,13 @@ uint8_t
 cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
 {
 	uint8_t status, i;
-	status = cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
+	//status = cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
+	status = cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_WRITE_BIT);
 	cc1120_arch_spi_rw_byte(packet_length);
+	
 	for(i = 0; i < packet_length; i++)
 	{
-		cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
+		//cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_WRITE_BIT);
 		cc1120_arch_spi_rw_byte(packet[i]);
 	}
 	
@@ -176,12 +178,14 @@ cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 {
 	uint8_t i;
 	
+	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+	
 	for(i = 0; i < packet_length; i++)
 	{
-		(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 		packet[i] = cc1120_arch_spi_rw_byte(0);
 	}
-	
+	watchdog_periodic();
 }
 
 

@@ -293,6 +293,10 @@ main(int argc, char **argv)
   }
   cc2420_set_channel(RF_CHANNEL);
 
+printf("\nADDR %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
+           rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], rimeaddr_node_addr.u8[2], rimeaddr_node_addr.u8[3],
+           rimeaddr_node_addr.u8[4], rimeaddr_node_addr.u8[5], rimeaddr_node_addr.u8[6], rimeaddr_node_addr.u8[7]);
+
   leds_off(LEDS_ALL);
 
   PRINTF(CONTIKI_VERSION_STRING " started. ");

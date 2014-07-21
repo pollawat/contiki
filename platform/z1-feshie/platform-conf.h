@@ -172,7 +172,7 @@ typedef unsigned long off_t;
 //#define CC1120RXDEBUG		1
 #define CC1120RXERDEBUG		1
 //#define CC1120INTDEBUG		1
-//#define C1120PROCESSDEBUG	1
+#define C1120PROCESSDEBUG	1
 //#define CC1120ARCHDEBUG		1
 //#define CC1120STATEDEBUG	1
 
@@ -183,7 +183,8 @@ typedef unsigned long off_t;
 
 #define CC1120LEDS				1
 
-#define WITH_SEND_CCA			1
+#define CC1120_LBT_TIMEOUT 		RTIMER_ARCH_SECOND/80
+#define CC1120_ACK_WAIT			RTIMER_ARCH_SECOND/667	/* ~1.5ms. */
 
 #define CC1120_FHSS_ETSI_50		1
 #define CC1120_FHSS_FCC_50		0
