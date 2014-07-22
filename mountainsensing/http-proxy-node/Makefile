@@ -11,7 +11,6 @@ CFLAGS+= -DUIP_CONF_IPV6_RPL
 SMALL=1
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-PROJECT_SOURCEFILES += slip-bridge.c
 
 #Simple built-in webserver is the default.
 #Override with make WITH_WEBSERVER=0 for no webserver.

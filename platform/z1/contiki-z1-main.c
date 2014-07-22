@@ -37,7 +37,9 @@
 #include "dev/leds.h"
 #include "dev/serial-line.h"
 #include "dev/serial-timeout.h"
-#include "dev/slip.h"
+#ifndef NO_SLIP
+	#include "dev/slip.h"
+#endif
 #include "dev/uart0.h"
 #include "dev/watchdog.h"
 #include "dev/xmem.h"
@@ -207,7 +209,9 @@ main(int argc, char **argv)
 
   uart0_init(BAUD2UBR(115200)); /* Must come before first printf */
 #if WITH_UIP
+#ifndef NO_SLIP
   slip_arch_init(BAUD2UBR(115200));
+#endif
 #endif /* WITH_UIP */
 
   
@@ -369,6 +373,10 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+#ifdef NO_SLIP
+  uart0_set_input(serial_line_input_byte);
+  serial_line_init();
+#endif
 uart1_init('b'); /* It ignores the input to the func */
 uart1_set_input(serial_timeout_input_byte);
 serial_timeout_init();
@@ -406,8 +414,10 @@ uart1_writeb('c');
     uip_sethostaddr(&hostaddr);
     uip_setnetmask(&netmask);
     uip_over_mesh_set_net(&hostaddr, &netmask);
+#ifndef NO_SLIP
     /*    uip_fw_register(&slipif);*/
     uip_over_mesh_set_gateway_netif(&slipif);
+#endif
     uip_fw_default(&meshif);
     uip_over_mesh_init(UIP_OVER_MESH_CHANNEL);
     printf("uIP started with IP address %d.%d.%d.%d\n",
