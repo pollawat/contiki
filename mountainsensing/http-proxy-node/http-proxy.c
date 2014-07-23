@@ -233,9 +233,9 @@ PROCESS_THREAD(wget_process, ev, data)
 	}
      }
 #endif
-//     else if(ev == tcpip_event) {
-//     	webclient_appcall(data);
-//     }
+     else if(ev == tcpip_event) {
+     	webclient_appcall(data);
+     }
      else
      {
        printf(".");
@@ -332,7 +332,7 @@ void fetch_url()
 		printf("host IP addr: ");			//print host ip address
 		uip_debug_ipaddr_print(&addr);			//print address
 	
-		//webclient_get(host, 80, file); 			//get result
+		webclient_get(host, 80, file); 			//get result
 		return;
 	}
 }
