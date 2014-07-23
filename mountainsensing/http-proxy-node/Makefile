@@ -7,6 +7,7 @@ WITH_UIP6=1
 UIP_CONF_IPV6=1
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 
+APPS = webbrowser
 #linker optimizations
 SMALL=1
 
@@ -27,7 +28,7 @@ CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 WITH_WEBSERVER=1
 ifeq ($(WITH_WEBSERVER),1)
 CFLAGS += -DWEBSERVER=1
-PROJECT_SOURCEFILES += httpd-simple.c
+#PROJECT_SOURCEFILES += httpd-simple.c
 else ifneq ($(WITH_WEBSERVER), 0)
 APPS += $(WITH_WEBSERVER)
 CFLAGS += -DWEBSERVER=2

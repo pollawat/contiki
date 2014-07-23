@@ -50,15 +50,27 @@
 #include <string.h>
 #include <ctype.h>
 #include "dev/tmp102.h"     // Include sensor driver
-#include "httpd-simple.h"
+//#include "webserver.h"
+//#include "webserver-nogui.h"
+//#include "wget.c"
 
 #define DEBUG DEBUG_NONE
 #include "net/uip-debug.h"
 
-PROCESS(webserver_nogui_process, "Web server");
+//PROCESS(webserver_nogui_process, "Web server");
 PROCESS (temp_process, "Test Temperature process");
-/*---------------------------------------------------------------------------*/
-#define TMP102_READ_INTERVAL (CLOCK_SECOND/2)  // Poll the sensor every 500 ms
+PROCESS(wget_process, "Wget");
+
+AUTOSTART_PROCESSES (&wget_process);
+
+
+extern process_event_t serial_line_event_message;
+
+
+/*---------------------------------------------------------------------------
+ * TEMPRATURE CODE
+ *--------------------------------------------------------------------------*/
+#define TMP102_READ_INTERVAL (CLOCK_SECOND*4)  // Poll the sensor every 500 ms
 static struct etimer et;
  
 PROCESS_THREAD (temp_process, ev, data)
@@ -98,6 +110,12 @@ PROCESS_THREAD (temp_process, ev, data)
   PROCESS_END ();
 }
 
+/*-----------------------------------------------------------------------------
+ * WEBSERVER CODE
+ *----------------------------------------------------------------------------*/
+
+
+/*
 PROCESS_THREAD(webserver_nogui_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -113,7 +131,7 @@ PROCESS_THREAD(webserver_nogui_process, ev, data)
 }
 
 AUTOSTART_PROCESSES (&temp_process, &webserver_nogui_process);
-
+*/
 static const char *TOP = "<html><head><title>ContikiRPL</title></head><body>\n";
 static const char *BOTTOM = "</body></html>\n";
 #if BUF_USES_STACK
@@ -149,12 +167,12 @@ ipaddr_add(const uip_ipaddr_t *addr)
     }
   }
 }
-/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------
 static
 PT_THREAD(generate_routes(struct httpd_state *s))
 {
 }
-/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------
 httpd_simple_script_t
 httpd_simple_get_script(const char *name)
 {
@@ -180,5 +198,146 @@ print_local_addresses(void)
     }
   }
 }
-/*---------------------------------------------------------------------------*/
+
+
+/*---------------------------------------------------------------------------
+ * WGET CODE
+ *--------------------------------------------------------------------------*/
+PROCESS_THREAD(wget_process, ev, data)
+{
+  static char url[128];						//store url to be requested
+  uip_ipaddr_t addr;						//store target ip address
+  unsigned char i;						//counter
+  static char host[32];						//store host name
+  char *file;							//store file name
+  register char *urlptr;					//pointer to point at characters
+
+
+  PROCESS_BEGIN();
+
+  while(1)							//we want to request multiple pages so continue forever
+  {
+     PROCESS_YIELD();						//wait for a serial interupt
+     if(ev == serial_line_event_message) {			//if we have recieved a line on serial port
+        printf("received request: %s\n", (char *)data);		//print wget request
+	strcpy(url, (char *)data);				//coppy data to url
+
+
+        /* Trim off any spaces in the end of the url. */
+        urlptr = url + strlen(url) - 1;				//work out length of url
+        while(*urlptr == ' ' && urlptr > url) {			//if url has whitespace
+          *urlptr = 0;						//remove whitespace
+          --urlptr;						//reduce length
+        }
+
+
+  	if(urlptr != url) {					//if there is a url
+
+		/* See if the URL starts with http://, otherwise prepend it. */
+		if(strncmp(url, "http://", 7) != 0) {		//if string dosent start with http://
+			while(urlptr >= url) {			//for every character starting at the end
+				*(urlptr + 7) = *urlptr;	//move character along
+				--urlptr;			//move to previous character
+			}
+			strncpy(url, "http://", 7);		//prepend http://
+		}
+
+	
+		/* Find host part of the URL. */
+		urlptr = &url[7];				//start after http://
+		for(i = 0; i < sizeof(host); ++i) {		//for each character starting at beginning
+			if(*urlptr == 0 ||			//if is not EOS
+			*urlptr == '/' ||			//if is start of path
+			*urlptr == ' ' ||			//is it is a space
+			*urlptr == ':') {			//if is start of port
+				host[i] = 0;			//add EOS terminator
+				break;				//break out of for loop
+			}
+			host[i] = *urlptr;			//add to strinf
+			++urlptr;				//increase length
+		}
+
+		
+		printf("host: %s\n", (char *)host);		//print host name
+
+	
+
+		/* XXX: Here we should find the port part of the URL, but this isn't
+		 * currently done because of laziness from the programmer's side
+		 * :-) */ 
+
+		/* Find file part of the URL. */
+		while(*urlptr != '/' && *urlptr != 0) {		//if not start of file
+			++urlptr;				//increment pointer
+		}
+		if(*urlptr == '/') {				//if found file start
+			file = urlptr;				//store file
+		} else {					//else found EOS
+			file = "/";				//no file
+		}
+
+
+		printf("file: %s\n", (char *)file);		//print file name
+
+
+  	}
+
+     }
+  }
+
+#ifdef LALALALALA
+
+#if UIP_UDP
+  /* First check if the host is an IP address. */
+  if(uiplib_ipaddrconv(host, &addr) == 0) {    
+    uip_ipaddr_t *addrptr;
+    /* Try to lookup the hostname. If it fails, we initiate a hostname */
+       lookup and print out an informative message on the
+       statusbar. 
+    if(resolv_lookup(host, &addrptr) != RESOLV_STATUS_CACHED) {
+      resolv_query(host);
+      puts("Resolving host...");
+      return;
+    }
+    uip_ipaddr_copy(&addr, addrptr);
+  }
+#else /* UIP_UDP */
+  uiplib_ipaddrconv(host, &addr);
+#endif /* UIP_UDP */
+
+  /* The hostname we present in the hostname table, so we send out the */
+     initial GET request. 
+  if(webclient_get(host, 80, file) == 0) {
+    puts("Out of memory error");
+  } else {
+    puts("Connecting...");
+  }
+}
+
+
+  while(1) {
+
+    PROCESS_WAIT_EVENT();
+  
+    if(ev == tcpip_event) {
+      webclient_appcall(data);
+#if UIP_UDP
+    } else if(ev == resolv_event_found) {
+      /* Either found a hostname, or not. */
+      if((char *)data != NULL &&
+        resolv_lookup((char *)data, NULL) == RESOLV_STATUS_CACHED) {
+        start_get();
+      } else {
+        puts("Host not found");
+        app_quit();
+      }
+#endif /* UIP_UDP */ 
+    }
+  }
+
+#endif
+
+  PROCESS_END();
+}
+/*-----------------------------------------------------------------------------------*/
 
