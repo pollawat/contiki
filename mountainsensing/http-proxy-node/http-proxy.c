@@ -220,18 +220,18 @@ uip_ipaddr_t get_addr;						//store target ip address
 
 static struct psock ps;
 
-static uint8_t data[128] = {};//{'h','e','l','l','o',' ','w','o','r','l','d'};
-static uint16_t data_length = 1;
+//static uint8_t data[128] = {};//{'h','e','l','l','o',' ','w','o','r','l','d'};
+//static uint16_t data_length = 1;
 
-static struct etimer timer;
+//static struct etimer timer;
 static struct etimer timeout_timer;
 
 static int status = 0;
 
-static uint8_t attempting = 0;
+//static uint8_t attempting = 0;
 static char psock_buffer[120];
 
-static int handles = 0;
+//static int handles = 0;
 
 
 PROCESS_THREAD(wget_process, ev, data)
@@ -290,30 +290,31 @@ PROCESS_THREAD(wget_process, ev, data)
 	PROCESS_END();
 }
 
-/** send the get request
+/**************************************************************************/
+/*! send the get request
  *
  * \param psock socket to sent request from 
- */
+ **************************************************************************/
 int send_request(struct psock *p)
 {
   static uint8_t status_code[4];
   static char content_length[8];
 
-  PSOCK_BEGIN(p);
+  PSOCK_BEGIN(p);					//open socket
 
-  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");
+  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");		//send request
 
   while(1) {
-    PSOCK_READTO(p, '\n');
-    printf("RX: %s\n", psock_buffer);
-    if(strncmp(psock_buffer, "HTTP/", 5) == 0)
+    PSOCK_READTO(p, '\n');				//read to next newline
+    printf("%*.*s",PSOCK_DATALEN(p),PSOCK_DATALEN(p),psock_buffer);
+    if(strncmp(psock_buffer, "HTTP/", 5) == 0)		//if it is the HTTP status code
     { // Status line
-      memcpy(status_code, psock_buffer + 9, 3);
-      status = atoi(psock_buffer + 9);
+      memcpy(status_code, psock_buffer + 9, 3);		//coppy status code
+      status = atoi(psock_buffer + 9);			//save status
     }
   }
 
-  PSOCK_END(p);
+  PSOCK_END(p);						//close socket
 }
 
 /**************************************************************************/
@@ -400,13 +401,14 @@ int calculate_fetch_url()
 		}
 		uip_ipaddr_copy(&addr, addrptr);
 #else
-		printf("unable to resolve\n");
-		return(ERR_URL_PROCESS_UNABLE_TO_RESOLVE);
+		printf("unable to resolve\n");		//print debug
+		return(ERR_URL_PROCESS_UNABLE_TO_RESOLVE);	//report this error
 #endif
 	}
 
 	printf("host IP addr: ");			//print host ip address
 	uip_debug_ipaddr_print(&get_addr);			//print address
+	printf("\r\n");
 
 	return(SUCCESS);				//complete and return for socket creation
 }
