@@ -167,12 +167,13 @@ ipaddr_add(const uip_ipaddr_t *addr)
     }
   }
 }
-/*---------------------------------------------------------------------------
+#ifdef LALALALA
+/*---------------------------------------------------------------------------*/
 static
 PT_THREAD(generate_routes(struct httpd_state *s))
 {
 }
-/*---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 httpd_simple_script_t
 httpd_simple_get_script(const char *name)
 {
@@ -181,6 +182,7 @@ httpd_simple_get_script(const char *name)
 }
 
 /*---------------------------------------------------------------------------*/
+#endif
 static void
 print_local_addresses(void)
 {
@@ -203,54 +205,126 @@ print_local_addresses(void)
 /*---------------------------------------------------------------------------
  * WGET CODE
  *--------------------------------------------------------------------------*/
-static char url[128];						//store url to be requested
+
+#define SUCCESS 0						//all is good
+#define ERR_URL_PROCESS_UNABLE_TO_RESOLVE 10			//unable to perform dns
+#define ERR_URL_PROCESS_EMPTY_URL 11				//empty url provided
+
+
+#define LIVE_CONNECTION_TIMEOUT 300
+
+static char url[256];						//store url to be requested
+static char *file;						//store file name
+uip_ipaddr_t get_addr;						//store target ip address
+
+
+static struct psock ps;
+
+static uint8_t data[128] = {};//{'h','e','l','l','o',' ','w','o','r','l','d'};
+static uint16_t data_length = 1;
+
+static struct etimer timer;
+static struct etimer timeout_timer;
+
+static int status = 0;
+
+static uint8_t attempting = 0;
+static char psock_buffer[120];
+
+static int handles = 0;
 
 
 PROCESS_THREAD(wget_process, ev, data)
 {
 
-  PROCESS_BEGIN();
+	PROCESS_BEGIN();
 
-  while(1)							//we want to request multiple pages so continue forever
-  {
-     PROCESS_YIELD();						//wait for a serial interupt
-     if(ev == serial_line_event_message) {			//if we have recieved a line on serial port
-        printf("received request: %s\n", (char *)data);		//print wget request
-	strcpy(url, "fe80::1/nodes");//(char *)data);				//coppy data to url
+	while(1)								//we want to request multiple pages so continue forever
+	{
+		PROCESS_YIELD();						//wait for a serial interupt
+		if(ev == serial_line_event_message) {				//if we have recieved a line on serial port
+			printf("received request: %s\n", (char *)data);		//print wget request
+			strcpy(url, "fe80::212:7400:1465:d8aa/");//(char *)data);		//coppy data to url
 
-       	fetch_url();						//fetch the data from the url
+			if(!calculate_fetch_url())				//if able to calculate the ip and file name
+			{
+				printf("TCP connecting...\n");
+				tcp_connect(&get_addr, UIP_HTONS(80), NULL);	//create tcp connection
+				printf("Connecting...\n");
+    				PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);	//wait for connection to be created
+				printf("Event fired\n");
+				if(uip_aborted() || uip_timedout() || uip_closed()) { 	//if connection failed
+					printf("Could not establish connection\n");	//report this
+				}
+				else if(uip_connected()) {				//else if connection was created
+					printf("Connected\n");				//report this
+					PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));	//create a socket
+					etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);	//create a timeout
+					do {
+						if(etimer_expired(&timeout_timer))	//if have timed out
+						{
+							printf("Connection took too long. TIMEOUT\n");	//report this
+							PSOCK_CLOSE(&ps);	//close cobnnection
+							break;			//exit from do loop
+						}
+						else
+						{
+							send_request(&ps);	//send request
+							PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);	//wait for some traffic
+						}
+					} while(!(uip_closed() || uip_aborted() || uip_timedout()));
+					printf("\nConnection closed.\n");	//connection has been closed
+					printf("Status = %d\n", status);	//report errir code
+				}
 
-     }
-#if RESOLV_FIXED
-     else if(ev == resolv_event_found) 
-     {
-	printf("resolv returned: ");
-     	/* Either found a hostname, or not. */
-     	if((char *)data != NULL &&
-        resolv_lookup((char *)data, NULL) == RESOLV_STATUS_CACHED) {
-		printf("successfull \n");
-        	fetch_url();
+				PSOCK_CLOSE(&ps);
+			}
+
+		}
+		else
+		{
+		printf(".");
+		} 
 	}
-     }
-#endif
-     else if(ev == tcpip_event) {
-     	webclient_appcall(data);
-     }
-     else
-     {
-       printf(".");
-     } 
+
+	PROCESS_END();
+}
+
+/** send the get request
+ *
+ * \param psock socket to sent request from 
+ */
+int send_request(struct psock *p)
+{
+  static uint8_t status_code[4];
+  static char content_length[8];
+
+  PSOCK_BEGIN(p);
+
+  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");
+
+  while(1) {
+    PSOCK_READTO(p, '\n');
+    printf("RX: %s\n", psock_buffer);
+    if(strncmp(psock_buffer, "HTTP/", 5) == 0)
+    { // Status line
+      memcpy(status_code, psock_buffer + 9, 3);
+      status = atoi(psock_buffer + 9);
+    }
   }
 
-  PROCESS_END();
+  PSOCK_END(p);
 }
-/*-----------------------------------------------------------------------------------*/
-void fetch_url()
+
+/**************************************************************************/
+/*! Calculate IP and page to fetch
+ *
+ * \return 0 if good to fetch otherwise 1
+ *****************************************************************************/
+int calculate_fetch_url()
 {
-	uip_ipaddr_t addr;					//store target ip address
 	unsigned char i;					//counter
 	static char host[32];					//store host name
-	char *file;						//store file name
 	register char *urlptr;					//pointer to point at characters
 
 
@@ -262,77 +336,80 @@ void fetch_url()
 	}
 	
 	
-	if(urlptr != url) {					//if there is a url
-	
-		/* See if the URL starts with http://, otherwise prepend it. */
-		if(strncmp(url, "http://", 7) != 0) {		//if string dosent start with http://
-			while(urlptr >= url) {			//for every character starting at the end
-				*(urlptr + 7) = *urlptr;	//move character along
-				--urlptr;			//move to previous character
-			}
-			strncpy(url, "http://", 7);		//prepend http://
-		}
-	
-	
-		/* Find host part of the URL. */
-		urlptr = &url[7];				//start after http://
-		for(i = 0; i < sizeof(host); ++i) {		//for each character starting at beginning
-			if(*urlptr == 0 ||			//if is not EOS
-			*urlptr == '/' ||			//if is start of path
-			*urlptr == ' ' ||			//is it is a space
-			*urlptr == '/') {			//if is start of port
-				host[i] = 0;			//add EOS terminator
-				break;				//break out of for loop
-			}
-			host[i] = *urlptr;			//add to strinf
-			++urlptr;				//increase length
-		}
-	
-		
-		printf("host: %s\n", (char *)host);		//print host name
-	
-	
-	
-		/* XXX: Here we should find the port part of the URL, but this isn't
-		 * currently done because of laziness from the programmer's side
-		 * :-) */ 
-	
-		/* Find file part of the URL. */
-		while(*urlptr != '/' && *urlptr != 0) {		//if not start of file
-			++urlptr;				//increment pointer
-		}
-		if(*urlptr == '/') {				//if found file start
-			file = urlptr;				//store file
-		} else {					//else found EOS
-			file = "/";				//no file
-		}
-
-
-		printf("file: %s\n", (char *)file);		//print file name
-
-
-		/* First check if the host is an IP address. */
-		if(uiplib_ipaddrconv(host, &addr) == 0) {       //if not ip address
-#if RESOLV_FIXED
-			uip_ipaddr_t *addrptr;			
-			/* Try to lookup the hostname. If it fails, we initiate a hostname
-			 * lookup and print out an informative message on the
-			 * statusbar. */
-			if(resolv_lookup(host, &addrptr) != RESOLV_STATUS_CACHED) {
-				resolv_query(host);
-				printf("Resolving host...");
-			}
-			uip_ipaddr_copy(&addr, addrptr);
-#else
-			printf("unable to resolve\n");
-			return;
-#endif
-		}
-	
-		printf("host IP addr: ");			//print host ip address
-		uip_debug_ipaddr_print(&addr);			//print address
-	
-		webclient_get(host, 80, file); 			//get result
-		return;
+	if(urlptr == url) {					//if there is not a url
+		return(ERR_URL_PROCESS_EMPTY_URL);
 	}
+
+	/* See if the URL starts with http://, otherwise prepend it. */
+	if(strncmp(url, "http://", 7) != 0) {		//if string dosent start with http://
+		while(urlptr >= url) {			//for every character starting at the end
+			*(urlptr + 7) = *urlptr;	//move character along
+			--urlptr;			//move to previous character
+		}
+		strncpy(url, "http://", 7);		//prepend http://
+	}
+
+
+	/* Find host part of the URL. */
+	urlptr = &url[7];				//start after http://
+	for(i = 0; i < sizeof(host); ++i) {		//for each character starting at beginning
+		if(*urlptr == 0 ||			//if is not EOS
+		*urlptr == '/' ||			//if is start of path
+		*urlptr == ' ' ||			//is it is a space
+		*urlptr == '/') {			//if is start of port
+			host[i] = 0;			//add EOS terminator
+			break;				//break out of for loop
+		}
+		host[i] = *urlptr;			//add to strinf
+		++urlptr;				//increase length
+	}
+
+	
+	printf("host: %s\n", (char *)host);		//print host name
+
+
+
+	/* XXX: Here we should find the port part of the URL, but this isn't
+	 * currently done because of laziness from the programmer's side
+	 * :-) */ 
+
+	/* Find file part of the URL. */
+	while(*urlptr != '/' && *urlptr != 0) {		//if not start of file
+		++urlptr;				//increment pointer
+	}
+	if(*urlptr == '/') {				//if found file start
+		file = urlptr;				//store file
+	} else {					//else found EOS
+		file = "/";				//no file
+	}
+
+
+	printf("file: %s\n", (char *)file);		//print file name
+
+
+	/* First check if the host is an IP address. */
+	if(uiplib_ipaddrconv(host, &get_addr) == 0) {       //if not ip address
+#if RESOLV_FIXED					//if resoving ever gets fixed it belongs here
+		uip_ipaddr_t *addrptr;			
+		/* Try to lookup the hostname. If it fails, we initiate a hostname
+		 * lookup and print out an informative message on the
+		 * statusbar. */
+		if(resolv_lookup(host, &addrptr) != RESOLV_STATUS_CACHED) {
+			resolv_query(host);
+			printf("Resolving host...");
+		}
+		uip_ipaddr_copy(&addr, addrptr);
+#else
+		printf("unable to resolve\n");
+		return(ERR_URL_PROCESS_UNABLE_TO_RESOLVE);
+#endif
+	}
+
+	printf("host IP addr: ");			//print host ip address
+	uip_debug_ipaddr_print(&get_addr);			//print address
+
+	return(SUCCESS);				//complete and return for socket creation
 }
+
+
+
