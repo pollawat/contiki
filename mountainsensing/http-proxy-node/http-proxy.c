@@ -210,28 +210,15 @@ print_local_addresses(void)
 #define ERR_URL_PROCESS_UNABLE_TO_RESOLVE 10			//unable to perform dns
 #define ERR_URL_PROCESS_EMPTY_URL 11				//empty url provided
 
-
-#define LIVE_CONNECTION_TIMEOUT 300
+#define LIVE_CONNECTION_TIMEOUT 300				//time before timeing out
 
 static char url[256];						//store url to be requested
 static char *file;						//store file name
 uip_ipaddr_t get_addr;						//store target ip address
-
-
-static struct psock ps;
-
-//static uint8_t data[128] = {};//{'h','e','l','l','o',' ','w','o','r','l','d'};
-//static uint16_t data_length = 1;
-
-//static struct etimer timer;
-static struct etimer timeout_timer;
-
-static int status = 0;
-
-//static uint8_t attempting = 0;
-static char psock_buffer[120];
-
-//static int handles = 0;
+static struct psock ps;						//socket to be used
+static struct etimer timeout_timer;				//HTTP timeout store
+static int status = 0;						//http return code
+static char psock_buffer[120];					//buffer to store psoc data
 
 
 PROCESS_THREAD(wget_process, ev, data)
@@ -243,8 +230,9 @@ PROCESS_THREAD(wget_process, ev, data)
 	{
 		PROCESS_YIELD();						//wait for a serial interupt
 		if(ev == serial_line_event_message) {				//if we have recieved a line on serial port
-			printf("received request: %s\n", (char *)data);		//print wget request
-			strcpy(url, "fe80::212:7400:1465:d8aa/");//(char *)data);		//coppy data to url
+			printf("request: %s\n", (char *)data);			//print wget request
+			strcpy(url, (char *)data);				//coppy data to url
+			printf("%d/%d",strlen((char *)data),strlen(url));
 
 			if(!calculate_fetch_url())				//if able to calculate the ip and file name
 			{
@@ -325,7 +313,7 @@ int send_request(struct psock *p)
 int calculate_fetch_url()
 {
 	unsigned char i;					//counter
-	static char host[32];					//store host name
+	static char host[64];					//store host name
 	register char *urlptr;					//pointer to point at characters
 
 
@@ -343,12 +331,15 @@ int calculate_fetch_url()
 
 	/* See if the URL starts with http://, otherwise prepend it. */
 	if(strncmp(url, "http://", 7) != 0) {		//if string dosent start with http://
+		urlptr++;				//increment urlptr to capture null byte
 		while(urlptr >= url) {			//for every character starting at the end
 			*(urlptr + 7) = *urlptr;	//move character along
 			--urlptr;			//move to previous character
 		}
 		strncpy(url, "http://", 7);		//prepend http://
 	}
+
+	printf("url=: %s",url);
 
 
 	/* Find host part of the URL. */
