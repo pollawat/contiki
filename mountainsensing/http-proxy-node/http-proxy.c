@@ -232,7 +232,6 @@ PROCESS_THREAD(wget_process, ev, data)
 		if(ev == serial_line_event_message) {				//if we have recieved a line on serial port
 			printf("request: %s\n", (char *)data);			//print wget request
 			strcpy(url, (char *)data);				//coppy data to url
-			printf("%d/%d",strlen((char *)data),strlen(url));
 
 			if(!calculate_fetch_url())				//if able to calculate the ip and file name
 			{
@@ -289,8 +288,9 @@ int send_request(struct psock *p)
   static char content_length[8];
 
   PSOCK_BEGIN(p);					//open socket
-
-  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");		//send request
+  
+  printf("GET %s HTTP/1.0 \r\n\r\n", file);	//send request
+  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");	//send request
 
   while(1) {
     PSOCK_READTO(p, '\n');				//read to next newline
@@ -338,9 +338,6 @@ int calculate_fetch_url()
 		}
 		strncpy(url, "http://", 7);		//prepend http://
 	}
-
-	printf("url=: %s",url);
-
 
 	/* Find host part of the URL. */
 	urlptr = &url[7];				//start after http://
