@@ -183,7 +183,7 @@ typedef unsigned long off_t;
 
 #define CC1120LEDS				1
 
-#define CC1120_LBT_TIMEOUT 		RTIMER_ARCH_SECOND/80
+#define CC1120_LBT_TIMEOUT 		RTIMER_ARCH_SECOND			//80
 #define CC1120_ACK_WAIT			RTIMER_ARCH_SECOND/667	/* ~1.5ms. */
 
 #define CC1120_FHSS_ETSI_50		1

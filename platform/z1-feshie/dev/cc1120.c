@@ -157,6 +157,9 @@ static uint8_t current_channel, packet_pending, fifo_access, broadcast, ack_seq,
 static uint8_t locked, lock_on, lock_off;
 
 static uint8_t ack_buf[ACK_LEN];
+static uint8_t tx_buf[CC1120_MAX_PAYLOAD];
+
+static uint8_t tx_len;
 
 /* ------------------- Radio Driver Functions ---------------------------- */
 
@@ -230,7 +233,7 @@ cc1120_driver_init(void)
 	cc1120_arch_interrupt_enable();
 	radio_pending = 0;
 	packet_pending = 0;
-	fifo_access = 0;
+	tx_len = 0;
 	locked = 0;
 	
 #if CC1120DEBUG || DEBUG
@@ -262,6 +265,10 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 		
 	/* Write to the FIFO. */
 	cc1120_write_txfifo(payload, len);
+	
+	/* Keep a local copy of the FIFO. */
+	memcpy(tx_buf, payload, len);
+	tx_len = len;
 	RIMESTATS_ADD(lltx);
 	
 	if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) 
@@ -275,8 +282,8 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 		tx_seq = packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
 		PRINTFTX("\tUnicast, Seqno = %d\n", tx_seq);
 	}
-	tx_seq = packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
-	broadcast = 0;
+	lbt_success = 0;
+	
 	return RADIO_TX_OK;
 }
 
@@ -336,13 +343,20 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);	/* Set TXOFF Mode to RX as we are expecting ACK. */
 		}
 	}
+	
+	if(txbytes != tx_len + 1)
+	{
+		/* Wrong amount of data in the FIFO. Re-write the FIFO. */
+		printf("re-populate FIFO.\n");
+		cc1120_write_txfifo(tx_buf, len);
+	}
 
 
 #if RDC_CONF_HARDWARE_CSMA
 	/* If we use LBT... */
 	rtimer_clock_t t0;
 
-	if((retransmit == 0) || (lbt_success == 0))
+	if((lbt_success == 0)
 	{
 		PRINTFTX("\tTransmitting with LBT.\n");
 		
@@ -372,7 +386,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		{   
 			PRINTFTX("\tEnter IDLE.\n");		
 			cc1120_set_state(CC1120_STATE_IDLE);
-			radio_on = 0;
 		}
 	}
 
@@ -467,7 +480,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		if(radio_pending & TX_FIFO_ERROR)
 		{
 			/* TX FIFO has underflowed during TX.  Need to flush TX FIFO. */
-			PRINTFTXERR("!!! TX ERROR: TX FIFO ERROR !!!\n");
 			cc1120_flush_tx();
 			break;
 		}
@@ -742,6 +754,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				ack_buf[1] = ACK_FRAME_CONTROL_LSB;
 				ack_buf[2] = packetbuf_attr(PACKETBUF_ATTR_PACKET_ID);
 				
+				radio_pending &= ~(TX_COMPLETE);
+				
+				LOCK_SPI();
 				
 				/* Make sure that the TX FIFO is empty & write ACK to it. */
 				cc1120_flush_tx();
@@ -749,6 +764,51 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				
 				/* Transmit ACK WITHOUT LBT. */
 				cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
+				
+				/* Block till TX is complete. */	
+				while(!(radio_pending & TX_COMPLETE))
+				{
+					/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
+					watchdog_periodic();	/* Feed the dog to stop reboots. */
+					PRINTFRX(".");
+					
+					if(radio_pending & TX_FIFO_ERROR)
+					{
+						/* TX FIFO has underflowed during ACK TX.  Need to flush TX FIFO. */
+						cc1120_flush_tx();
+						break;
+					}
+					
+					if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
+					{
+						/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
+						 * TX FIFO (all 128 bits) should be transmitted in 0.02 
+						 * seconds. Timeout set to 0.05 seconds to be sure.  If 
+						 * the interrupt has not fired by this time then something 
+						 * went wrong. 
+						 * 
+						 * This timeout needs to be adjusted if lower data rates 
+						 * are used. */	 
+						if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
+						{
+							/* We have actually transmitted everything in the FIFO. */
+							radio_pending |= TX_COMPLETE;
+							PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
+						}
+						else
+						{
+							cc1120_set_state(CC1120_STATE_IDLE);
+							PRINTFTXERR("!!! TX ERROR: TX timeout reached !!!\n");						
+						}
+						break;
+					}
+				}
+				
+				/* Re-load data into TX FIFO. */
+				cc1120_flush_tx();
+				cc1120_write_txfifo(tx_buf, tx_len);
+				
+				RELEASE_SPI();
 			}
 		}
 		
@@ -1711,6 +1771,7 @@ cc1120_interrupt_handler(void)
 			
 		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
 			/* TX FIFO has underflowed. */
+			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
 			radio_pending |= TX_FIFO_ERROR;					
 			break;
 			
@@ -1796,6 +1857,11 @@ void processor(void)
 	if(locked)
 	{
 		printf("Locked %u\n", locked); 
+	}
+	
+	if(radio_on)
+	{
+		on();
 	}
 }
 	
