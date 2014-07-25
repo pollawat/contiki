@@ -292,6 +292,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 {
 	PRINTFTX("\n\n**** Radio Driver: Transmit ****\n");
 	uint8_t txbytes, cur_state, marc_state, retransmit;
+	rtimer_clock_t t0;
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
 	
 	/* Check that the packet is not too large. */
@@ -348,13 +349,16 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	{
 		/* Wrong amount of data in the FIFO. Re-write the FIFO. */
 		printf("re-populate FIFO. %d, %d\n", txbytes, tx_len);
+		cc1120_flush_tx();
+		printf("txbytes = %d\n", cc1120_read_txbytes());
 		cc1120_write_txfifo(tx_buf, tx_len);
+		printf("txbytes = %d\n", cc1120_read_txbytes());
 	}
 
 
 #if RDC_CONF_HARDWARE_CSMA
 	/* If we use LBT... */
-	rtimer_clock_t t0;
+	
 
 	if(lbt_success == 0) 
 	{
@@ -518,9 +522,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0))
 	{	
-		PRINTFTXERR("\tTX NOT OK %d, %d.\n",radio_pending & TX_COMPLETE, cc1120_read_txbytes() );	
+		PRINTFTXERR("\tTX NOT OK %d, %d.\n",(radio_pending & TX_COMPLETE), cc1120_read_txbytes() );	
 		cc1120_flush_tx();		/* Flush TX FIFO. */
 		cc1120_flush_rx();		/* Flush RX FIFO. */
+		
+		printf("txbytes = %d\n", cc1120_read_txbytes());
 		
 		radio_pending &= ~(TX_ERROR | ACK_PENDING);
 		return RADIO_TX_ERR;
