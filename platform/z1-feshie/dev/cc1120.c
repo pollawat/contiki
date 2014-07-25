@@ -320,7 +320,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		/* These registers should only be written in IDLE. */
 		cc1120_spi_single_write(CC1120_ADDR_TXFIRST, txfirst);
 		cc1120_spi_single_write(CC1120_ADDR_TXLAST, txlast);
-		retransmit = 1;
 	}
 	else
 	{
@@ -329,7 +328,6 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		/* Store TX Pointers. */
 		txfirst =  cc1120_spi_single_read(CC1120_ADDR_TXFIRST);
 		txlast = cc1120_spi_single_read(CC1120_ADDR_TXLAST);
-		retransmit = 0;
 		
 		/* Set correct TXOFF mode. */
 		if(broadcast)
@@ -344,11 +342,13 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		}
 	}
 	
+	txbytes = cc1120_read_txbytes();
+	
 	if(txbytes != tx_len + 1)
 	{
 		/* Wrong amount of data in the FIFO. Re-write the FIFO. */
-		printf("re-populate FIFO.\n");
-		cc1120_write_txfifo(tx_buf, len);
+		printf("re-populate FIFO. %d, %d\n", txbytes, tx_len);
+		cc1120_write_txfifo(tx_buf, tx_len);
 	}
 
 
@@ -356,7 +356,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	/* If we use LBT... */
 	rtimer_clock_t t0;
 
-	if((lbt_success == 0)
+	if(lbt_success == 0) 
 	{
 		PRINTFTX("\tTransmitting with LBT.\n");
 		
@@ -518,7 +518,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0))
 	{	
-		PRINTFTXERR("\tTX NOT OK.\n");	
+		PRINTFTXERR("\tTX NOT OK %d, %d.\n",radio_pending & TX_COMPLETE, cc1120_read_txbytes() );	
 		cc1120_flush_tx();		/* Flush TX FIFO. */
 		cc1120_flush_rx();		/* Flush RX FIFO. */
 		
@@ -548,7 +548,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		{
 			/* We have TX'd broadcast successfully. We are not expecting 
 			 * an ACK so clear RXFIFO incase and return OK. */
-			printf("\tBroadcast TX OK\n");
+			PRINTFTX("\tBroadcast TX OK\n");
 			cc1120_flush_rx();	
 			radio_pending &= ~(ACK_PENDING);	/* NOT expecting and ACK. */	
 			return RADIO_TX_OK;	
@@ -614,7 +614,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
 	PRINTF("**** Radio Driver: Read ****\n");
 
-	uint8_t length, i, rxbytes = 0;
+	uint8_t length,  rxbytes = 0;
 		
 	if(radio_pending & RX_FIFO_UNDER)
 	{
@@ -746,6 +746,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 			if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_node_addr))
 			{
 				PRINTFRX("\tSending ACK\n");
+				
+				rtimer_clock_t t0;                                                  \ 
+    
 				/* Packet is for this node. */
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
 				
@@ -764,6 +767,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				
 				/* Transmit ACK WITHOUT LBT. */
 				cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
+				t0 = RTIMER_NOW(); 
 				
 				/* Block till TX is complete. */	
 				while(!(radio_pending & TX_COMPLETE))
@@ -1791,7 +1795,7 @@ cc1120_interrupt_handler(void)
 			
 		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
 			/* TX on CCA Failed due to busy channel. */
-			cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
+			//cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 			//radio_pending |= TX_ERROR;										
 			break;
 			
