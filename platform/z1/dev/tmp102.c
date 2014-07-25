@@ -43,9 +43,11 @@
 #include "contiki.h"
 #include "uart1_i2c_master.h"
 #include "tmp102.h"
-
+#if 0
 #define PRINTFDEBUG(...) printf(__VA_ARGS__)
-
+#else
+#define PRINTFDEBUG(...)
+#endif
 /* Bitmasks and bit flag variable for keeping track of tmp102 status. */
 enum TMP102_STATUSTYPES
 {

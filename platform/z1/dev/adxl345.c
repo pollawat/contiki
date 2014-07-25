@@ -45,10 +45,12 @@
 #include "cc2420.h"
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
-
+#if 0
 #include <stdio.h>
 #define PRINTFDEBUG(...) printf(__VA_ARGS__)
-
+#else
+#define PRINTFDEBUG(...)
+#endif
 /* Callback pointers when interrupt occurs */
 void (*accm_int1_cb)(uint8_t reg);
 void (*accm_int2_cb)(uint8_t reg);

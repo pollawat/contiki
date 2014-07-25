@@ -38,7 +38,7 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
-#define UART1_DEBUG
+/*#define UART1_DEBUG*/
 
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
@@ -48,8 +48,12 @@
 #include "lib/ringbuf.h"
 #include "isr_compat.h"
 
-#include <stdio.h>
-#define PRINTFDEBUG(...) printf(__VA_ARGS__)
+#ifdef UART1_DEBUG
+  #include <stdio.h>
+  #define PRINTFDEBUG(...) printf(__VA_ARGS__)
+#else
+  #define PRINTFDEBUG(...)
+#endif
 signed   char tx_byte_ctr, rx_byte_ctr;
 unsigned char rx_buf[2];
 unsigned char* tx_buf_ptr;
