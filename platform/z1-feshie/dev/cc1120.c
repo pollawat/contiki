@@ -22,6 +22,7 @@
 #include "cc1120-config.h"
 
 #include "net/rime.h"
+#include "net/rimeaddr.h"
 #include "net/netstack.h"
 #include "net/mac/contikimac.h"
 
@@ -842,7 +843,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		}
 	}
 	
-	printf("FCF: %02x %02x\n", ((uint8_t *)buf)[1], ((uint8_t *)buf)[0]);
+	printf("FCF: %02x %02x.      %d\n", ((uint8_t *)buf)[1], ((uint8_t *)buf)[0], RIMEADDR_SIZE);
 	
 	if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
 	{
