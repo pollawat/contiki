@@ -864,32 +864,6 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		}
 	}
 	
-	printf("FCF: %02x %02x.      %d\n", ((uint8_t *)buf)[1], ((uint8_t *)buf)[0], RIMEADDR_SIZE);
-	
-	if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
-	{
-		printf("Dest: %02x%02x:%02x%02x:%02x%02x:%02x%02x\n", 
-			dest.u8[0], dest.u8[1], dest.u8[2], dest.u8[3], 
-			dest.u8[4], dest.u8[5], dest.u8[6], dest.u8[7]);
-	}
-	else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
-	{
-		/* Short address. */
-		printf("Dest: %02x%02x\n", ((uint8_t *)buf)[5], ((uint8_t *)buf)[6]);
-	}
-	if(RIMEADDR_SIZE == 2)
-	{
-		printf("Addr: %02x %02x\n", 
-			rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1]);
-	}
-	else if(RIMEADDR_SIZE == 8)
-	{
-		printf("Addr: %02x%02x:%02x%02x:%02x%02x:%02x%02x\n", 
-			rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], rimeaddr_node_addr.u8[2], rimeaddr_node_addr.u8[3], 
-			rimeaddr_node_addr.u8[4], rimeaddr_node_addr.u8[5], rimeaddr_node_addr.u8[6], rimeaddr_node_addr.u8[7]);
-	}
-	printf("Rime CMP: %d\n", rimeaddr_cmp(buf + 5, &rimeaddr_node_addr));
-	
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", length);
 	
