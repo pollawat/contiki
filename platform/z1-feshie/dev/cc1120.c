@@ -665,6 +665,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	PRINTF("**** Radio Driver: Read ****\n");
 
 	uint8_t length,  rxbytes = 0;
+	rimeaddr_t dest;
 		
 	if(radio_pending & RX_FIFO_UNDER)
 	{
@@ -761,13 +762,33 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 			PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
 			return 0;		
 		}
+	}
 	
+	/* If the FCF states that it is an ACK request, */
+	if(((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ)
+	{
+		/* Get the address in the correct order. */
+		if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
+		{
+			/* Long address. */
+			dest.u8[7] = ((uint8_t *)buf)[5];
+			dest.u8[6] = ((uint8_t *)buf)[6];
+			dest.u8[5] = ((uint8_t *)buf)[7];
+			dest.u8[4] = ((uint8_t *)buf)[8];
+			dest.u8[3] = ((uint8_t *)buf)[9];
+			dest.u8[2] = ((uint8_t *)buf)[10];
+			dest.u8[1] = ((uint8_t *)buf)[11];
+			dest.u8[0] = ((uint8_t *)buf)[12];
+		}
+		else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
+		{
+			/* Short address. */
+			dest.u8[1] = ((uint8_t *)buf)[5];
+			dest.u8[0] = ((uint8_t *)buf)[6];
+		}
+		
 		/* Work out if we need to send an ACK. */
-		
-		
-		
-		
-		if((((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ) && rimeaddr_cmp(buf + 5, &rimeaddr_node_addr))
+		if(rimeaddr_cmp(&dest, &rimeaddr_node_addr))
 		{
 			PRINTFRX("\tSending ACK\n");
 			
@@ -848,8 +869,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
 	{
 		printf("Dest: %02x%02x:%02x%02x:%02x%02x:%02x%02x\n", 
-			((uint8_t *)buf)[5], ((uint8_t *)buf)[6], ((uint8_t *)buf)[7], ((uint8_t *)buf)[8], 
-			((uint8_t *)buf)[9], ((uint8_t *)buf)[10], ((uint8_t *)buf)[11], ((uint8_t *)buf)[12]);
+			dest.u8[0], dest.u8[1], dest.u8[2], dest.u8[3], 
+			dest.u8[4], dest.u8[5], dest.u8[6], dest.u8[7]);
 	}
 	else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
 	{
