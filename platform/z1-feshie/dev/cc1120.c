@@ -288,7 +288,8 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 		broadcast = 0;
 		PRINTFTX("\tUnicast, Seqno = %d\n", tx_seq);
 	}
-	tx_seq = packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
+	tx_seq = ((uint8_t *)payload)[2];   //packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
+
 	lbt_success = 0;
 	
 	return RADIO_TX_OK;
@@ -631,7 +632,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			{
 				/* We have received the required ACK. */
 				PRINTFTX("\tACK Rec %d\n", ack_buf[2]);
-				printf("a ");
+				
 				return RADIO_TX_OK;
 			}
 			else
@@ -1763,6 +1764,7 @@ void processor(void)
 	len = cc1120_driver_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
 	
 	PRINTFPROC("\tPacket Length: %d\n", len);	
+	printf("PL: %d\n", len);
 	
 	if(len != 0)
 	{		
