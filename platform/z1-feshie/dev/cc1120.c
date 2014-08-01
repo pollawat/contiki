@@ -1303,9 +1303,14 @@ cc1120_set_state(uint8_t state)
 		case CC1120_STATE_TX:		/* Can only enter from IDLE, FSTXON or RX. */
 								PRINTFSTATE("\t\tEntering TX (%02x) from %02x\n", state, cur_state);
 
+								if((cur_state == CC1120_STATUS_RX))
+								{
+									/* Get us out of RX. */
+									cur_state = cc1120_set_idle(cur_state);
+								}
+
 								if((cur_state == CC1120_STATUS_IDLE) 
-								|| (cur_state == CC1120_STATUS_FSTXON)
-								|| (cur_state == CC1120_STATUS_RX))
+								|| (cur_state == CC1120_STATUS_FSTXON))
 								{
 									/* Return TX state. */
 									return cc1120_set_tx();
