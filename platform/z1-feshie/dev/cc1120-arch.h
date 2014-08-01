@@ -42,10 +42,22 @@
 
 #include "cc1120.h"
 
+/* Contiki Headers. */
+#include "contiki.h"
+#include "contiki-conf.h"
+
+/* Platform Headers */
+#include "platform-conf.h"
+
+/* Misc Headers. */
+#include <string.h>
+#include <stdio.h>
+
 void cc1120_arch_init(void);
 void cc1120_arch_reset(void);
 void cc1120_arch_spi_enable(void);
 void cc1120_arch_spi_disable(void);
+uint8_t cc1120_arch_spi_enabled(void);
 uint8_t cc1120_arch_read_gpio3(void);
 
 uint8_t cc1120_arch_spi_rw_byte(uint8_t);

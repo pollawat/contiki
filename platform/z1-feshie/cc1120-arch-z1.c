@@ -42,11 +42,23 @@
 #include "cc1120-const.h"
 
 #include "dev/spi.h"
-
+#include "dev/leds.h"
 
 #include "isr_compat.h"
 #include <stdio.h>
+#include <watchdog.h>
 
+#define LEDS_ON(x) leds_on(x)
+
+static uint8_t enabled;
+
+/* Busy Wait for time-outable waiting. */
+#define BUSYWAIT_UNTIL(cond, max_time)                                  \
+  do {                                                                  \
+    rtimer_clock_t t0;                                                  \
+    t0 = RTIMER_NOW();                                                  \
+    while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time)));   \
+  } while(0)
 
 
 /* ---------------------------- Init Functions ----------------------------- */
@@ -81,7 +93,6 @@ cc1120_arch_init(void)
 	CC1120_GDO3_PORT(REN) |= BV(CC1120_GDO3_PIN);
 	CC1120_GDO3_PORT(OUT) &= ~BV(CC1120_GDO3_PIN);
 
-	
 }
 
 /*---------------------------------------------------------------------------*/
@@ -101,6 +112,7 @@ cc1120_arch_pin_init(void)
 	CC1120_SPI_CSN_PORT(DIR) |= BV(CC1120_SPI_CSN_PIN);		/* Set CSn pin to Output. */
 	CC1120_SPI_CSN_PORT(SEL) &= ~BV(CC1120_SPI_CSN_PIN);	/* Set CSn pin to GPIO mode. */
 	CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);		/* Set CSn high to de-select radio. */
+	enabled = 0;
 
 	CC1120_RESET_PORT(DIR) |= BV(CC1120_RESET_PIN);			/* Set !Reset pin to Output. */
 	CC1120_RESET_PORT(SEL) &= ~BV(CC1120_RESET_PIN);		/* Set !Reset pin to GPIO mode. */
@@ -120,33 +132,118 @@ cc1120_arch_reset(void)
 
 
 /* ----------------------------- SPI Functions ----------------------------- */
+uint8_t
+cc1120_arch_spi_enabled(void)
+{
+	return enabled;
+}
+
 void
 cc1120_arch_spi_enable(void)
 {
-	/* Set CSn to low to select CC1120 */
-	CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-
-	/* The MISO pin should go LOW before chip is fully enabled. */
-	while((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
+	if(!enabled)
 	{
-		printf(".");
+		rtimer_clock_t t0 = RTIMER_NOW(); 
+		int i = 0;
+		
+		/* Set CSn to low to select CC1120 */
+		CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+		
+		watchdog_periodic();
+
+		/* The MISO pin should go LOW before chip is fully enabled. */
+		while(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))
+		{
+			if(RTIMER_CLOCK_LT((t0 + CC1120_EN_TIMEOUT), RTIMER_NOW()) )
+			{
+				printf("$");
+				watchdog_periodic();
+				if(i == 0)
+				{
+					/* Timeout.  Try a SNOP and a re-enable once. */
+					(void) cc1120_arch_spi_rw_byte(CC1120_STROBE_SNOP);		/* SNOP. */
+					CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);		/* Disable. */
+					clock_wait(50);											/* Wait. */
+					CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);	/* Enable. */
+					
+					i++;
+				}
+				else if(i < 3)
+				{
+					/* If that fails, reboot up to twice. */
+					CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);		/* Disable. */
+					cc1120_arch_reset();	 	/* Reset CC1120. */	
+					clock_wait(50);
+					
+					CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
+					BUSYWAIT_UNTIL((!(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))),
+									RTIMER_ARCH_SECOND/500);
+					
+					if(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))
+					{
+						cc1120_arch_spi_rw_byte(CC1120_ADDR_EXTENDED_MEMORY_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT); 
+						cc1120_arch_spi_rw_byte(CC1120_ADDR_PARTNUMBER & CC1120_ADDRESS_MASK);
+						
+						uint8_t part = cc1120_arch_spi_rw_byte(0);		/* Get the value.  Re-use addr to save a byte. */ 
+						
+						
+						switch(part)
+						{
+							case CC1120_PART_NUM_CC1120:
+							case CC1120_PART_NUM_CC1121:
+							case CC1120_PART_NUM_CC1125:
+								printf("Radio rebooted - Radio OK");
+								break;
+
+							default:	/* Not a supported chip or no chip present... */
+								printf("!!!!!Radio rebooted - Radio NOT OK!!!!!");
+								CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+								break;
+						}
+					
+					}
+					
+					i++;
+				}
+				else
+				{
+					/* Fatal... */
+					printf("Error, FATAL CC1120 error.  Check radio/replace radio and reset.\n\n");
+					LEDS_ON(LEDS_RED);
+					LEDS_ON(LEDS_BLUE);
+					LEDS_ON(LEDS_GREEN);
+					while(1)
+					{
+						printf("$");
+					}
+				}
+				
+				t0 = RTIMER_NOW(); 		/* Reset timeout. */
+			}
+		}
+	
+		enabled = 1;
 	}
-	// TODO: Include a timeout here and change to have a return code?
 }
 
 /*---------------------------------------------------------------------------*/
 void
 cc1120_arch_spi_disable(void)
 {
-	/* Check if MISO is high at disable.  If it is, send a SNOP to clear it. */
-	if((CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN)) != 0)
+	if(enabled)
 	{
-		(void) cc1120_arch_spi_rw_byte(CC1120_STROBE_SNOP);
-	}
-	// TODO: Make this more resilient?
+		/* Check if MISO is high at disable.  If it is, send a SNOP to clear it. */
+		if(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))
+		{
+			(void) cc1120_arch_spi_rw_byte(CC1120_STROBE_SNOP);
+		}
+		// TODO: Make this more resilient?
 
-	/* Set CSn to high (1) */
-	CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+		/* Set CSn to high (1) */
+		CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
+		
+		enabled = 0;
+	}
 }
 
 /*---------------------------------------------------------------------------*/
