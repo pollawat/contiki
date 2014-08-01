@@ -9,12 +9,12 @@ UIP_CONF_IPV6=1
 
 SMALL=1
 
-APPS += webserver webbrowser
+#APPS += webserver webbrowser
 
-CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-CONTIKI_SOURCEFILES += wget.c
+CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\" -Os
+#CONTIKI_SOURCEFILES += wget.c
 PROJECTDIRS += ../examples/ipv6/rpl-border-router
-PROJECT_SOURCEFILES += httpd-simple.c
+#PROJECT_SOURCEFILES += httpd-simple.c
 
 include $(CONTIKI)/Makefile.include
 

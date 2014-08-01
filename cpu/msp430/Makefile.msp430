@@ -151,8 +151,8 @@ ifneq (,$(findstring 4.7.,$(shell msp430-gcc -dumpversion)))
 ifdef CPU_HAS_MSP430X
   TARGET_MEMORY_MODEL ?= medium
   CFLAGS += -mmemory-model=$(TARGET_MEMORY_MODEL)
-  CFLAGS += -ffunction-sections -fdata-sections -mcode-region=far
-  LDFLAGS += -mmemory-model=$(TARGET_MEMORY_MODEL) -Wl,-gc-sections
+  CFLAGS += -ffunction-sections -fdata-sections
+  LDFLAGS += -Wl,-gc-sections -mmemory-model=$(TARGET_MEMORY_MODEL) -Wl,-gc-sections
 endif
 endif
 endif

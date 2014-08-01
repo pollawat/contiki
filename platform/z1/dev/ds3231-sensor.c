@@ -43,7 +43,7 @@
 #include <string.h>
 #include <contiki.h>
 #include "ds3231-sensor.h"
-
+#include "i2cmaster.h"
 
 #define DS3231_MASTER					0x00
 #define DS3231_ADDR			0x68 //0xd0 with shift
