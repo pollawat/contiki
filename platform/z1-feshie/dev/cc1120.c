@@ -22,7 +22,7 @@
 #include "cc1120-config.h"
 
 #include "net/rime.h"
-#include "net/rimeaddr.h"
+#include "net/rime/rimeaddr.h"
 #include "net/netstack.h"
 #include "net/mac/contikimac.h"
 
