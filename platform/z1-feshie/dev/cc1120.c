@@ -1751,9 +1751,7 @@ PROCESS_THREAD(cc1120_process, ev, data)
 
 		
 void processor(void)
-{		
-	printf("PR\t");
-	
+{			
 	uint8_t len, rxbytes = 0;	
 	uint8_t buf[CC1120_MAX_PAYLOAD];
 	rimeaddr_t dest;
@@ -1972,8 +1970,6 @@ void processor(void)
 	
 	/* Set packet buffer length. */
 	packetbuf_set_datalen(len);		/* Set Packetbuffer length. */
-	
-	printf("\t%02x %02x %02x\n", ack_buf[2], buf[2], ((uint8_t *)packetbuf_dataptr())[2]);
 	
 	NETSTACK_RDC.input();
 		
