@@ -1440,9 +1440,9 @@ cc1120_set_tx(void)
 
 	while(cur_state != CC1120_STATUS_TX)
 	{
-//#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
+#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
 		printf(",");
-//#endif				
+#endif				
 		cur_state = cc1120_get_state();
 		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 		{	
@@ -1936,7 +1936,6 @@ void processor(void)
 					break;
 				}
 			}
-			printf("AS %d\n", ack_buf[2]);
 			
 			/* Sort out the TX FIFO. */
 			cc1120_flush_tx();
