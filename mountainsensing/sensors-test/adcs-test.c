@@ -41,6 +41,8 @@
 #include "dev/adc1-sensor.h"
 #include "dev/adc2-sensor.h"
 #include "dev/batv-sensor.h"
+#include "dev/ms1-io.h"
+#include "dev/leds.h"
 #include <stdio.h>		
 
 
@@ -56,8 +58,9 @@ PROCESS_THREAD(test_adc_process, ev, data)
 {
 
   PROCESS_BEGIN();
-
-
+  ms1_io_init();
+  ms1_sense_on();
+  leds_on(LEDS_GREEN);
   while(1) {
     SENSORS_ACTIVATE(adc1_sensor);
     uint16_t value = adc1_sensor.value(0);

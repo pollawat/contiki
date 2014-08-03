@@ -48,6 +48,7 @@
 #include "dev/adxl345.h"
 #include "sys/clock.h"
 #include "dev/uart1_i2c_master.h"
+#include "dev/ms1-io.h"
 #if WITH_UIP6
 #include "net/uip-ds6.h"
 #endif /* WITH_UIP6 */
