@@ -36,6 +36,8 @@ endif
 CONTIKI_TARGET_SOURCEFILES += $(ARCH) $(UIPDRIVERS)
 CONTIKI_TARGET_SOURCEFILES += uart1_i2c_master.c adxl345.c
 
+CPU_HAS_MSP430X=1
+
 MCU=msp430f2617
 include $(CONTIKI)/cpu/msp430/Makefile.msp430
 
