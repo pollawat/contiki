@@ -288,9 +288,12 @@ int send_request(struct psock *p)
   static char content_length[8];
 
   PSOCK_BEGIN(p);					//open socket
-  
-  printf("GET %s HTTP/1.0 \r\n\r\n", file);	//send request
-  PSOCK_SEND_STR(p, "GET / HTTP/1.0 \r\n\r\n");	//send request
+
+  char get_string[64];  
+
+  printf("GET %s HTTP/1.0 \r\n\r\n", file);		//report request
+  sprintf(get_string , "GET %s HTTP/1.0 \r\n\r\n", file);//build request string
+  PSOCK_SEND_STR(p, get_string);			//send request
 
   while(1) {
     PSOCK_READTO(p, '\n');				//read to next newline
