@@ -17,7 +17,9 @@ ARCH=msp430.c leds.c watchdog.c xmem.c \
      checkpoint-arch.c slip.c slip_uart0.c \
      z1-phidgets.c sht11.c sht11-sensor.c light-sensor.c \
      battery-sensor.c sky-sensors.c tmp102.c temperature-sensor.c light-ziglet.c \
-     relay-phidget.c tlc59116.c
+     relay-phidget.c tlc59116.c \
+     ds3231-sensor.c batv-sensor.c adc1-sensor.c adc2-sensor.c \
+     uart1-putchar.c ms1-io.c
 
 CONTIKI_TARGET_DIRS = . dev apps net
 ifndef CONTIKI_TARGET_MAIN
@@ -36,6 +38,7 @@ CONTIKI_TARGET_SOURCEFILES += $(ARCH) $(UIPDRIVERS)
 CONTIKI_TARGET_SOURCEFILES += i2cmaster.c adxl345.c
 
 MCU=msp430f2617
+CPU_HAS_MSP430X=1
 include $(CONTIKI)/cpu/msp430/Makefile.msp430
 
 # Add LDFLAGS after IAR_PATH is set
