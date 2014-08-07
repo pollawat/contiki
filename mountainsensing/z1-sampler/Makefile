@@ -1,5 +1,4 @@
-all: z1-websense
-
+all: z1-sampler
 TARGET=z1-feshie
 
 CONTIKI=../../
