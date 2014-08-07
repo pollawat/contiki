@@ -191,25 +191,16 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-			printf("CC1120 Detected - Radio OK");
+			printf("CC1120");
 			break;
 		case CC1120_PART_NUM_CC1121:
-			printf("CC1121 Detected - Radio OK");
+			printf("CC1121");
 			break;
 		case CC1120_PART_NUM_CC1125:
-			printf("CC1125 Detected - Radio OK");
+			printf("CC1125");
 			break;
-		case CC1120_PART_NUM_CC1175:
-			printf("CC1175 Detected\n");
-			printf("*** ERROR: CC1175 is a transmitter only. Replace radio with a supported type and reset. ***\n");
-			while(1)	/* Spin ad infinitum as we cannot continue. */
-			{
-				watchdog_periodic();	/* Feed the dog to stop reboots. */
-			}
-			break; /* spurious but.... */
 		default:	/* Not a supported chip or no chip present... */
-			printf("*** ERROR: Unsupported radio connected or no radio present (Part Number %02x detected) ***\n", part);
-			printf("*** Check radio and reset ***\n");
+			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
 			while(1)	/* Spin ad infinitum as we cannot continue. */
 			{
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -217,11 +208,7 @@ cc1120_driver_init(void)
 			break;
 	}
 	
-#if CC1120LEDS
-	printf(" & using LEDs.");
-#endif
-
-	printf("\n"); 
+	printf("Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	

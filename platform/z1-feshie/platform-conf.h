@@ -168,9 +168,9 @@ typedef unsigned long off_t;
 
 //#define CC1120DEBUG		1
 //#define CC1120TXDEBUG		1
-#define CC1120TXERDEBUG		1
+//#define CC1120TXERDEBUG		1
 //#define CC1120RXDEBUG		1
-#define CC1120RXERDEBUG		1
+//#define CC1120RXERDEBUG		1
 //#define CC1120INTDEBUG		1
 //#define C1120PROCESSDEBUG	1
 //#define CC1120ARCHDEBUG		1
@@ -178,7 +178,37 @@ typedef unsigned long off_t;
 
 #define RF_CHANNEL				42
 
-#define CC1120_CS_THRESHOLD		0xB5
+#define CC1120_CS_THRESHOLD		0x9C	/*-100dBm */
+
+/* Other possible sensible values:
+ * 0xC4	-60dBm.
+ * 0xBF	-65dBm.
+ * 0xBA	-70dBm.
+ * 0xB5	-75dBm.
+ * 0xB0 -80dBm.
+ * 0xAB -85dBm.
+ * 0xA6 -90dBm.
+ * 0xA5 -91dBm.
+ * 0xA4 -92dBm.
+ * 0xA3 -93dBm.
+ * 0xA2 -94dBm.
+ * 0xA1 -95dBm.
+ * 0xA0 -96dBm.
+ * 0x9F -97dBm.
+ * 0x9E -98dBm.
+ * 0x9D -99dBm.
+ * 0x9C -100dBm.
+ * 0x9B -101dBm.
+ * 0x9A -102dBm.
+ * 0x99 -103dBm
+ * 0x98 -104dBm.
+ * 0x97 -105dBm.
+ * 0x96 -106dBm.
+ * 0x95 -107dBm.
+ * 0x94 -108dBm.
+ * 0x93 -109dBm.
+ * 0x92 -110dBm.
+ */
 //#define CC1120_RSSI_OFFSET	0x9A
 
 #define CC1120LEDS				1

@@ -156,7 +156,6 @@ cc1120_arch_spi_enable(void)
 		{
 			if(RTIMER_CLOCK_LT((t0 + CC1120_EN_TIMEOUT), RTIMER_NOW()) )
 			{
-				printf("$");
 				watchdog_periodic();
 				if(i == 0)
 				{
@@ -168,54 +167,9 @@ cc1120_arch_spi_enable(void)
 					
 					i++;
 				}
-				else if(i < 3)
-				{
-					/* If that fails, reboot up to twice. */
-					CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);		/* Disable. */
-					cc1120_arch_reset();	 	/* Reset CC1120. */	
-					clock_wait(50);
-					
-					CC1120_SPI_CSN_PORT(OUT) &= ~BV(CC1120_SPI_CSN_PIN);
-					BUSYWAIT_UNTIL((!(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))),
-									RTIMER_ARCH_SECOND/500);
-					
-					if(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))
-					{
-						cc1120_arch_spi_rw_byte(CC1120_ADDR_EXTENDED_MEMORY_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT); 
-						cc1120_arch_spi_rw_byte(CC1120_ADDR_PARTNUMBER & CC1120_ADDRESS_MASK);
-						
-						uint8_t part = cc1120_arch_spi_rw_byte(0);		/* Get the value.  Re-use addr to save a byte. */ 
-						
-						
-						switch(part)
-						{
-							case CC1120_PART_NUM_CC1120:
-							case CC1120_PART_NUM_CC1121:
-							case CC1120_PART_NUM_CC1125:
-								printf("Radio rebooted - Radio OK");
-								break;
-
-							default:	/* Not a supported chip or no chip present... */
-								printf("!!!!!Radio rebooted - Radio NOT OK!!!!!");
-								CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
-								break;
-						}
-					
-					}
-					
-					i++;
-				}
 				else
 				{
-					/* Fatal... */
-					printf("Error, FATAL CC1120 error.  Check radio/replace radio and reset.\n\n");
-					LEDS_ON(LEDS_RED);
-					LEDS_ON(LEDS_BLUE);
-					LEDS_ON(LEDS_GREEN);
-					while(1)
-					{
-						printf("$");
-					}
+					break;
 				}
 				
 				t0 = RTIMER_NOW(); 		/* Reset timeout. */
