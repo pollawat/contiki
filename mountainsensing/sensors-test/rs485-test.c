@@ -4,7 +4,7 @@
  
 #define TMP102_READ_INTERVAL (CLOCK_SECOND/2)  // Poll the sensor every 500 ms
  
-PROCESS (temp_process, "Test Temperature process");
+PROCESS (temp_process, "Test rs485 process");
 AUTOSTART_PROCESSES (&temp_process);
 /*---------------------------------------------------------------------------*/
 static struct etimer et;
