@@ -260,16 +260,20 @@ uart1_writeb(unsigned char c)
 {
   PRINTFDEBUG("UART1 writeb **\n");
   /* watchdog_periodic(); */
-//#if TX_WITH_INTERRUPT
+//  #if TX_WITH_INTERRUPT
 //  printf("Uart1 write with interrupt\n");
   /* Put the outgoing byte on the transmission buffer. If the buffer
      is full, we just keep on trying to put the byte into the buffer
      until it is possible to put it there. */
- // while(ringbuf_put(&txbuf, c) == 0);
+//  while(ringbuf_put(&txbuf, c) == 0)
+//  {
+//	watchdog_periodic();
+//  }
 
   /* If there is no transmission going, we need to start it by putting
      the first byte into the UART. */
-//  if(serial_transmitting == 0) {
+//  if(serial_transmitting == 0)
+//  { 
 //    serial_transmitting = 1;
 //    UCA1TXBUF = ringbuf_get(&txbuf);
 //  }
@@ -277,7 +281,7 @@ uart1_writeb(unsigned char c)
 //#else /* TX_WITH_INTERRUPT */
   PRINTFDEBUG("UART1 tx without interrupt\n");
   /* Loop until the transmission buffer is available. */
-  while(!(IFG2 & UCA1TXIFG));
+  while((UCA1STAT & UCBUSY));	//while send in progress
 
   /* Transmit the data. */
   UCA1TXBUF = c;
@@ -286,20 +290,22 @@ uart1_writeb(unsigned char c)
 //#endif /* TX_WITH_INTERRUPT */
 }
 
-#define RS485TXEN_SET() P2OUT |= 0x00001000
-#define RS485TXEN_CLEAR() P2OUT &=0x11110111
-#define RS484TXEN_SETUP() P2DIR &=0x00001000; P2OUT &=0x11110111
+//4s485 txen is port 2.3
+#define RS485TXEN_SET() P2OUT |= (1<<3)
+#define RS485TXEN_CLEAR() P2OUT &= ~(1<<3)
+#define RS484TXEN_SETUP() P2DIR |= (1<<3); P2OUT &= ~(1<<3)
 
 void
-uart1_writechar(unsigned char* c,int length)
+uart1_writearray(unsigned char* c,int length)
 {
 	RS485TXEN_SET();		//set tx enable pin for rs485
 	int i=0;			//create counter variable
 	for(i=0;i<length;i++)		//for every character in array
 	{
+		watchdog_periodic();
 		uart1_writeb(c[i]);	//write byte
 	}
-	while(!(IFG2 & UCA1TXIFG));	//wait till end of transmission
+	while((UCA1STAT & UCBUSY));	//while send in progress
 	RS485TXEN_CLEAR();		//clear tx enable pin 
 }
 
@@ -333,7 +339,7 @@ uart1_init(unsigned long ubr)
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
 
-
+  printf(".");
   RS484TXEN_SETUP();			//setup pin for rs485
 }
 
@@ -373,6 +379,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   PRINTFDEBUG("USCIAB1TX: UCA1TXIFG\n");
     if(ringbuf_elements(&txbuf) == 0) {
       serial_transmitting = 0;
+      RS485TXEN_CLEAR();		//clear tx enable pin 
     } else {
       UCA0TXBUF = ringbuf_get(&txbuf);
     }
