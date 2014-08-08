@@ -280,13 +280,28 @@ uart1_writeb(unsigned char c)
   while(!(IFG2 & UCA1TXIFG));
 
   /* Transmit the data. */
-  UCA1TXBUF = 'c';
+  UCA1TXBUF = c;
 //  UCA1TXBUF = 0x23;
   PRINTFDEBUG("char written to UCA1TXBUF\n");
 //#endif /* TX_WITH_INTERRUPT */
 }
 
+#define RS485TXEN_SET() P2OUT |= 0x00001000
+#define RS485TXEN_CLEAR() P2OUT &=0x11110111
+#define RS484TXEN_SETUP() P2DIR &=0x00001000; P2OUT &=0x11110111
 
+void
+uart1_writechar(unsigned char* c,int length)
+{
+	RS485TXEN_SET();		//set tx enable pin for rs485
+	int i=0;			//create counter variable
+	for(i=0;i<length;i++)		//for every character in array
+	{
+		uart1_writeb(c[i]);	//write byte
+	}
+	while(!(IFG2 & UCA1TXIFG));	//wait till end of transmission
+	RS485TXEN_CLEAR();		//clear tx enable pin 
+}
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -317,6 +332,9 @@ uart1_init(unsigned long ubr)
   IFG2 &= ~UCA1TXIFG;
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
+
+
+  RS484TXEN_SETUP();			//setup pin for rs485
 }
 
 
