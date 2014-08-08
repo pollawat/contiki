@@ -71,20 +71,20 @@ int
 serial_timeout_input_byte(unsigned char c)
 {
   r0 = RTIMER_NOW(); /*Reset the timeout timer */
-  PRINTF("Byte recieved...");
+//  PRINTF("Byte recieved...");
   if(rxbytes ==0){
     /*This was the first in a potential batch */
-    PRINTF("first\n");
+//    PRINTF("first\n");
     rxbuf_data[rxbytes++] = c; /* Store byte in buffer */
     process_poll(&serial_timeout_process); /* Start process */
   }else{ /*We're still in the timeout period from another byte */
-    PRINTF("not first\n");
+//    PRINTF("not first\n");
     if(rxbytes >= BUFSIZE){
       /* Overflow */
-      PRINTF("OVERFLOW\n");
+//      PRINTF("OVERFLOW\n");
       //TODO handle this
     }else{
-      PRINTF("Storing rxbytes in %i\n", rxbytes);
+//      PRINTF("Storing rxbytes in %i\n", rxbytes);
       rxbuf_data[rxbytes++] = c;
 
     }

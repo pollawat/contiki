@@ -54,6 +54,9 @@ void i2c_transmit_n(uint8_t byte_ctr, uint8_t *tx_buf);
 
 uint8_t i2c_busy(void);
 
+void uart1_writearray(unsigned char* c,int length);
+void uart1_init(unsigned long ubr);
+
 //XXX Should these defines be in the contiki-conf.h to make it more platform-independent?
 #define I2C_PxDIR   P5DIR
 #define I2C_PxIN    P5IN
