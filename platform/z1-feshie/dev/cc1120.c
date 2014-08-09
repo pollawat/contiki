@@ -207,7 +207,7 @@ cc1120_driver_init(void)
 			break;
 	}
 	
-	printf("Detected & OK\n"); 
+	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
