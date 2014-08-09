@@ -55,6 +55,7 @@
 #include "sys/clock.h"
 #include "dev/uart1_i2c_master.h"
 #include "dev/ms1-io.h"
+#include "dev/reset-sensor.h"
 #include "dev/spi.h"
 #if WITH_UIP6
 #include "net/uip-ds6.h"

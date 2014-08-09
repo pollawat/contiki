@@ -90,16 +90,18 @@ value(int type)
   return BUTTON_READ() || !timer_expired(&debouncetimer);
 }
 static int
-value_event(int type)
+value_event(int reset)
 {
-  return eventcount;						//return count of events
-}
-static int
-get_and_reset_event(int type)
-{
-  int i=eventcount;						//get count of events
-  eventcount=0;							//reset event counter
-  return i;
+  if(reset)							//if we should reset the value
+  {
+    int i=eventcount;						//get count of events
+    eventcount=0;						//reset event counter
+    return i;							//return value
+  }
+  else
+  {
+    return eventcount;						//return count of events
+  }
 }
 /*---------------------------------------------------------------------------*/
 static int
