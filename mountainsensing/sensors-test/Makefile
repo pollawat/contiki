@@ -1,5 +1,5 @@
 ifndef TARGET
-TARGET=z1
+TARGET=z1-feshie
 endif
 
 CONTIKI_PROJECT = test-adxl345 tmp102-test batv-test adc1-test adc2-test \
