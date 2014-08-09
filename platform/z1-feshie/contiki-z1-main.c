@@ -444,6 +444,11 @@ main(int argc, char **argv)
   print_processes(autostart_processes);
   autostart_start(autostart_processes);
 
+  //update reset counter
+  reset_sensor.configure(SENSORS_ACTIVE,1);           //update reet counter
+  printf("Reset Count %d \n",reset_sensor.value(0));  //print rurrent reset count
+
+
   /*
    * This is the scheduler loop.
    */

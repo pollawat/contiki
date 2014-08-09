@@ -51,6 +51,7 @@
 #include "sys/clock.h"
 #include "dev/uart1_i2c_master.h"
 #include "dev/ms1-io.h"
+#include "dev/reset-sensor.h"
 #if WITH_UIP6
 #include "net/uip-ds6.h"
 #endif /* WITH_UIP6 */
@@ -203,6 +204,7 @@ main(int argc, char **argv)
    */
   msp430_cpu_init();
   clock_init();
+  ms1_io_init();
   leds_init();
   leds_on(LEDS_RED);
 
@@ -433,6 +435,10 @@ serial_timeout_init();
   print_processes(autostart_processes);
   autostart_start(autostart_processes);
 
+  //update reset counter
+  reset_sensor.configure(SENSORS_ACTIVE,1);           //update reet counter
+  printf("Reset Count %d \n",reset_sensor.value(0));  //print rurrent reset count
+
   /*
    * This is the scheduler loop.
    */
@@ -498,7 +504,6 @@ serial_timeout_init();
       ENERGEST_ON(ENERGEST_TYPE_CPU);
     }
   }
-
   return 0;
 }
 /*---------------------------------------------------------------------------*/
