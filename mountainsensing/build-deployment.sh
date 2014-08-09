@@ -7,3 +7,4 @@
 (cd z1-sampler/ && make TARGET=z1-feshie z1-sampler)
 
 (cd http-proxy-node/ && make TARGET=z1 http-proxy)
+(cd http-proxy-node/ && make TARGET=z1-feshie http-proxy)
