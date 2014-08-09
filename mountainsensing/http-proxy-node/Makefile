@@ -1,4 +1,4 @@
-CONTIKI_PROJECT=border-router
+CONTIKI_PROJECT=http-proxy
 all: $(CONTIKI_PROJECT) 
 
 CONTIKI=../../
@@ -7,11 +7,11 @@ WITH_UIP6=1
 UIP_CONF_IPV6=1
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 
+APPS = webbrowser
 #linker optimizations
 SMALL=1
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-PROJECT_SOURCEFILES += slip-bridge.c
 
 #Simple built-in webserver is the default.
 #Override with make WITH_WEBSERVER=0 for no webserver.
@@ -28,27 +28,15 @@ PROJECT_SOURCEFILES += slip-bridge.c
 WITH_WEBSERVER=1
 ifeq ($(WITH_WEBSERVER),1)
 CFLAGS += -DWEBSERVER=1
-PROJECT_SOURCEFILES += httpd-simple.c
+#PROJECT_SOURCEFILES += httpd-simple.c
 else ifneq ($(WITH_WEBSERVER), 0)
 APPS += $(WITH_WEBSERVER)
 CFLAGS += -DWEBSERVER=2
 endif
 
 ifeq ($(PREFIX),)
- PREFIX = aaaa::1/64
+ PREFIX = 2001:630:d0:f200::5/64
 endif
 
 include $(CONTIKI)/Makefile.include
 
-$(CONTIKI)/tools/tunslip6:	$(CONTIKI)/tools/tunslip6.c
-	(cd $(CONTIKI)/tools && $(MAKE) tunslip6)
-
-connect-router:	$(CONTIKI)/tools/tunslip6
-	sudo $(CONTIKI)/tools/tunslip6 $(PREFIX)
-
-connect-router-cooja:	$(CONTIKI)/tools/tunslip6
-<<<<<<< HEAD
-	sudo $(CONTIKI)/tools/tunslip6 -a 127.0.0.1 $(PREFIX)
-=======
-	sudo $(CONTIKI)/tools/tunslip6 -v6 -a 127.0.0.1 $(PREFIX)
->>>>>>> http-proxy
