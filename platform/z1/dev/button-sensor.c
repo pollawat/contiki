@@ -1,1 +1,1 @@
-event-counter-sensor.c
+event-sensor.c
