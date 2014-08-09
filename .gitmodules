@@ -1,0 +1,3 @@
+[submodule "core/dev/protocol-buffers"]
+	path = core/dev/protocol-buffers
+	url = https://github.com/feshie/protocol-buffers.git
