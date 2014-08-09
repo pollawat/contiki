@@ -40,7 +40,10 @@
 #include "cc1120-arch.h"
 #include "dev/leds.h"
 #include "dev/serial-line.h"
-#include "dev/slip.h"
+#include "dev/serial-timeout.h"
+#ifndef NO_SLIP
+	#include "dev/slip.h"
+#endif
 #include "dev/uart0.h"
 #include "dev/watchdog.h"
 #include "dev/xmem.h"
@@ -50,9 +53,9 @@
 #include "dev/button-sensor.h"
 #include "dev/adxl345.h"
 #include "sys/clock.h"
-
+#include "dev/uart1_i2c_master.h"
+#include "dev/ms1-io.h"
 #include "dev/spi.h"
-
 #if WITH_UIP6
 #include "net/uip-ds6.h"
 #endif /* WITH_UIP6 */
@@ -205,7 +208,12 @@ main(int argc, char **argv)
    */
   msp430_cpu_init();
   clock_init();
+  ms1_io_init(); 
+  uart1_init('b'); /* It ignores the input to the func */
+  uart1_set_input(serial_timeout_input_byte);
+  serial_timeout_init();
   
+
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
   leds_init();
@@ -215,7 +223,9 @@ main(int argc, char **argv)
 
   uart0_init(BAUD2UBR(115200)); /* Must come before first printf */
 #if WITH_UIP
+#ifndef NO_SLIP
   slip_arch_init(BAUD2UBR(115200));
+#endif
 #endif /* WITH_UIP */
 
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
@@ -382,7 +392,10 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
-
+#ifdef NO_SLIP
+  uart0_set_input(serial_line_input_byte);
+  serial_line_init();
+#endif
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
@@ -414,8 +427,10 @@ main(int argc, char **argv)
     uip_sethostaddr(&hostaddr);
     uip_setnetmask(&netmask);
     uip_over_mesh_set_net(&hostaddr, &netmask);
+#ifndef NO_SLIP
     /*    uip_fw_register(&slipif);*/
     uip_over_mesh_set_gateway_netif(&slipif);
+#endif
     uip_fw_default(&meshif);
     uip_over_mesh_init(UIP_OVER_MESH_CHANNEL);
     printf("uIP started with IP address %d.%d.%d.%d\n",
