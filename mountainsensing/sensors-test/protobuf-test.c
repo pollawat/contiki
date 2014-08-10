@@ -12,13 +12,13 @@ static struct etimer et;
 PROCESS_THREAD (temp_process, ev, data)
 {
   PROCESS_BEGIN ();
-  ms1_io_init()
-  ms1_sense_on()
+  ms1_io_init();
+  ms1_sense_on();
   uart1_init(0);
   {
     while (1)
       {
-        etimer_set(&et, TMP102_READ_INTERVAL);          // Set the timer
+        etimer_set(&et, RTIMER_SECOND);          // Set the timer
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
  
 	uart1_writearray((unsigned char*)"look sending",12);
@@ -26,6 +26,6 @@ PROCESS_THREAD (temp_process, ev, data)
 	
       }
   }
-  ms1_sense_off()
+  ms1_sense_off();
   PROCESS_END ();
 }
