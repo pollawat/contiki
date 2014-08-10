@@ -410,4 +410,5 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
       }
     }
   }
+  watchdog_periodic();
 }
