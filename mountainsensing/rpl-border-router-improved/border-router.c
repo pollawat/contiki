@@ -353,7 +353,7 @@ PROCESS_THREAD(border_router_process, ev, data)
      packet reception rates.
      Note if the MAC RDC is not turned off now, aggressive power management of the
      cpu will interfere with establishing the SLIP connection */
-  NETSTACK_MAC.off(1);
+  NETSTACK_MAC.off(0);
 #endif
  
   /* Request prefix until it has been received */
@@ -372,7 +372,8 @@ PROCESS_THREAD(border_router_process, ev, data)
   /* Now turn the radio on, but disable radio duty cycling.
    * Since we are the DAG root, reception delays would constrain mesh throughbut.
    */
-  NETSTACK_MAC.off(0);
+  // this was: NETSTACK_MAC.off(1);
+  NETSTACK_MAC.on();
   
 #if DEBUG || 1
   print_local_addresses();
