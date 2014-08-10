@@ -55,6 +55,7 @@
 #include "sys/clock.h"
 #include "dev/uart1_i2c_master.h"
 #include "dev/ms1-io.h"
+#include "dev/reset-sensor.h"
 #include "dev/spi.h"
 #if WITH_UIP6
 #include "net/uip-ds6.h"
@@ -208,7 +209,12 @@ main(int argc, char **argv)
    */
   msp430_cpu_init();
   clock_init();
+  ms1_io_init(); 
+  uart1_init('b'); /* It ignores the input to the func */
+  uart1_set_input(serial_timeout_input_byte);
+  serial_timeout_init();
   
+
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
   leds_init();
@@ -391,9 +397,6 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
-uart1_init('b'); /* It ignores the input to the func */
-uart1_set_input(serial_timeout_input_byte);
-serial_timeout_init();
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
@@ -441,6 +444,11 @@ serial_timeout_init();
 
   print_processes(autostart_processes);
   autostart_start(autostart_processes);
+
+  //update reset counter
+  reset_sensor.configure(SENSORS_ACTIVE,1);           //update reet counter
+  printf("Reset Count %d \n",reset_sensor.value(0));  //print rurrent reset count
+
 
   /*
    * This is the scheduler loop.

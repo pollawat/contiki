@@ -1,6 +1,6 @@
 CONTIKI_PROJECT=border-router
 all: $(CONTIKI_PROJECT) 
-
+TARGET=z1-feshie
 CONTIKI=../../
 
 WITH_UIP6=1

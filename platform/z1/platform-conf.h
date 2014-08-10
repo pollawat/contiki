@@ -116,11 +116,11 @@ typedef unsigned long off_t;
 
 /* Use the first 64k of external flash for node configuration */
 #define NODE_ID_XMEM_OFFSET     (0 * XMEM_ERASE_UNIT_SIZE)
-
+#define RESET_COUNTER_XMEM_OFFSET (1 * XMEM_ERASE_UNIT_SIZE)
 /* Use the second 64k of external flash for codeprop. */
-#define EEPROMFS_ADDR_CODEPROP  (1 * XMEM_ERASE_UNIT_SIZE)
+#define EEPROMFS_ADDR_CODEPROP  (2 * XMEM_ERASE_UNIT_SIZE)
 
-#define CFS_XMEM_CONF_OFFSET    (2 * XMEM_ERASE_UNIT_SIZE)
+#define CFS_XMEM_CONF_OFFSET    (3 * XMEM_ERASE_UNIT_SIZE)
 #define CFS_XMEM_CONF_SIZE      (1 * XMEM_ERASE_UNIT_SIZE)
 
 #define CFS_RAM_CONF_SIZE 4096

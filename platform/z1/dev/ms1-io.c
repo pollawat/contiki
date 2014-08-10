@@ -1,5 +1,6 @@
 #include "contiki.h"
 #include "contiki-conf.h"
+#include "dev/reset-sensor.h"
 
 
 

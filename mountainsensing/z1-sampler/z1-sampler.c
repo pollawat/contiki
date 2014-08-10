@@ -33,13 +33,14 @@
 // Sensors
 #include "dev/uart1_i2c_master.h"
 
-#include "dev/ds3231-sensor.h" // Clock
+#include "dev/ds3231-sensor.h" 	// Clock
 #include "dev/ds3231-sensor.c"
-#include "dev/adc1-sensor.h" // ADC 1
-#include "dev/adc2-sensor.h" // ADC 2
+#include "dev/adc1-sensor.h" 	// ADC 1
+#include "dev/adc2-sensor.h" 	// ADC 2
 #include "dev/temperature-sensor.h" // Temp
 #include "dev/battery-sensor.h" // Batt
-#include "adxl345.h" // Accel
+#include "adxl345.h" 		// Accel
+#include "dev/event-sensor.h"	//event sensor (rain)
 
 #define DEBUG 1
 
@@ -76,8 +77,7 @@ AUTOSTART_PROCESSES(&web_process, &post_process, &sample_process);//, &tick_proc
 
 static uint16_t get_sensor_rain()
 {
-  DPRINT("[RAIN] Function not implemented!!!\n");
-  return 0;
+  return event_sensor.value(1);
 }
 
 static uint16_t get_sensor_ADC1()
