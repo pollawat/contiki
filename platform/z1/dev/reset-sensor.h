@@ -36,4 +36,6 @@
 
 extern const struct sensors_sensor reset_sensor;
 
+void reset_counter_reset();
+
 #endif /* __EVENT_SENSOR_H__ */
