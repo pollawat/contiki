@@ -384,9 +384,9 @@ printf("\nADDR %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
-uart1_init('b'); /* It ignores the input to the func */
-uart1_set_input(serial_timeout_input_byte);
-serial_timeout_init();
+  uart1_init('b'); /* It ignores the input to the func */
+  uart1_set_input(serial_timeout_input_byte);
+  serial_timeout_init();
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
