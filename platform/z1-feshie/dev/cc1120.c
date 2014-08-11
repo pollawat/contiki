@@ -1918,7 +1918,7 @@ void reader(void)
 		return;		
 	}
 	
-	printf("\tRSSI");
+	printf("\tRSSI %d ", cc1120_read_rxbytes());
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
