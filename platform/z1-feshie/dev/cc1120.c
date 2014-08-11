@@ -1223,7 +1223,7 @@ on(void)
 		cc1120_flush_rx();
 	}
 	
-	if(!(radio_on && cc1120_get_state() == CC1120_STATUS_RX))
+	if(cc1120_get_state() != CC1120_STATUS_RX)
 	{
 		radio_on = 1;
 		cc1120_set_state(CC1120_STATE_RX);		/* Put radio into RX. */
@@ -2050,5 +2050,9 @@ void reader(void)
 	else
 	{
 		packet_pending = 0;
+	}
+	if(radio_on)
+	{
+		on();
 	}	
 }
