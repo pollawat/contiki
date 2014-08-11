@@ -1907,6 +1907,7 @@ void reader(void)
 	cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
+	printf("\t%d ", cc1120_read_rxbytes());
 	printf("D\n");
 		
 	if(radio_pending & RX_FIFO_UNDER)
