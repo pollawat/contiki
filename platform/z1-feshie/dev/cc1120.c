@@ -281,6 +281,11 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 
 	lbt_success = 0;
 	
+	if(radio_on)
+	{
+		on();
+	}
+	
 	return RADIO_TX_OK;
 }
 
@@ -297,9 +302,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
 		PRINTFTX("!!! TX ERROR: Packet too large. !!!\n");
-		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		if(radio_on)
 		{
-			cc1120_set_state(CC1120_STATE_RX);
+			on();
 		}
 		return RADIO_TX_ERR;
 	}
@@ -424,9 +429,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			RIMESTATS_ADD(contentiondrop);
 			lbt_success = 0;
 			
-			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			if(radio_on)
 			{
-				cc1120_set_state(CC1120_STATE_RX);
+				on();
 			}
 			
 			/* Return Collision. */
@@ -445,9 +450,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			RELEASE_SPI();
 			lbt_success = 0;
 			
-			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			if(radio_on)
 			{
-				cc1120_set_state(CC1120_STATE_RX);
+				on();
 			}
 			
 			return RADIO_TX_ERR;
@@ -478,9 +483,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		RELEASE_SPI();
 		LEDS_OFF(LEDS_GREEN);	/* Turn off LED if it is being used. */			
 		
-		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		if(radio_on)
 		{
-			cc1120_set_state(CC1120_STATE_RX);
+			on();
 		}
 		
 		return RADIO_TX_ERR;
@@ -547,9 +552,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		
 		radio_pending &= ~(TX_ERROR | ACK_PENDING);
 		
-		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		if(radio_on)
 		{
-			cc1120_set_state(CC1120_STATE_RX);
+			on();
 		}
 		
 		return RADIO_TX_ERR;
@@ -586,9 +591,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				watchdog_periodic();
 			}
 			
-			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			if(radio_on)
 			{
-				cc1120_set_state(CC1120_STATE_RX);
+				on();
 			}
 			
 			return RADIO_TX_OK;	
@@ -656,9 +661,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			{
 				/* We have received the required ACK. */
 				PRINTFTX("\tACK Rec %d\n", ack_buf[2]);
-				if(radio_on && (cur_state != CC1120_STATUS_RX)
+				if(radio_on)
 				{
-					cc1120_set_state(CC1120_STATE_RX);
+					on();
 				}
 				return RADIO_TX_OK;
 			}
@@ -666,25 +671,25 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			{
 				/* No ACK received. */
 				PRINTFTX("\tNo ACK received.\n");
-				if(radio_on && (cur_state != CC1120_STATUS_RX)
+				if(radio_on)
 				{
-					cc1120_set_state(CC1120_STATE_RX);
+					on();
 				}
 				return RADIO_TX_NOACK;
 			}
 			
 		}	
 		cc1120_flush_tx();
-		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		if(radio_on)
 		{
-			cc1120_set_state(CC1120_STATE_RX);
+			on();
 		}
 		return RADIO_TX_OK;
 	}
 	cc1120_flush_tx();
-	if(radio_on && (cur_state != CC1120_STATUS_RX)
+	if(radio_on)
 	{
-		cc1120_set_state(CC1120_STATE_RX);
+		on();
 	}
 	return RADIO_TX_ERR;
 }
