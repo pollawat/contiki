@@ -219,6 +219,9 @@ cc1120_driver_init(void)
 	/* Set Channel */
 	cc1120_set_channel(RF_CHANNEL);                            
 	
+	/* Flush the RX FIFO. */
+	cc1120_flush_rx();
+	
     /* Set radio off */
 	cc1120_driver_off();
 	
@@ -294,7 +297,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	{
 		/* Packet is too large - max packet size is 125 bytes. */
 		PRINTFTX("!!! TX ERROR: Packet too large. !!!\n");
-
+		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+		}
 		return RADIO_TX_ERR;
 	}
 	LOCK_SPI();
@@ -417,6 +423,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			PRINTFTXERR("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
 			RIMESTATS_ADD(contentiondrop);
 			lbt_success = 0;
+			
+			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
+			
 			/* Return Collision. */
 			return RADIO_TX_COLLISION;
 		}
@@ -432,6 +444,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			
 			RELEASE_SPI();
 			lbt_success = 0;
+			
+			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
+			
 			return RADIO_TX_ERR;
 		}
 		cur_state = cc1120_get_state();
@@ -460,6 +478,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		RELEASE_SPI();
 		LEDS_OFF(LEDS_GREEN);	/* Turn off LED if it is being used. */			
 		
+		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+		}
+		
 		return RADIO_TX_ERR;
 	}
 #endif /* WITH_SEND_CCA */	
@@ -482,11 +505,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			break;
 		}
 		
-		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
+		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/33), RTIMER_NOW()))
 		{
 			/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
 			 * TX FIFO (all 128 bits) should be transmitted in 0.02 
-			 * seconds. Timeout set to 0.05 seconds to be sure.  If 
+			 * seconds. Timeout set to 0.03 seconds to be sure.  If 
 			 * the interrupt has not fired by this time then something 
 			 * went wrong. 
 			 * 
@@ -523,6 +546,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		printf("txbytes = %d\n", cc1120_read_txbytes());
 		
 		radio_pending &= ~(TX_ERROR | ACK_PENDING);
+		
+		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+		}
+		
 		return RADIO_TX_ERR;
 	}
 	else
@@ -550,11 +579,18 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			 * an ACK so clear RXFIFO incase, wait for interpacket and return OK. */
 			PRINTFTX("\tBroadcast TX OK\n");
 			cc1120_flush_rx();	
+			cc1120_flush_tx();
 			radio_pending &= ~(ACK_PENDING);	/* NOT expecting and ACK. */	
 			while(RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CC1120_INTER_PACKET_INTERVAL))
 			{ 
-					watchdog_periodic();
+				watchdog_periodic();
 			}
+			
+			if(radio_on && (cur_state != CC1120_STATUS_RX)
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
+			
 			return RADIO_TX_OK;	
 		}		
 		else 
@@ -614,22 +650,41 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			}
 			radio_pending &= ~(ACK_PENDING);
 			
+			cc1120_flush_tx();
+			
 			if(ack_buf[2] == tx_seq)
 			{
 				/* We have received the required ACK. */
 				PRINTFTX("\tACK Rec %d\n", ack_buf[2]);
-				
+				if(radio_on && (cur_state != CC1120_STATUS_RX)
+				{
+					cc1120_set_state(CC1120_STATE_RX);
+				}
 				return RADIO_TX_OK;
 			}
 			else
 			{
 				/* No ACK received. */
 				PRINTFTX("\tNo ACK received.\n");
+				if(radio_on && (cur_state != CC1120_STATUS_RX)
+				{
+					cc1120_set_state(CC1120_STATE_RX);
+				}
 				return RADIO_TX_NOACK;
 			}
 			
 		}	
+		cc1120_flush_tx();
+		if(radio_on && (cur_state != CC1120_STATUS_RX)
+		{
+			cc1120_set_state(CC1120_STATE_RX);
+		}
 		return RADIO_TX_OK;
+	}
+	cc1120_flush_tx();
+	if(radio_on && (cur_state != CC1120_STATUS_RX)
+	{
+		cc1120_set_state(CC1120_STATE_RX);
 	}
 	return RADIO_TX_ERR;
 }
@@ -897,6 +952,7 @@ cc1120_driver_channel_clear(void)
 		{
 			/* Not in RX... */
 			return 1;
+			cc1120_set_state(CC1120_STATE_RX);
 		}
 		
 		/* Wait till the CARRIER_SENSE is valid. */
@@ -923,6 +979,11 @@ cc1120_driver_channel_clear(void)
 			cca = 1;
 			PRINTF("\t Channel clear.\n");
 			LEDS_ON(LEDS_BLUE);
+		}
+		
+		if(!radio_on)
+		{
+			cc1120_set_state(CC1120_STATE_IDLE);
 		}
 		return cca;
 	}
@@ -1618,21 +1679,16 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
+	uint8_t marc_status, cur_state;
+	
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
 	if(cc1120_arch_spi_enabled())
 	{
 		cc1120_arch_spi_disable();
 	}
 	
-	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
+	marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	cc1120_arch_interrupt_acknowledge();
-	
-	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
-	{
-		return 0;
-	}
-	
-	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
 	
 	if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED)
 	{
@@ -1651,13 +1707,31 @@ cc1120_interrupt_handler(void)
 		return 1;
 	}	
 	
+	cur_state = cc1120_get_state();
+	
+	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
+	{
+		return 0;
+	}
+	
+	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
+	
+	
 	switch (marc_status){
 		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
-			/* RX terminated due to timeout.  Should not get here as there is  */							
+			/* RX terminated due to timeout.  Should not get here as there is  */		
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
 			/* RX Terminated on CS or PQT. */
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
@@ -1665,17 +1739,29 @@ cc1120_interrupt_handler(void)
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
-			/* Packet discarded due to being too long. Flush RX FIFO? */	
+			/* Packet discarded due to being too long. Flush RX FIFO? */		
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
 			/* Packet discarded due to bad address - should not get here 
 			 * as address matching is not being used. Flush RX FIFO? */						
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
 			/* Packet discarded due to bad CRC. Should not need to flush 
 			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/			
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
@@ -1692,7 +1778,11 @@ cc1120_interrupt_handler(void)
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
-			cc1120_flush_rx();									
+			cc1120_flush_rx();				
+			if(radio_on && (cur_state != CC1120_STATUS_RX))
+			{
+				cc1120_set_state(CC1120_STATE_RX);
+			}
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
@@ -1794,6 +1884,11 @@ void reader(void)
 		RIMESTATS_ADD(tooshort);
 		
 		PRINTFRXERR("\tERROR: Packet too short\n");
+		return;
+	}
+	if(rxbytes == 4)
+	{
+		/* ACK packet, ignore.*/
 		return;
 	}
 	
