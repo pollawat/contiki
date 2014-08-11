@@ -1915,7 +1915,7 @@ void reader(void)
 	uint8_t it;
 	for(it = 0; it < rx_len; it++)
 	{
-		rx_buf[it] = cc1120_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		rx_buf[it] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 		printf(" %d f %d\t", it, cc1120_read_rxbytes());  
 	
 	}
