@@ -1,0 +1,1 @@
+make TARGET=z1-feshie z1-reset && make TARGET=z1-feshie connect-router 
