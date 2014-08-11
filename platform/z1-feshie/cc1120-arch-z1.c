@@ -242,7 +242,7 @@ cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 	{
 		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 		packet[it] = cc1120_arch_spi_rw_byte(0);
-		if((it == 16) || (it == 32) || (it == 47))
+		if((it == 16) || (it == 32) || (it == 47) || (it == 50) || (it == 55) || (it == 61))
 		{
 			cc1120_arch_spi_disable();
 			
