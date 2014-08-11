@@ -1191,6 +1191,7 @@ on(void)
 	{
 		/* RX FIFO has previously overflowed or underflowed, flush. */
 		cc1120_flush_rx();
+		PRINTFRXERR(\t"RX FIFO flushed due to under/overflow. on()\n");
 	}
 	
 	if((packet_pending == 0) && (cc1120_read_rxbytes > 0))
@@ -1897,10 +1898,11 @@ void reader(void)
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
-
+	printf("\tR");
 	cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
+	printf("D\n");
 	
 	if(radio_pending & RX_FIFO_UNDER)
 	{
@@ -2012,7 +2014,7 @@ void reader(void)
 			RELEASE_SPI();
 		}
 	}
-	
+	printf("\tRSSI");
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
@@ -2024,7 +2026,7 @@ void reader(void)
 		PRINTFRXERR("\tERROR: RX FIFO underflow during info read.\n");	
 		return;		
 	}
-	
+	printf("LQI\n");
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", rx_len);
 	
