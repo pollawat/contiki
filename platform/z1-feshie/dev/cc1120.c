@@ -1905,11 +1905,21 @@ void reader(void)
 	PRINTFRX("\tPacket received.\n");
 	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d, have %d\n", rx_len, rxbytes, cc1120_read_rxbytes());
 	printf("\tR");
-	cc1120_arch_spi_enable();
+	/*cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
 	printf("\t%d ", cc1120_read_rxbytes());
 	printf("D\n");
+	*/
+	
+	uint8_t it;
+	for(it = 0, it < rx_len, it++)
+	{
+		rx_buf[it] = cc1120_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		printf(" %d f %d\t", it, cc1120_read_rxbytes);  
+	
+	}
+	
 		
 	if(radio_pending & RX_FIFO_UNDER)
 	{
