@@ -73,6 +73,7 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
 
 void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
         int8_t payload_length){
+   PRINTF("protobuf_send_message\n");
     uint8_t buf[MAX_MESSAGE_LENGTH];
     uint8_t buf_length = 0;       
     uint16_t crc = 0xFFFF;

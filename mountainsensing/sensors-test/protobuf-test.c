@@ -20,6 +20,7 @@ PROCESS_THREAD (temp_process, ev, data)
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
  
         protobuf_send_message(0x01, OPCODE_GET_DATA, 0x00, 0);
+	printf("Sent request\n");
       }
   }
   ms1_sense_off();
