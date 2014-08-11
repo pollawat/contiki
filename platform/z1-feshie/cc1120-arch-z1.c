@@ -234,14 +234,27 @@ cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length)
 void 
 cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length)
 {
-	uint8_t i;
+	uint8_t it;
 	
 	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 	
-	for(i = 0; i < packet_length; i++)
+	for(it = 0; it < packet_length; it++)
 	{
 		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
-		packet[i] = cc1120_arch_spi_rw_byte(0);
+		packet[it] = cc1120_arch_spi_rw_byte(0);
+		if((it == 16) || (it == 32) || (it == 47))
+		{
+			cc1120_arch_spi_disable();
+			
+			cc1120_arch_spi_enable();
+			cc1120_arch_spi_rw_byte(CC1120_ADDR_EXTENDED_MEMORY_ACCESS | CC1120_READ_BIT | CC1120_STANDARD_BIT); 
+			cc1120_arch_spi_rw_byte(0xD7);
+			printf(" %d R %d\t ", it, cc1120_arch_spi_rw_byte(0));
+			cc1120_arch_spi_disable();
+			
+			cc1120_arch_spi_enable();
+			(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+		}
 	}
 	watchdog_periodic();
 }
