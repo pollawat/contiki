@@ -1902,6 +1902,7 @@ void reader(void)
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
+	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d\n", rx_len, rxbytes);
 	printf("\tR");
 	cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
