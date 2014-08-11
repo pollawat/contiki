@@ -47,8 +47,11 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
   }
   printf("\n");
 #endif
-    if(buf[1] != 0xFF){
+
+    if(buf[1] != OPCODE_RESPONSE){
         PRINTF("not a response packet so ignoring\n");
+    }if(buf[1] != MASTER_ADDR){
+        printf("not for me: ignoring");
     }else{
         rec_crc = (buf[bytes - 1] << 8) | buf[bytes-2];
         PRINTF("Recieved CRC: %d\n", rec_crc);
@@ -58,8 +61,10 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
         PRINTF("Calculated CRC: %d", rec_crc);
         if (rec_crc == cal_crc){
             PRINTF("CRCs match\n");
+            //put processing in here
         }else{
             printf("CRCs do not match: Ignoring\n");
+            return;
         }
     }
 }
@@ -110,4 +115,12 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
 
 void protobuf_handler_set_writeb(int (*wb)(unsigned char c)){
     writebyte = wb;    
+}
+
+void read_devices(uint8_t *data, uint32_t *avrIDs, size_t count){
+    int i;
+    for(i=0; i < count; i++){
+        protobut_send_message(avrIDs[i], OPCODE_GET_DATA, 0, 0);
+        
+    }
 }
