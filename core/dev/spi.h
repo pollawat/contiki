@@ -62,6 +62,7 @@ void spi_init(void);
     SPI_WAITFORTx_BEFORE();                     \
     SPI_TXBUF = data;                           \
     SPI_WAITFOREOTx();                          \
+	 printf("BZZZZZZZERT"); \
   } while(0)
 
 /* Write one character to SPI - will not wait for end
@@ -71,6 +72,7 @@ void spi_init(void);
     SPI_WAITFORTx_BEFORE();                     \
     SPI_TXBUF = data;                           \
     SPI_WAITFORTx_AFTER();                      \
+	 printf("BZZZZZZZERT"); \
   } while(0)
 
 /* Read one character from SPI */
@@ -79,6 +81,7 @@ void spi_init(void);
     SPI_TXBUF = 0;       \
     SPI_WAITFOREORx();   \
     data = SPI_RXBUF;    \
+	 printf("BZZZZZZZERT"); \
   } while(0)
 
 /* Flush the SPI read register */
