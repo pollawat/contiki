@@ -1880,6 +1880,7 @@ void reader(void)
 	
 	/* Read rx_length byte. */
 	rx_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	printf("\trxbytes %d\n", cc1120_read_rxbytes());
 	
 	if((rx_len + 2) > rxbytes)
 	{
@@ -1902,7 +1903,7 @@ void reader(void)
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
-	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d\n", rx_len, rxbytes);
+	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d, have %d\n", rx_len, rxbytes, cc1120_read_rxbytes());
 	printf("\tR");
 	cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
