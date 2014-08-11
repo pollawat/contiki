@@ -1882,7 +1882,7 @@ void reader(void)
 		cc1120_flush_rx();
 			
 		RIMESTATS_ADD(badsynch);
-		PRINTFRXERR("\tERROR: not enough data in FIFO. rx_length = %d, rxbytes = %d\n", rx_length, rxbytes);
+		PRINTFRXERR("\tERROR: not enough data in FIFO. rx_length = %d, rxbytes = %d\n", rx_len, rxbytes);
 		return;
 	}
 	else if((rx_len) > PACKETBUF_SIZE) 
