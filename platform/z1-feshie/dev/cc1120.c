@@ -631,7 +631,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			if(cc1120_get_state() != CC1120_STATUS_RX)
 			{
 				/* We have received something. */
+				printf("\tRT");
 				transmit_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+				printf("L\n");
 				
 				if(transmit_len == 3)
 				{
@@ -709,7 +711,7 @@ cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 int
 cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
-	PRINTF("**** Radio Driver: Read ****\n");
+	printf("**** Radio Driver: Read ****\n");
 
 	uint8_t length,  rxbytes = 0;
 	rimeaddr_t dest;
@@ -735,7 +737,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	}
 	
 	/* Read length byte. */
+	printf("\tR");
 	length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	printf("L\n");
 	
 	if((length + 2) > rxbytes)
 	{
