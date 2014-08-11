@@ -132,6 +132,7 @@ static void off(void);
 static void LOCK_SPI(void);
 static void RELEASE_SPI(void);
 static void processor(void);
+static void reader(void);
 
 /* ---------------------- CC1120 SPI Functions ----------------------------- */
 static uint8_t cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw);
@@ -164,13 +165,11 @@ const struct radio_driver cc1120_driver = {
 
 
 /* ------------------- Internal variables -------------------------------- */
-static uint8_t current_channel, packet_pending, broadcast, ack_seq, tx_seq, lbt_success, radio_pending, radio_on, txfirst, txlast = 0;
-static uint8_t locked, lock_on, lock_off;
+static uint8_t current_channel, packet_pending, broadcast, ack_seq, lbt_success, radio_pending, radio_on, txfirst, txlast = 0;
+static uint8_t rx_len, rx_rssi, rx_lqi, tx_len, tx_seq, locked, lock_on, lock_off = 0;
 
-static uint8_t ack_buf[ACK_LEN];
-static uint8_t tx_buf[CC1120_MAX_PAYLOAD];
+static uint8_t ack_buf[ACK_LEN], tx_buf[CC1120_MAX_PAYLOAD], rx_buf[CC1120_MAX_PAYLOAD];
 
-static uint8_t tx_len;
 
 /* ------------------- Radio Driver Functions ---------------------------- */
 
@@ -208,7 +207,7 @@ cc1120_driver_init(void)
 			break;
 	}
 	
-	printf("Detected & OK\n"); 
+	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -1646,6 +1645,7 @@ cc1120_interrupt_handler(void)
 		/* We have received a packet.  This is done first to make RX faster. */
 		//LEDS_ON(LEDS_RED);
 		packet_pending++;
+		reader();
 		
 		process_poll(&cc1120_process);
 		return 1;
@@ -1739,19 +1739,43 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		
 void processor(void)
 {			
-	uint8_t len, rxbytes = 0;	
-	uint8_t buf[CC1120_MAX_PAYLOAD];
-	rimeaddr_t dest;
-			
 	PRINTFPROC("** Process Poll **\n");
+
+	/* Load the packet buffer. */
+	memcpy(packetbuf_dataptr(), (void *)rx_buf, rx_len);
+	
+	/* Read RSSI & LQI. */
+	packetbuf_set_attr(PACKETBUF_ATTR_RSSI, rx_rssi);
+	packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, rx_lqi);
+	
+	/* Set packet buffer length. */
+	packetbuf_set_datalen(rx_len);		/* Set Packetbuffer length. */
+	PRINTFPROC("\tPacket Length: %d\n", rx_len);	
+	
+	NETSTACK_RDC.input();
+		
+	LEDS_OFF(LEDS_RED);
+	if(locked)
+	{
+		printf("Locked %u\n", locked); 
+	}
+	
+	if(radio_on)
+	{
+		on();
+	}
+}
+
+void reader(void)
+{			
+	uint8_t rxbytes = 0;	
+	rimeaddr_t dest;
+
 	LEDS_ON(LEDS_RED);
 	watchdog_periodic();	
 	
-	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
-		cc1120_arch_spi_disable();
-	}	
+	/* Disable SPI incase we are interrupting another spi process. */
+	cc1120_arch_spi_disable();
 	
 	if(radio_pending & RX_FIFO_UNDER)
 	{
@@ -1773,44 +1797,33 @@ void processor(void)
 		return;
 	}
 	
-	/* Read length byte. */
-	len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	/* Read rx_length byte. */
+	rx_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	
-	if((len + 2) > rxbytes)
+	if((rx_len + 2) > rxbytes)
 	{
 		/* Packet too long, out of Sync? */
 		cc1120_flush_rx();
 			
 		RIMESTATS_ADD(badsynch);
-		PRINTFRXERR("\tERROR: not enough data in FIFO. Length = %d, rxbytes = %d\n", length, rxbytes);
+		PRINTFRXERR("\tERROR: not enough data in FIFO. rx_length = %d, rxbytes = %d\n", rx_length, rxbytes);
 		return;
 	}
-	else if(len > CC1120_MAX_PAYLOAD)
-	{
-		/* Packet too long, out of Sync? */
-		cc1120_flush_rx();
-		
-		RIMESTATS_ADD(badsynch);
-		PRINTFRXERR("\tERROR: Packet longer than FIFO or bad sync\n");
-		return;
-	}
-	else if((len) > PACKETBUF_SIZE) 
+	else if((rx_len) > PACKETBUF_SIZE) 
 	{
 		/* Packet is too long. */
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(toolong);
-		PRINTFRXERR("\tERROR: Packet too long for buffer\n");	
+		PRINTFRXERR("\tERROR: Packet too long for rx_buffer\n");	
 		return;
 	}
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
 
-	packetbuf_clear(); /* Clear the packetbuffer. */
-	
 	cc1120_arch_spi_enable();
-	cc1120_arch_rxfifo_read(buf, len);
+	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
 	
 	if(radio_pending & RX_FIFO_UNDER)
@@ -1818,42 +1831,33 @@ void processor(void)
 		/* FIFO underflow */
 		RELEASE_SPI();
 		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", len);	
+		PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", rx_len);	
 		return;		
 	}
 	
 	RELEASE_SPI();
 	
-	if(radio_pending & RX_FIFO_UNDER)
-	{
-		/* FIFO underflow */
-		
-		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
-		return;		
-	}
-	
 	/* If the FCF states that it is an ACK request, */
-	if(buf[0] & CC1120_802154_FCF_ACK_REQ)
+	if(rx_buf[0] & CC1120_802154_FCF_ACK_REQ)
 	{
 		/* Get the address in the correct order. */
-		if((buf[1] & 0x0C) == 0x0C)
+		if((rx_buf[1] & 0x0C) == 0x0C)
 		{
 			/* Long address. */
-			dest.u8[7] = buf[5];
-			dest.u8[6] = buf[6];
-			dest.u8[5] = buf[7];
-			dest.u8[4] = buf[8];
-			dest.u8[3] = buf[9];
-			dest.u8[2] = buf[10];
-			dest.u8[1] = buf[11];
-			dest.u8[0] = buf[12];
+			dest.u8[7] = rx_buf[5];
+			dest.u8[6] = rx_buf[6];
+			dest.u8[5] = rx_buf[7];
+			dest.u8[4] = rx_buf[8];
+			dest.u8[3] = rx_buf[9];
+			dest.u8[2] = rx_buf[10];
+			dest.u8[1] = rx_buf[11];
+			dest.u8[0] = rx_buf[12];
 		}
-		else if((buf[1] & 0x08) == 0x08)
+		else if((rx_buf[1] & 0x08) == 0x08)
 		{
 			/* Short address. */
-			dest.u8[1] = buf[5];
-			dest.u8[0] = buf[6];
+			dest.u8[1] = rx_buf[5];
+			dest.u8[0] = rx_buf[6];
 		}
 		
 		/* Work out if we need to send an ACK. */
@@ -1866,10 +1870,10 @@ void processor(void)
 			/* Packet is for this node. */
 			watchdog_periodic();	/* Feed the dog to stop reboots. */
 			
-			/* Populate ACK Frame buffer. */
+			/* Populate ACK Frame rx_buffer. */
 			ack_buf[0] = ACK_FRAME_CONTROL_LSO;
 			ack_buf[1] = ACK_FRAME_CONTROL_MSO;
-			ack_buf[2] = buf[2];
+			ack_buf[2] = rx_buf[2];
 			
 			radio_pending &= ~(TX_COMPLETE);
 			
@@ -1926,15 +1930,18 @@ void processor(void)
 			
 			/* Sort out the TX FIFO. */
 			cc1120_flush_tx();
-			//cc1120_write_txfifo(tx_buf, tx_len);
+			//cc1120_write_txfifo(tx_rx_buf, tx_rx_len);
 			txlast = txfirst;
 			
 			RELEASE_SPI();
 		}
 	}
 	
+	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
+	
 	RIMESTATS_ADD(llrx);
-	PRINTFRX("\tRX OK - %d byte packet.\n", len);
+	PRINTFRX("\tRX OK - %d byte packet.\n", rx_len);
 	
 	if(packet_pending > 1)
 	{
@@ -1943,30 +1950,5 @@ void processor(void)
 	else
 	{
 		packet_pending = 0;
-	}
-	
-	PRINTFPROC("\tPacket Length: %d\n", len);	
-	
-	/* Load the packet buffer. */
-	memcpy(packetbuf_dataptr(), (void *)buf, len);
-	
-	/* Read RSSI & LQI. */
-	packetbuf_set_attr(PACKETBUF_ATTR_RSSI, cc1120_spi_single_read(CC1120_FIFO_ACCESS));
-	packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, (cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK));
-	
-	/* Set packet buffer length. */
-	packetbuf_set_datalen(len);		/* Set Packetbuffer length. */
-	
-	NETSTACK_RDC.input();
-		
-	LEDS_OFF(LEDS_RED);
-	if(locked)
-	{
-		printf("Locked %u\n", locked); 
-	}
-	
-	if(radio_on)
-	{
-		on();
-	}
+	}	
 }
