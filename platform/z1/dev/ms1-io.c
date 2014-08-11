@@ -24,6 +24,13 @@ void ms1_io_init(void){
   SENSE_EN_PORT(REN) &= ~BV(SENSE_EN_PIN);
   SENSE_EN_PORT(OUT) &= ~BV(SENSE_EN_PIN);
 
+  //Make sure all analogue input pins are inputs.
+  P6DIR = 0x00;
+  P6SEL = 0x00;
+  
+  /* Ensure that rain bucket is input. */
+  P2DIR &= ~BV(0);
+
   // Set up radio control pin
   RADIO_EN_PORT(SEL) &= ~BV(RADIO_EN_PIN);
   RADIO_EN_PORT(DIR) |= BV(RADIO_EN_PIN);

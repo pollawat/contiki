@@ -369,8 +369,9 @@ PROCESS_THREAD(border_router_process, ev, data)
     PRINTF("created a new RPL dag\n");
   }
 
-  /* Now turn the radio on, but disable radio duty cycling.
-   * Since we are the DAG root, reception delays would constrain mesh throughbut.
+  /* Now turn the radio on, we want duty cycling with the cc1120 driver for now.
+   * //but disable radio duty cycling.
+   * //Since we are the DAG root, reception delays would constrain mesh throughbut.
    */
   // this was: NETSTACK_MAC.off(1);
   NETSTACK_MAC.on();
