@@ -48,6 +48,8 @@
 #include "lib/ringbuf.h"
 #include "isr_compat.h"
 
+#include "platform-conf.h"
+
 #ifdef UART1_DEBUG
   #include <stdio.h>
   #define PRINTFDEBUG(...) printf(__VA_ARGS__)
@@ -291,9 +293,8 @@ uart1_writeb(unsigned char c)
 }
 
 //4s485 txen is port 2.3
-#define RS485TXEN_SET() P2OUT |= (1<<3)
-#define RS485TXEN_CLEAR() P2OUT &= ~(1<<3)
-#define RS484TXEN_SETUP() P2DIR |= (1<<3); P2OUT &= ~(1<<3)
+#define RS485TXEN_SET() RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN)
+#define RS485TXEN_CLEAR() RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN)
 
 void
 uart1_writearray(unsigned char* c,int length)
@@ -311,22 +312,41 @@ uart1_writearray(unsigned char* c,int length)
 
 /*----------------------------------------------------------------------------*/
 /**
+ * Configure pins for RS232 port.
+ *
+ */
+void 
+uart1_pin_init(void)
+{
+  UCA1CTL1 |= UCSWRST;            /* Hold peripheral in reset state */
+
+  /* Configure TX/RX Pins. */
+  UART1_RX_PORT(SEL) |= BV(UART1_RX_PIN);  /*3.7 as input*/
+  UART1_RX_PORT(DIR) &= ~BV(UART1_RX_PIN);  /*3.7 as input*/
+  UART1_TX_PORT(SEL) |= BV(UART1_TX_PIN);   /*3.6 as output*/
+  UART1_TX_PORT(DIR) |= BV(UART1_TX_PIN);   /*3.6 as output*/
+
+  /* Configure RS485 TXEN pin. */
+  RS485_TXEN_PORT(DIR) |= BV(RS485_TXEN_PIN); 
+  RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/**
  * Initalize the RS232 port.
  *
  */
 void
 uart1_init(unsigned long ubr)
 {
-  UCA1CTL1 |= UCSWRST;            /* Hold peripheral in reset state */
-  P3SEL |= 0xC0;                            /* P3.6,7 = USCI_A1 TXD/RXD */
-/*  P3SEL2 &= ~0xC0; This register doesn't seem to be defined anywhere */
-  P3DIR &= ~0x80;                 /*3.7 as input*/
-  P3DIR |= 0x40;                    /*3.6 as output*/
+  uart1_pin_init();
 
   UCA1CTL0 = 0x00;
   UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
-  UCA1BR0 = BAUD2UBR(38400); /*Hard coded as passing an arg in didn't work */
-  UCA1BR1 = 0x00;
+//  UCA1BR0 = BAUD2UBR(38400); /*Hard coded as passing an arg in didn't work */
+  UCA1BR0 = 0x40;
+  UCA1BR1 = 0x03;
   UCA1MCTL = UCBRS_2;                        /* Modulation UCBRSx = 4 */
 
   UCA1CTL1 &= ~UCSWRST;                     /* Initialize USCI state machine */
@@ -339,8 +359,7 @@ uart1_init(unsigned long ubr)
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
 
-  printf(".");
-  RS484TXEN_SETUP();			//setup pin for rs485
+  PRINTFDEBUG(".");
 }
 
 

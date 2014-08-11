@@ -211,6 +211,11 @@ main(int argc, char **argv)
   clock_init();
   ms1_io_init(); 
  
+  i2c_enable();
+  
+  uart1_set_input(serial_timeout_input_byte);
+  serial_timeout_init();
+  
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
@@ -226,6 +231,7 @@ main(int argc, char **argv)
 #endif
 #endif /* WITH_UIP */
 
+  uart1_init('b'); /* It ignores the input to the func */
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
   
   xmem_init();

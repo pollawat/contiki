@@ -151,6 +151,27 @@ typedef unsigned long off_t;
 
 
 /* **************************************************************************** */
+/* ------------------------------- MS1 Related -------------------------------- */
+/* **************************************************************************** */
+
+#define SENSE_EN_PORT(type) P4##type		/* Sense enable Pin. */
+#define SENSE_EN_PIN 0
+
+#define RADIO_EN_PORT(type) P4##type		/* Radio power enable Pin. */
+#define RADIO_EN_PIN 2
+
+#define RS485_TXEN_PORT(type) P2##type		/* TX Enable pin for RS485 Driver. */
+#define RS485_TXEN_PIN 3
+
+#define UART1_RX_PORT(type) P3##type		/* UART1 RX Pin. */
+#define UART1_RX_PIN 7
+
+#define UART1_TX_PORT(type) P3##type		/* UART1 TX Pin. */
+#define UART1_TX_PIN 6
+
+
+
+/* **************************************************************************** */
 /* --------------------------- M25P80 Flash Related --------------------------- */
 /* **************************************************************************** */
 #define FLASH_CS	4	/* P4.4 Output */

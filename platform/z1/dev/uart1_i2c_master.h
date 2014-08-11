@@ -97,6 +97,7 @@ void uart1_init(unsigned long ubr);
 
 void uart1_set_input(int (*input)(unsigned char c));
 void uart1_writeb(unsigned char c);
+void uart1_pin_init(void);
 void uart1_init(unsigned long ubr);
 uint8_t uart1_active(void);
 
