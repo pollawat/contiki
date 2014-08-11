@@ -1191,7 +1191,7 @@ on(void)
 	{
 		/* RX FIFO has previously overflowed or underflowed, flush. */
 		cc1120_flush_rx();
-		PRINTFRXERR(\t"RX FIFO flushed due to under\/overflow. on()\n");
+		PRINTFRXERR("\tRX FIFO flushed due to under\/overflow. on()\n");
 	}
 	
 	if((packet_pending == 0) && (cc1120_read_rxbytes > 0))
