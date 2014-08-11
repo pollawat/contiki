@@ -18,6 +18,7 @@
 	#define PRINTF(...)
 #endif
 static int (*writebyte)(unsigned char c);
+uint16_t crc16_up(uint16_t crc, uint8_t a);
 
 
 uint16_t crc16_up(uint16_t crc, uint8_t a){
