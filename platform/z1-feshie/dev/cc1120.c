@@ -2046,6 +2046,7 @@ void reader(void)
 	}
 	if(radio_on)
 	{
+		printf("asda");
 		on();
 	}	
 }
