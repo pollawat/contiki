@@ -1908,7 +1908,7 @@ void reader(void)
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
 	printf("D\n");
-	
+		
 	if(radio_pending & RX_FIFO_UNDER)
 	{
 		/* FIFO underflow */
@@ -1917,6 +1917,10 @@ void reader(void)
 		PRINTFRXERR("\tERROR: RX FIFO underflow during packet read.\n");	
 		return;		
 	}
+	
+	printf("\tRSSI");
+	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
 	RELEASE_SPI();
 	
@@ -2019,9 +2023,6 @@ void reader(void)
 			RELEASE_SPI();
 		}
 	}
-	printf("\tRSSI");
-	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
 	if(radio_pending & RX_FIFO_UNDER)
 	{
