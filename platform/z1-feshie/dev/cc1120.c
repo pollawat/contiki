@@ -51,7 +51,7 @@
 #define PRINTFRX(...) do {} while (0)
 #endif
 
-#if CC1120DEBUG || CC1120RXDEBUG || DEBUG
+#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG || DEBUG
 #define PRINTFRXERR(...) printf(__VA_ARGS__)
 #else
 #define PRINTFRXERR(...) do {} while (0)
@@ -767,12 +767,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
-	if(buf == packetbuf_dataptr())
-	{
-		/* Working with the packetbuffer. */
-		packetbuf_clear(); /* Clear the packetbuffer. */
-		//packetbuf_attr_clear();	
-	}		 
+
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
 	
 	/* We have received a normal packet. Read the packet. */
@@ -787,31 +782,12 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		/* FIFO underflow */
 		RELEASE_SPI();
 		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", length);	
+		PRINTFRXERR("\tERROR: RXFIFO underflow during packet read 785.\n");	
 		return 0;		
 	}
 	
 	RELEASE_SPI();
-	
-	if(buf == packetbuf_dataptr())
-	{
-		printf("PB\t");
-		/* Working with the packetbuffer. */
-		PRINTFRX("\tPopulate additional info.\n");
 		
-		/* Read RSSI & LQI. */
-		packetbuf_set_attr(PACKETBUF_ATTR_RSSI, cc1120_spi_single_read(CC1120_FIFO_ACCESS));
-		packetbuf_set_attr(PACKETBUF_ATTR_LINK_QUALITY, (cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK));
-		
-		if(radio_pending & RX_FIFO_UNDER)
-		{
-			/* FIFO underflow */
-			cc1120_flush_rx();
-			PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
-			return 0;		
-		}
-	}
-	
 	/* If the FCF states that it is an ACK request, */
 	if(((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ)
 	{
@@ -1931,7 +1907,7 @@ void reader(void)
 		/* FIFO underflow */
 		RELEASE_SPI();
 		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", rx_len);	
+		PRINTFRXERR("\tERROR: RX FIFO underflow during packet read.\n");	
 		return;		
 	}
 	
@@ -2039,6 +2015,15 @@ void reader(void)
 	
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
+	
+	if(radio_pending & RX_FIFO_UNDER)
+	{
+		/* FIFO underflow */
+		RELEASE_SPI();
+		cc1120_flush_rx();
+		PRINTFRXERR("\tERROR: RX FIFO underflow during info read.\n");	
+		return;		
+	}
 	
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", rx_len);
