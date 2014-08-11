@@ -210,7 +210,8 @@ main(int argc, char **argv)
   msp430_cpu_init();
   clock_init();
   ms1_io_init(); 
-  uart1_init('b'); /* It ignores the input to the func */
+  i2c_enable();
+  
   uart1_set_input(serial_timeout_input_byte);
   serial_timeout_init();
   
@@ -229,6 +230,7 @@ main(int argc, char **argv)
 #endif
 #endif /* WITH_UIP */
 
+  uart1_init('b'); /* It ignores the input to the func */
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
   
   xmem_init();

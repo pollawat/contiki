@@ -89,6 +89,7 @@ value(int type)
 {
   return BUTTON_READ() || !timer_expired(&debouncetimer);
 }
+
 static int
 value_event(int reset)
 {
