@@ -25,11 +25,16 @@ static struct process *callback_process = NULL;
 
 uint16_t crc16_up(uint16_t crc, uint8_t a);
 
-
+/*
+ * The exact crc function used in the AVR & python
+ * There is a contiki CRC function but not sure it'll
+ * behave in the same way.
+ */
 uint16_t crc16_up(uint16_t crc, uint8_t a){
     int i;
-
+//    PRINTF("CRC UP\n");
     crc ^= a;
+//    PRINTF("crc = %lu\n", crc);
     for (i = 0; i < 8; ++i){
         if (crc & 1){
             crc = (crc >> 1) ^ 0xA001;
@@ -56,7 +61,7 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
 
     if(buf[1] != OPCODE_RESPONSE){
         PRINTF("not a response packet so ignoring\n");
-    }if(buf[1] != MASTER_ADDR){
+    }else if(buf[1] != MASTER_ADDR){
         printf("not for me: ignoring");
     }else{
         rec_crc = (buf[bytes - 1] << 8) | buf[bytes-2];
@@ -96,7 +101,7 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
 #ifdef PROTOBUF_HANDLER_DEBUG
     printf("Dest: %i\n", addr);
     printf("Optcode: %i\n", opcode);
-    printf("Payload length: %i\n", opcode); 
+    printf("Payload length: %i\n", payload_length); 
 #endif	 
 
 
@@ -112,23 +117,30 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     if (payload_length == 0){
         //No need to worry about including the payload in the CRC
     }else{
-        for(i=0; i < payload_length; i++){
+    	PRINTF("DATA:\n");
+	    for(i=0; i < payload_length; i++){
+	    PRINTF("payload:%i,",payload[i]);
             buf[buf_length++] = payload[i];
+	    PRINTF("buf:%i\n", buf[i]);
         }
     }
     for(i=0; i <  buf_length; i++){
-        crc16_up(crc, buf[i]);
+        crc = crc16_up(crc, buf[i]);
+//	PRINTF("%lu\n", crc);
     }
     buf[buf_length++] = crc & 0xFF; //Get the low order bits
     buf[buf_length++] = (crc >> 8) & 0xFF;
     PRINTF("CRC: %lu\n", crc);
-    
+    PRINTF("CRC low: %i\n", crc & 0xFF);
+    PRINTF("CRC high: %i\n", (crc >>8) & 0xFF); 
     //ready to send    
 
     if(writebyte != NULL){
         for(i=0; i < buf_length; i++){
         writebyte(buf[i]);
         }
+    }else{
+	printf("No writebyte specified\n");
     }
 }
 

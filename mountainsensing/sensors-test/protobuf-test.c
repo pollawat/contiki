@@ -24,17 +24,22 @@ PROCESS_THREAD (temp_process, ev, data)
   ms1_io_init();
   ms1_sense_on();
   uart1_init(0);
-
+  uint8_t data_out[4];
+  data_out[0] = 0x10;
+  data_out[1] = 0x11;
+  data_out[2] = 0x12;
+  data_out[3] = 0x13;
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&temp_process, protobuf_event) ;
   {
     while (1)
       {
-        protobuf_send_message(0x01, OPCODE_GET_DATA, NULL, 0x00);
+        protobuf_send_message(0x01, OPCODE_ECHO, data_out, 0x04);
         printf("Sent message\n"); 
         ctimer_set(&timeout_timer, CLOCK_SECOND * TIMEOUT_SECONDS, timer_handler, NULL);
         PROCESS_YIELD_UNTIL(ev == protobuf_event);
         if(data != NULL){
+	    printf("data recieved\n");
             ctimer_stop(&timeout_timer);
             //process data
         }else{
@@ -43,11 +48,9 @@ PROCESS_THREAD (temp_process, ev, data)
 
 
         //Wait delay before looping to stop very fast output
-        etimer_set(&et, RTIMER_SECOND);          // Set the timer
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
+//        etimer_set(&et, RTIMER_SECOND);          // Set the timer
+//        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
  
-        protobuf_send_message(0x01, OPCODE_GET_DATA, 0x00, 0);
-	printf("Sent request\n");
       }
   }
   ms1_sense_off();

@@ -41,6 +41,7 @@
 #include "dev/leds.h"
 #include "dev/serial-line.h"
 #include "dev/serial-timeout.h"
+#include "dev/protobuf-handler.h"
 #ifndef NO_SLIP
 	#include "dev/slip.h"
 #endif
@@ -213,8 +214,6 @@ main(int argc, char **argv)
  
   i2c_enable();
   
-  uart1_set_input(serial_timeout_input_byte);
-  serial_timeout_init();
   
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
@@ -232,6 +231,9 @@ main(int argc, char **argv)
 #endif /* WITH_UIP */
 
   uart1_init('b'); /* It ignores the input to the func */
+  serial_timeout_init();
+  uart1_set_input(serial_timeout_input_byte);
+  protobuf_handler_set_writeb(uart1_writeb);
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
   
   xmem_init();
