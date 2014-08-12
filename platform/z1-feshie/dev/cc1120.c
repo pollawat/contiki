@@ -1666,13 +1666,7 @@ int
 cc1120_interrupt_handler(void)
 {
 	uint8_t marc_status, cur_state;
-	
-	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
-		cc1120_arch_spi_disable();
-	}
-	
+		
 	marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	cc1120_arch_interrupt_acknowledge();
 	
@@ -1683,6 +1677,12 @@ cc1120_interrupt_handler(void)
 		{
 			return 0;
 		}	
+		
+		/* Check if we have interrupted an SPI function, if so disable SPI. */
+		if(cc1120_arch_spi_enabled())
+		{
+			cc1120_arch_spi_disable();
+		}
 		
 		/* We have received a packet.  This is done first to make RX faster. */
 		//LEDS_ON(LEDS_RED);
@@ -1844,7 +1844,7 @@ void processor(void)
 
 void reader(void)
 {			
-	uint8_t rxbytes = 0;	
+	uint8_t marc_state, i, rxbytes = 0;	
 	rimeaddr_t dest;
 
 	LEDS_ON(LEDS_RED);
@@ -1880,8 +1880,7 @@ void reader(void)
 	
 	/* Read rx_length byte. */
 	rx_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-	printf("\trxbytes %d\n", cc1120_read_rxbytes());
-	
+
 	if((rx_len + 2) > rxbytes)
 	{
 		/* Packet too long, out of Sync? */
@@ -1903,43 +1902,26 @@ void reader(void)
 	
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n");
-	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d, have %d\n", rx_len, rxbytes, cc1120_read_rxbytes());
-	printf("\tR");
-	/*cc1120_arch_spi_enable();
-	cc1120_arch_rxfifo_read(rx_buf, rx_len);
-	cc1120_arch_spi_disable();
-	printf("\t%d ", cc1120_read_rxbytes());
-	printf("D\n");
-	*/
 	
-	uint8_t it;
-	for(it = 0; it < rx_len; it++)
+	/* Read FCF. */
+	for(i = 0; i < 3; i++)
 	{
-		rx_buf[it] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		rx_buf[i] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 	}
-	
 		
-	if(radio_pending & RX_FIFO_UNDER)
-	{
-		/* FIFO underflow */
-		RELEASE_SPI();
-		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow during packet read.\n");	
-		return;		
-	}
-	
-	printf("\tRSSI %d ", cc1120_read_rxbytes());
-	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
-	
-	RELEASE_SPI();
-	
 	/* If the FCF states that it is an ACK request, */
 	if(rx_buf[0] & CC1120_802154_FCF_ACK_REQ)
 	{
 		/* Get the address in the correct order. */
+		// TODO: change this to be a mask.
 		if((rx_buf[1] & 0x0C) == 0x0C)
 		{
+			for(i = i; i < 13; i++)
+			{
+				/* Read out header & address. */
+				rx_buf[i] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+			}
+			
 			/* Long address. */
 			dest.u8[7] = rx_buf[5];
 			dest.u8[6] = rx_buf[6];
@@ -1950,8 +1932,15 @@ void reader(void)
 			dest.u8[1] = rx_buf[11];
 			dest.u8[0] = rx_buf[12];
 		}
+		// TODO: make this a mask
 		else if((rx_buf[1] & 0x08) == 0x08)
 		{
+			for(i = i; i < 7; i++)
+			{
+				/* Read out header & address. */
+				rx_buf[i] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+			}
+			
 			/* Short address. */
 			dest.u8[1] = rx_buf[5];
 			dest.u8[0] = rx_buf[6];
@@ -1986,12 +1975,15 @@ void reader(void)
 			cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 			t0 = RTIMER_NOW(); 
 			
+			marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
+			
 			/* Block till TX is complete. */	
-			while(!(radio_pending & TX_COMPLETE))
+			while(marc_state == CC1120_MARC_STATE_MARC_STATE_TX)
 			{
 				/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
 				PRINTFRX(".");
+				marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;
 				
 				if(radio_pending & TX_FIFO_ERROR)
 				{
@@ -2034,15 +2026,17 @@ void reader(void)
 		}
 	}
 	
-	if(radio_pending & RX_FIFO_UNDER)
+	/* Read the rest of the packet.*/
+	for(i = i; i < rx_len; i++)
 	{
-		/* FIFO underflow */
-		RELEASE_SPI();
-		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow during info read.\n");	
-		return;		
+		rx_buf[i] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 	}
-	printf("LQI\n");
+		
+	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
+	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
+	
+	RELEASE_SPI();
+	
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", rx_len);
 	
@@ -2056,7 +2050,6 @@ void reader(void)
 	}
 	if(radio_on)
 	{
-		printf("asda");
 		on();
 	}	
 }
