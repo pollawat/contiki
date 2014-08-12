@@ -1848,7 +1848,8 @@ void reader(void)
 	rimeaddr_t dest;
 
 	LEDS_ON(LEDS_RED);
-	watchdog_periodic();	
+	watchdog_periodic();
+	cc1120_arch_interrupt_disable();
 	
 	/* Disable SPI incase we are interrupting another spi process. */
 	cc1120_arch_spi_disable();
@@ -1933,6 +1934,7 @@ void reader(void)
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
 	RELEASE_SPI();
+	cc1120_arch_interrupt_enable();
 	
 	/* If the FCF states that it is an ACK request, */
 	if(rx_buf[0] & CC1120_802154_FCF_ACK_REQ)
