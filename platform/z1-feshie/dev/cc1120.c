@@ -218,6 +218,10 @@ cc1120_driver_init(void)
 	
 	/* Set Channel */
 	cc1120_set_channel(RF_CHANNEL);                            
+	if(RF_CHANNEL != 42)
+	{
+		printf("\n\n************ FREQUENCY NOT SET TO 868.25MHZ is this intentional? ************\n\n");	
+	}
 	
 	/* Flush the RX FIFO. */
 	cc1120_flush_rx();
@@ -293,6 +297,7 @@ int
 cc1120_driver_transmit(unsigned short transmit_len)
 {
 	PRINTFTX("\n\n**** Radio Driver: Transmit ****\n");
+
 	uint8_t txbytes, cur_state, marc_state;
 	rtimer_clock_t t0;
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -631,9 +636,8 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			if(cc1120_get_state() != CC1120_STATUS_RX)
 			{
 				/* We have received something. */
-				printf("\tRT");
 				transmit_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-				printf("L\n");
+
 				
 				if(transmit_len == 3)
 				{
@@ -737,9 +741,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	}
 	
 	/* Read length byte. */
-	printf("\tR");
 	length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
-	printf("L\n");
 	
 	if((length + 2) > rxbytes)
 	{
@@ -936,7 +938,7 @@ cc1120_driver_channel_clear(void)
 		if(cur_state != CC1120_STATUS_RX)
 		{
 			/* Not in RX... */
-			return 1;
+			//return 1;
 			cc1120_set_state(CC1120_STATE_RX);
 		}
 		
@@ -970,6 +972,7 @@ cc1120_driver_channel_clear(void)
 		{
 			cc1120_set_state(CC1120_STATE_IDLE);
 		}
+		
 		return cca;
 	}
 }
@@ -1675,7 +1678,7 @@ cc1120_interrupt_handler(void)
 		/* Ignore as it should be an ACK. */
 		if(radio_pending & ACK_PENDING)
 		{
-			return 0;
+			return 1;
 		}	
 		
 		/* Check if we have interrupted an SPI function, if so disable SPI. */
@@ -1686,10 +1689,13 @@ cc1120_interrupt_handler(void)
 		
 		/* We have received a packet.  This is done first to make RX faster. */
 		//LEDS_ON(LEDS_RED);
-		packet_pending++;
-		reader();
+		if(cc1120_read_rxbytes != 4)
+		{
+			packet_pending++;
+			reader();
 		
-		process_poll(&cc1120_process);
+			process_poll(&cc1120_process);
+		}
 		return 1;
 	}	
 	
@@ -1872,11 +1878,7 @@ void reader(void)
 		PRINTFRXERR("\tERROR: Packet too short\n");
 		return;
 	}
-	if(rxbytes == 4)
-	{
-		/* ACK packet, ignore.*/
-		return;
-	}
+	
 	
 	/* Read rx_length byte. */
 	rx_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
