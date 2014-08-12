@@ -1848,8 +1848,7 @@ void reader(void)
 	rimeaddr_t dest;
 
 	LEDS_ON(LEDS_RED);
-	watchdog_periodic();
-	dint();
+	watchdog_periodic();	
 	
 	/* Disable SPI incase we are interrupting another spi process. */
 	cc1120_arch_spi_disable();
@@ -1906,18 +1905,18 @@ void reader(void)
 	PRINTFRX("\tPacket received.\n");
 	PRINTFRXERR("\tPacket Received. rx_length = %d, rxbytes = %d, have %d\n", rx_len, rxbytes, cc1120_read_rxbytes());
 	printf("\tR");
-	cc1120_arch_spi_enable();
+	/*cc1120_arch_spi_enable();
 	cc1120_arch_rxfifo_read(rx_buf, rx_len);
 	cc1120_arch_spi_disable();
 	printf("\t%d ", cc1120_read_rxbytes());
 	printf("D\n");
+	*/
 	
-	
-	/*uint8_t it;
+	uint8_t it;
 	for(it = 0; it < rx_len; it++)
 	{
 		rx_buf[it] = cc1120_spi_single_read(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
-	}*/
+	}
 	
 		
 	if(radio_pending & RX_FIFO_UNDER)
@@ -1934,7 +1933,6 @@ void reader(void)
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 	
 	RELEASE_SPI();
-	eint();
 	
 	/* If the FCF states that it is an ACK request, */
 	if(rx_buf[0] & CC1120_802154_FCF_ACK_REQ)
