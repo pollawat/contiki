@@ -114,7 +114,7 @@ PT_THREAD(send_values(struct httpd_state *s))
 
   SEND_STRING(&s->sout, TOP);
 
-  if(strncmp(s->filename, "/index", 6) == 0 ||
+  if(s->filename[1] == 'i' ||
      s->filename[1] == '\0') {
     /* Default page: show latest sensor values as text (does not
        require Internet connection to Google for charts). */
