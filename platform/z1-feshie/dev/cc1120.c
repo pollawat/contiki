@@ -1626,14 +1626,14 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
+	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
+	cc1120_arch_interrupt_acknowledge();
+	
 	/* Ignore any "no error" interrupts. */
 	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
 	{
 		return 0;
 	}
-	
-	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
-	cc1120_arch_interrupt_acknowledge();
 	
 	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
 	
@@ -1790,7 +1790,7 @@ void processor(void)
 		cc1120_flush_rx();
 			
 		RIMESTATS_ADD(badsynch);
-		PRINTFRXERR("\tERROR: Bad Sync. Length = %d, rxbytes = %d\n", length, rxbytes);
+		PRINTFRXERR("\tERROR: Bad Sync. Length = %d, rxbytes = %d\n", len, rxbytes);
 		return;
 	}
 	else if((len) > PACKETBUF_SIZE) 
