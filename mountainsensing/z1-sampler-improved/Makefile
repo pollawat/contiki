@@ -1,5 +1,4 @@
-all: z1-sampler
-TARGET=z1-feshie
+all: z1-websense
 
 CONTIKI=../../
 
@@ -8,10 +7,12 @@ UIP_CONF_IPV6=1
 
 SMALL=1
 
+APPS += webserver webbrowser
+
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-#CONTIKI_SOURCEFILES += wget.c
+CONTIKI_SOURCEFILES += wget.c
 PROJECTDIRS += ../../examples/ipv6/rpl-border-router
-#PROJECT_SOURCEFILES += httpd-simple.c
+PROJECT_SOURCEFILES += httpd-simple.c
 
 include $(CONTIKI)/Makefile.include
 
