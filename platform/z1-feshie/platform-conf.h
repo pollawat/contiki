@@ -190,15 +190,15 @@ typedef unsigned long off_t;
 
 //#define CC1120DEBUG		1
 //#define CC1120TXDEBUG		1
-//#define CC1120TXERDEBUG		1
+#define CC1120TXERDEBUG		1
 //#define CC1120RXDEBUG		1
-//#define CC1120RXERDEBUG		1
+#define CC1120RXERDEBUG		1
 //#define CC1120INTDEBUG		1
 //#define C1120PROCESSDEBUG	1
 //#define CC1120ARCHDEBUG		1
 //#define CC1120STATEDEBUG	1
 
-#define RF_CHANNEL				42
+#define RF_CHANNEL				44
 
 #define CC1120_CS_THRESHOLD		0x9C	/*-100dBm */
 
