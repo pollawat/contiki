@@ -341,7 +341,7 @@ PROCESS_THREAD(border_router_process, ev, data)
  * Prevent that by turning the radio off until we are initialized as a DAG root.
  */
   prefix_set = 0;
-  NETSTACK_MAC.off(0);
+  NETSTACK_MAC.off(1);
 
   PROCESS_PAUSE();
 
@@ -353,7 +353,7 @@ PROCESS_THREAD(border_router_process, ev, data)
      packet reception rates.
      Note if the MAC RDC is not turned off now, aggressive power management of the
      cpu will interfere with establishing the SLIP connection */
-  NETSTACK_MAC.off(0);
+  NETSTACK_MAC.off(1);
 #endif
  
   /* Request prefix until it has been received */
@@ -374,7 +374,7 @@ PROCESS_THREAD(border_router_process, ev, data)
    * //Since we are the DAG root, reception delays would constrain mesh throughbut.
    */
   // this was: NETSTACK_MAC.off(1);
-  NETSTACK_MAC.on();
+  NETSTACK_MAC.off(1);
   
 #if DEBUG || 1
   print_local_addresses();
