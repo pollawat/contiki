@@ -73,7 +73,7 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
         for(i=0; i < bytes-2; i++){
             cal_crc = crc16_up(cal_crc, buf[i]);
         }
-        PRINTF("Calculated CRC: %d", rec_crc);
+        PRINTF("Calculated CRC: %d\n", cal_crc);
         if (rec_crc == cal_crc){
             PRINTF("CRCs match\n");
         

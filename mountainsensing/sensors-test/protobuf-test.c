@@ -24,13 +24,15 @@ PROCESS_THREAD (temp_process, ev, data)
   ms1_io_init();
   ms1_sense_on();
   uart1_init(0);
+  static uint8_t i = 0;
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&temp_process, protobuf_event) ;
-  {
+  printf("BOOT\n");
     while (1)
       {
         protobuf_send_message(0x01, OPCODE_LIST, NULL , NULL);
-        printf("Sent message\n"); 
+        printf("Sent message %d\n", i); 
+        i = i+1;
         ctimer_set(&timeout_timer, CLOCK_SECOND * TIMEOUT_SECONDS, timer_handler, NULL);
         PROCESS_YIELD_UNTIL(ev == protobuf_event);
         if(data != NULL){
@@ -46,8 +48,7 @@ PROCESS_THREAD (temp_process, ev, data)
 //        etimer_set(&et, RTIMER_SECOND);          // Set the timer
 //        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
  
-      }
-  }
+    }
   ms1_sense_off();
   PROCESS_END ();
 }
