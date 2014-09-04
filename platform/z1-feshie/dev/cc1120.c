@@ -51,7 +51,7 @@
 #define PRINTFRX(...) do {} while (0)
 #endif
 
-#if CC1120DEBUG || CC1120RXDEBUG || CC1120RXERDEBUG || DEBUG
+#if CC1120DEBUG || CC1120RXDEBUG || DEBUG
 #define PRINTFRXERR(...) printf(__VA_ARGS__)
 #else
 #define PRINTFRXERR(...) do {} while (0)
@@ -164,7 +164,6 @@ const struct radio_driver cc1120_driver = {
 
 
 /* ------------------- Internal variables -------------------------------- */
-
 static uint8_t ack_tx, current_channel, packet_pending, broadcast, ack_seq, tx_seq, 
 				rx_rssi, rx_lqi, lbt_success, radio_pending, radio_on, txfirst, txlast = 0;
 static uint8_t locked, lock_on, lock_off;
@@ -1172,7 +1171,7 @@ cc1120_read_rxbytes(void)
 static void
 on(void)
 {
-	if(radio_pending & RX_FIFO_UNDER)
+	if((radio_pending & RX_FIFO_UNDER) || (radio_pending & RX_FIFO_OVER))
 	{
 		/* RX FIFO has previously overflowed or underflowed, flush. */
 		cc1120_flush_rx();
@@ -1509,13 +1508,6 @@ cc1120_flush_rx(void)
 	radio_pending &= ~(RX_FIFO_OVER | RX_FIFO_UNDER);
 	packet_pending = 0;
 	LEDS_OFF(LEDS_RED);
-				
-	/* If we are meant to be in RX, put us back in it. */
-	if(radio_on)
-	{
-		on();
-		return CC1120_STATUS_RX;
-	}
 
 	/* Return IDLE state. */
 	return CC1120_STATUS_IDLE;
@@ -1652,14 +1644,19 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
-	/* Ignore any "no error" interrupts. */
-	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
+	/* Check if we have interrupted an SPI function, if so disable SPI. */
+	if(cc1120_arch_spi_enabled())
 	{
-		return 0;
+		cc1120_arch_spi_disable();
 	}
 	
 	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	cc1120_arch_interrupt_acknowledge();
+	
+	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
+	{
+		return 0;
+	}
 	
 	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
 	
@@ -1671,14 +1668,8 @@ cc1120_interrupt_handler(void)
 			return 0;
 		}	
 		
-		/* Check if we have interrupted an SPI function, if so disable SPI. */
-		if(cc1120_arch_spi_enabled())
-		{
-			cc1120_arch_spi_disable();
-		}
-		
 		/* We have received a packet.  This is done first to make RX faster. */
-		LEDS_ON(LEDS_RED);
+		//LEDS_ON(LEDS_RED);
 		packet_pending++;
 		
 		process_poll(&cc1120_process);
@@ -1725,13 +1716,8 @@ cc1120_interrupt_handler(void)
 			
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
-			/* Check if we have interrupted an SPI function, if so disable SPI. */
-			if(cc1120_arch_spi_enabled())
-			{
-				cc1120_arch_spi_disable();
-			}
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
-			cc1120_flush_rx();
+			cc1120_flush_rx();									
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
@@ -1783,7 +1769,6 @@ void processor(void)
 	rimeaddr_t dest;
 			
 	PRINTFPROC("** Process Poll **\n");
-
 	LEDS_ON(LEDS_RED);
 	watchdog_periodic();	
 	
