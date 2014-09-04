@@ -286,28 +286,28 @@ uart1_writeb(unsigned char c)
   while((UCA1STAT & UCBUSY));	//while send in progress
 
   /* Transmit the data. */
+  RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
   UCA1TXBUF = c;
-//  UCA1TXBUF = 0x23;
+  while((UCA1STAT & UCBUSY)); //while send in progress
+  RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN)
+
   PRINTFDEBUG("char written to UCA1TXBUF\n");
 //#endif /* TX_WITH_INTERRUPT */
 }
 
-//4s485 txen is port 2.3
-#define RS485TXEN_SET() RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN)
-#define RS485TXEN_CLEAR() RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN)
 
 void
 uart1_writearray(unsigned char* c,int length)
 {
-	RS485TXEN_SET();		//set tx enable pin for rs485
-	int i=0;			//create counter variable
+  RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
+  int i=0;			//create counter variable
 	for(i=0;i<length;i++)		//for every character in array
 	{
 		watchdog_periodic();
 		uart1_writeb(c[i]);	//write byte
 	}
 	while((UCA1STAT & UCBUSY));	//while send in progress
-	RS485TXEN_CLEAR();		//clear tx enable pin 
+	 RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);		//clear tx enable pin 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -398,7 +398,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   PRINTFDEBUG("USCIAB1TX: UCA1TXIFG\n");
     if(ringbuf_elements(&txbuf) == 0) {
       serial_transmitting = 0;
-      RS485TXEN_CLEAR();		//clear tx enable pin 
+     RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);
     } else {
       UCA0TXBUF = ringbuf_get(&txbuf);
     }
