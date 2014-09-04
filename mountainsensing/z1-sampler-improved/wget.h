@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Swedish Institute of Computer Science
+ * Copyright (c) 2010, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,37 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This file is part of the Contiki operating system.
- *
  */
-#ifndef __RESET_SENSOR_H__
-#define __RESET_SENSOR_H__
 
-#include "lib/sensors.h"
+/**
+ * \file
+ *         A simple wget implementation
+ * \author
+ *         Niclas Finne <nfi@sics.se>
+ *         Joakim Eriksson <joakime@sics.se>
+ */
 
-extern const struct sensors_sensor reset_sensor;
+#ifndef __WGET_H__
+#define __WGET_H__
 
-void reset_counter_reset();
+#include "contiki.h"
 
-#endif /* __EVENT_SENSOR_H__ */
+struct wget_callbacks {
+  void (* data)(const char *data, uint16_t len);
+  void (* done)(int status);
+};
+
+void wget_init(void);
+int wget_get(const char *server, uint16_t port, const char *file,
+             const struct wget_callbacks *c);
+
+enum {
+  WGET_OK,
+  WGET_ALREADY_RUNNING,
+  WGET_TIMEDOUT,
+  WGET_ABORTED,
+  WGET_CONNECT_FAILED,
+  WGET_CLOSED
+};
+
+#endif /* __WGET_H__ */

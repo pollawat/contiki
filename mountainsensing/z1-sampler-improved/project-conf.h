@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Swedish Institute of Computer Science
+ * Copyright (c) 2010, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This file is part of the Contiki operating system.
- *
  */
-#ifndef __RESET_SENSOR_H__
-#define __RESET_SENSOR_H__
 
-#include "lib/sensors.h"
+#ifndef __PROJECT_RPL_WEB_CONF_H__
+#define __PROJECT_RPL_WEB_CONF_H__
 
-extern const struct sensors_sensor reset_sensor;
+#undef QUEUEBUF_CONF_NUM
+#define QUEUEBUF_CONF_NUM          4
 
-void reset_counter_reset();
+#undef UIP_CONF_BUFFER_SIZE
+#define UIP_CONF_BUFFER_SIZE    140
 
-#endif /* __EVENT_SENSOR_H__ */
+#undef UIP_CONF_RECEIVE_WINDOW
+#define UIP_CONF_RECEIVE_WINDOW  60
+
+#undef WEBSERVER_CONF_CFS_CONNS
+#define WEBSERVER_CONF_CFS_CONNS 2
+
+#endif /* __PROJECT_RPL_WEB_CONF_H__ */
