@@ -80,6 +80,8 @@
 // Sensors
 #include "sampling-sensors.c"
 
+#define MAX_POST_SIZE 30
+
 #define DEBUG 1
 
 #if DEBUG == 1
@@ -434,21 +436,21 @@ PT_THREAD(web_handle_connection(struct psock *p))
       }
 
       param = get_url_param(url, "rain");
-      if(param != NULL) {
+      if(param != NULL && strcmp(param, "y") == 0) {
         sensor_config.hasRain = 1;
       } else {
         sensor_config.hasRain = 0;
       }
 
       param = get_url_param(url, "adc1");
-      if(param != NULL) {
+      if(param != NULL && strcmp(param, "y") == 0) {
         sensor_config.hasADC1 = 1;
       } else {
         sensor_config.hasADC1 = 0;
       }
 
       param = get_url_param(url, "adc2");
-      if(param != NULL) {
+      if(param != NULL && strcmp(param, "y") == 0) {
         sensor_config.hasADC2 = 1;
       } else {
         sensor_config.hasADC2 = 0;
@@ -637,7 +639,7 @@ static char* get_next_write_filename(uint8_t length)
       filename[2] = '0';
       filename[3] = 0;
     }
-    else if((uint16_t)file_size + (uint16_t)length > 30) {
+    else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
     }
     else {
