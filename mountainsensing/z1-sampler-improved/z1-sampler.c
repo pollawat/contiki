@@ -45,7 +45,6 @@
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
 #include "dev/battery-sensor.h"
-//#include "usefullpages.c"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -64,8 +63,6 @@
 
 // Networking
 #include "contiki-net.h"
-//#include "httpd-simple.h"
-//#include "webserver-nogui.h"
 
 // Protobuf
 #include "pb_decode.h"
@@ -73,13 +70,9 @@
 #include "pb_encode.h"
 #include "pb_encode.c"
 
-
 // Config
 #include "settings.pb.h"
 #include "settings.pb.c"
-
-//#include "message.pb.h"
-//#include "message.pb.c"
 
 #include "readings.pb.h"
 #include "readings.pb.c"
@@ -290,7 +283,6 @@ static handle_connection(struct psock *p)
 
 #define TOP "<html><body>"
 #define BOTTOM "</body></html>"
-//static const uint16_t TOP_BOTTOM_SIZE = strlen(TOP) + strlen(BOTTOM);
 
 #define CLOCK_FORM "<form action=\"/clock\" method=\"get\">"                \
     "Year<input type=\"number\" name=\"y\" min=\"2014\"><br>"               \
@@ -514,7 +506,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
     else if(strncmp(url, "/comsub", 7) == 0)
     {
       param = get_url_param(url, "interval");
-      POST_config.interval = (param == NULL ? 3600 : atol(param));
+      POST_config.interval = (param == NULL ? POST_INTERVAL : atol(param));
 
       static char chr[2] = {'a',0};
 
@@ -525,7 +517,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       }
 
       param = get_url_param(url, "port");
-      POST_config.port = (param == NULL ? 8080 : atol(param));
+      POST_config.port = (param == NULL ? POST_PORT : atol(param));
 
       set_config(COMMS_CONFIG);
 
