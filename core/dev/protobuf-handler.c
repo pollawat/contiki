@@ -50,6 +50,10 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
     uint16_t cal_crc = 0xFFFF;
     uint8_t i;
     process_data_t callback_data = NULL;
+    if(bytes == 0){
+      PRINTF("Spurious interrupt, ignoring\n");
+      return;
+    }
 
 #ifdef PROTOBUF_HANDLER_DEBUG
   printf("Bytes recieved: %i\n", bytes);

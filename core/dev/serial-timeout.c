@@ -112,6 +112,9 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 #ifdef SERIAL_TIMEOUT_DEBUG
       printf("Timeout reached\n");
       printf("Recieved Bytes: %i\n", rxbytes);
+      if(rxbytes == 0){
+        break;
+      }
       int i = 0;
       while (i < BUFSIZE){
         printf("%i:", (int)rxbuf_data[i++]);
