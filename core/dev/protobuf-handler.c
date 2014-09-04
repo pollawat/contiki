@@ -61,7 +61,7 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
 
     if(buf[1] != OPCODE_RESPONSE){
         PRINTF("not a response packet so ignoring\n");
-    }else if(buf[1] != MASTER_ADDR){
+    }else if(buf[0] != MASTER_ADDR){
         printf("not for me: ignoring");
     }else{
         rec_crc = (buf[bytes - 1] << 8) | buf[bytes-2];

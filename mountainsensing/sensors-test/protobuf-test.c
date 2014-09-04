@@ -34,7 +34,7 @@ PROCESS_THREAD (temp_process, ev, data)
   {
     while (1)
       {
-        protobuf_send_message(0x01, OPCODE_ECHO, data_out, 0x04);
+        protobuf_send_message(0x01, OPCODE_LIST, data_out, NULL);
         printf("Sent message\n"); 
         ctimer_set(&timeout_timer, CLOCK_SECOND * TIMEOUT_SECONDS, timer_handler, NULL);
         PROCESS_YIELD_UNTIL(ev == protobuf_event);
