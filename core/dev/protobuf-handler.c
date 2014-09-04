@@ -97,7 +97,7 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     uint8_t buf[MAX_MESSAGE_LENGTH];
     uint8_t buf_length = 0;       
     uint16_t crc = 0xFFFF;
-    uint8_t i;
+    uint8_t i=0;
 #ifdef PROTOBUF_HANDLER_DEBUG
     printf("Dest: %i\n", addr);
     printf("Optcode: %i\n", opcode);
@@ -119,10 +119,10 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     }else{
     	PRINTF("DATA:\n");
 	    for(i=0; i < payload_length; i++){
-	    PRINTF("payload:%i,",payload[i]);
-            buf[buf_length++] = payload[i];
-	    PRINTF("buf:%i\n", buf[i]);
-        }
+  	    PRINTF("payload:%i,", payload[i]);
+        buf[buf_length++] = payload[i];
+	      PRINTF("buf:%i\n", buf[buf_length-1]);
+      }
     }
     for(i=0; i <  buf_length; i++){
         crc = crc16_up(crc, buf[i]);
