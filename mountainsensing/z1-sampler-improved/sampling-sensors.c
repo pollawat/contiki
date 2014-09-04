@@ -10,6 +10,19 @@
 #include "adxl345.h" 		// Accel
 #include "dev/event-sensor.h"	//event sensor (rain)
 
+/*
+ * AVR_count - number of AVR IDs
+ * avrIDs - array of AVR IDs
+ * data - The data array to populate with the data
+ *
+ * Returns the lenght of the data
+ */
+static uint16_t get_sensor_AVR(uint8_t AVR_count, uint8_t *avrIDs, uint8_t *data)
+{
+  printf("sampling-sensors.c: get_sensor_AVR(): NOT IMPLEMENTED");
+  return 0;
+}
+
 static uint16_t get_sensor_rain()
 {
   return event_sensor.value(1);

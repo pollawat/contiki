@@ -716,7 +716,9 @@ PROCESS_THREAD(sample_process, ev, data)
     if(sample.has_rain = sensor_config.hasRain) {
       sample.rain = get_sensor_rain();
     }
-
+    if(sensor_config.avrIDs_count > 0) {
+      sample.AVR.size = get_sensor_AVR(sensor_config.avrIDs, sensor_config.avrIDs_count, sample.AVR.bytes);
+    }
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
