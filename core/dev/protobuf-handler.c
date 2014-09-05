@@ -58,9 +58,9 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
   printf("\n");
 #endif
 
-    if(buf[1] != OPCODE_RESPONSE){
+    if(buf[1] != PROTBUF_OPCODE_RESPONSE){
         PRINTF("not a response packet so ignoring\n");
-    }else if(buf[0] != MASTER_ADDR){
+    }else if(buf[0] != PROTBUF_MASTER_ADDR){
         printf("not for me: ignoring");
     }else{
         rec_crc = (buf[bytes - 1] << 8) | buf[bytes-2];
@@ -103,7 +103,7 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
 void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
         int8_t payload_length){
    PRINTF("protobuf_send_message\n");
-    uint8_t buf[MAX_MESSAGE_LENGTH];
+    uint8_t buf[PROTBUF_MAX_MESSAGE_LENGTH];
     uint8_t buf_length = 0;       
     uint16_t crc = 0xFFFF;
     uint8_t i=0;
@@ -114,7 +114,7 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
 #endif	 
 
 
-    if (payload_length +4 > MAX_MESSAGE_LENGTH){
+    if (payload_length +4 > PROTBUF_MAX_MESSAGE_LENGTH){
         //allow bytes for crc, dst and opcode
         //Message too long for avr at other end to handle...
         printf("Message too long to be sent\n");
