@@ -10,8 +10,6 @@
 #include "dev/pb_encode.h"
 #include "dev/protocol-buffers/buffer.h"
 
-#define MAX_MESSAGE_LENGTH 512
-
 #define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
@@ -20,7 +18,7 @@
 #endif
 static int (*writebyte)(unsigned char c) = NULL;
 
-static process_event_t callback_event = NULL;
+static process_event_t callback_event = (int)NULL;
 static struct process *callback_process = NULL;
 
 uint16_t crc16_up(uint16_t crc, uint8_t a);
@@ -32,9 +30,7 @@ uint16_t crc16_up(uint16_t crc, uint8_t a);
  */
 uint16_t crc16_up(uint16_t crc, uint8_t a){
     int i;
-//    PRINTF("CRC UP\n");
     crc ^= a;
-//    PRINTF("crc = %lu\n", crc);
     for (i = 0; i < 8; ++i){
         if (crc & 1){
             crc = (crc >> 1) ^ 0xA001;
@@ -48,8 +44,7 @@ uint16_t crc16_up(uint16_t crc, uint8_t a){
 void protobuf_process_message(uint8_t *buf, uint8_t bytes){
     uint16_t rec_crc;
     uint16_t cal_crc = 0xFFFF;
-    uint8_t i;
-    process_data_t callback_data = NULL;
+    uint8_t i = 0;
     if(bytes == 0){
       PRINTF("Spurious interrupt, ignoring\n");
       return;
@@ -75,28 +70,27 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
         }
         PRINTF("Calculated CRC: %d\n", cal_crc);
         if (rec_crc == cal_crc){
-            PRINTF("CRCs match\n");
-        uint8_t callback_data[bytes-4];
-        for(i=2; i<bytes-2; i++){
-          //first 2 and last 2 bytes are not wanted for storage
-          callback_data[i-2] = buf[i];
-        }
+          PRINTF("CRCs match\n");
+          for(i=2; i<bytes-2; i++){
+            //first 2 and last 2 bytes are not wanted for storage
+            processed_data[i-2] = buf[i];
+          }
 #ifdef PROTOBUF_HANDLER_DEBUG
-        printf("Callback_data\n");
-        for(i=0; i<bytes-4; i++){
-          printf("%d:",callback_data[i]);
-        }
-        printf("\n");
+          printf("Callback_data\n");
+          for(i=0; i<bytes-4; i++){
+            printf("%d:",processed_data[i]);
+          }
+          printf("\n");
 #endif
-        //put processing in here
-            //strip out the first 2 and last 2 bytes
-            if(callback_process != NULL){
-                process_post(callback_process, callback_event, callback_data);
-                PRINTF("Process posted\n");
-            }
+          callback_data->length = bytes-4;
+          callback_data->data = processed_data;    
+          if(callback_process != NULL){
+            process_post(callback_process, callback_event, (process_data_t)&callback_data);
+            PRINTF("Process posted\n");
+          }
         }else{
-            printf("CRCs do not match: Ignoring\n");
-            return;
+          printf("CRCs do not match: Ignoring\n");
+          return;
         }
     }
 
@@ -141,11 +135,10 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     }
     for(i=0; i <  buf_length; i++){
         crc = crc16_up(crc, buf[i]);
-//	PRINTF("%lu\n", crc);
     }
     buf[buf_length++] = crc & 0xFF; //Get the low order bits
     buf[buf_length++] = (crc >> 8) & 0xFF;
-    PRINTF("CRC: %lu\n", crc);
+    PRINTF("CRC: %lu\n", (long unsigned)crc);
     PRINTF("CRC low: %i\n", crc & 0xFF);
     PRINTF("CRC high: %i\n", (crc >>8) & 0xFF); 
     //ready to send    
