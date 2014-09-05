@@ -76,12 +76,23 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
         PRINTF("Calculated CRC: %d\n", cal_crc);
         if (rec_crc == cal_crc){
             PRINTF("CRCs match\n");
-        
-
+        uint8_t callback_data[bytes-4];
+        for(i=2; i<bytes-2; i++){
+          //first 2 and last 2 bytes are not wanted for storage
+          callback_data[i-2] = buf[i];
+        }
+#ifdef PROTOBUF_HANDLER_DEBUG
+        printf("Callback_data\n");
+        for(i=0; i<bytes-4; i++){
+          printf("%d:",callback_data[i]);
+        }
+        printf("\n");
+#endif
         //put processing in here
             //strip out the first 2 and last 2 bytes
             if(callback_process != NULL){
                 process_post(callback_process, callback_event, callback_data);
+                PRINTF("Process posted\n");
             }
         }else{
             printf("CRCs do not match: Ignoring\n");
@@ -154,16 +165,8 @@ void protobuf_handler_set_writeb(int (*wb)(unsigned char c)){
 
 
 void protobuf_register_process_callback(struct process *p, process_event_t ev){
+    PRINTF("Process registered\n");    
     callback_event =ev;
     callback_process=p;
 
 }
-void read_devices(uint8_t *data, uint32_t *avrIDs, size_t count){
-    int i;
-    for(i=0; i < count; i++){
-        protobuf_send_message(avrIDs[i], OPCODE_GET_DATA, 0, 0);
-        
-    }
-}
-
-

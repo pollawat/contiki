@@ -37,7 +37,7 @@
 #include "contiki.h"
 #include "contiki-conf.h"
 
-#define SERIAL_TIMEOUT_DEBUG
+//#define SERIAL_TIMEOUT_DEBUG
 
 #ifdef SERIAL_TIMEOUT_DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
