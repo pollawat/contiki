@@ -10,7 +10,7 @@
 #include "dev/pb_encode.h"
 #include "dev/protocol-buffers/buffer.h"
 
-#define PROTOBUF_HANDLER_DEBUG
+//#define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -82,10 +82,10 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
           }
           printf("\n");
 #endif
-          callback_data->length = bytes-4;
-          callback_data->data = processed_data;    
+          callback_data.length = bytes-4;
+          callback_data.data = processed_data;    
           if(callback_process != NULL){
-            process_post(callback_process, callback_event, (process_data_t)&callback_data);
+            process_post(callback_process, callback_event, &callback_data);
             PRINTF("Process posted\n");
           }
         }else{

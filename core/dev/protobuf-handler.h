@@ -23,4 +23,4 @@ typedef struct{
   uint8_t *data;
 }protobuf_data_t;
 
-protobuf_data_t *callback_data;
+static protobuf_data_t callback_data;

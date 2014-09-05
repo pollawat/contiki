@@ -34,14 +34,23 @@ PROCESS_THREAD (temp_process, ev, data)
         retry_count = 0;
         data = NULL;
         do{
-          protobuf_send_message(0x01, OPCODE_LIST, NULL , NULL);
+          protobuf_send_message(0x01, OPCODE_LIST, NULL , (int)NULL);
           printf("Sent message %d\n", i); 
           i = i+1;
           ctimer_set(&timeout_timer, CLOCK_SECOND * TIMEOUT_SECONDS, timer_handler, NULL);
           PROCESS_YIELD_UNTIL(ev == protobuf_event);
+          printf("D%d\n", (int)data);
           if(data != NULL){
-              printf("data recieved\n");
+              printf("\tdata recieved\n");
               ctimer_stop(&timeout_timer);
+              protobuf_data_t *pbd;
+              pbd = data;
+              printf("\tRecieved %d bytes\t", pbd->length);
+              uint8_t j;
+              for(j=0; j<pbd->length;j++){
+                printf("%d:", pbd->data[j]);
+              }
+              printf("\n");
               //process data
               recieved = 1;
           }else{
