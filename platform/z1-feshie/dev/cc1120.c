@@ -624,7 +624,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 					LOCK_SPI();
 
 					cc1120_arch_spi_enable();
-					cc1120_arch_rxfifo_read(ack_buf, transmit_len, 0);
+					cc1120_arch_rxfifo_read(ack_buf, transmit_len);
 					cc1120_arch_spi_disable();
 					
 					ack_seq = ack_buf[2];	
