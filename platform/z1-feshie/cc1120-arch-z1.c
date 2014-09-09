@@ -186,13 +186,6 @@ cc1120_arch_spi_disable(void)
 {
 	if(enabled)
 	{
-		/* Check if MISO is high at disable.  If it is, send a SNOP to clear it. */
-		if(CC1120_SPI_MISO_PORT(IN) & BV(CC1120_SPI_MISO_PIN))
-		{
-			(void) cc1120_arch_spi_rw_byte(CC1120_STROBE_SNOP);
-		}
-		// TODO: Make this more resilient?
-
 		/* Set CSn to high (1) */
 		CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 		
