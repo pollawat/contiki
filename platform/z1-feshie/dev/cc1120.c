@@ -613,7 +613,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				watchdog_periodic();		/* Feed the dog to stop reboots. */
 			}
 			
-			if(cc1120_get_state() != CC1120_STATUS_RX)
+			if(cc1120_get_state() != CC1120_STATUS_RX || cc1120_read_rxbytes() > 0)
 			{
 				/* We have received something. */
 				transmit_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
@@ -628,16 +628,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 					cc1120_arch_spi_disable();
 					
 					ack_seq = ack_buf[2];	
-		
-					cc1120_flush_rx();	
 				
 					RELEASE_SPI();
 				}
+				cc1120_flush_rx();	
 			}
-			else
-			{
-				cc1120_set_state(CC1120_STATE_IDLE);
-			}
+			
 			radio_pending &= ~(ACK_PENDING);
 			cc1120_flush_tx();
 			
