@@ -83,13 +83,13 @@ typedef struct {
  */
 extern const struct sensors_sensor ds3231_sensor;
 
-//static uint32_t ds3231_get_epoch_seconds(void);
-//static int ds3231_set_time(tm *t);
-//static int ds3231_set_alarm(tm *t);
-//static int ds3231_clear_alarm(void);
-//static int ds3231_temperature(void);
-//static int value(int type);
-//static int configure(int type, int c);
-//static int status(int type);
+uint32_t ds3231_get_epoch_seconds(void);
+int ds3231_set_time(tm *t);
+int ds3231_set_alarm(tm *t);
+int ds3231_clear_alarm(void);
+int ds3231_temperature(void);
+int value(int type);
+int configure(int type, int c);
+int status(int type);
 
 #endif

@@ -175,7 +175,7 @@ static int accum_days[] = {
  * 			return value will need to be cast from int to uint_16t and shifted
  * 			accordingly.
  */
-static uint32_t
+uint32_t
 ds3231_get_epoch_seconds(void)
 {
 	int rc;
@@ -217,7 +217,7 @@ ds3231_get_epoch_seconds(void)
  * 			in the RTC for this application is 2000-01-01. An adjustment of
  * 			100 is made before setting the time.
  */
-static int
+int
 ds3231_set_time(tm *t)
 {
 	int rc;
@@ -261,13 +261,13 @@ ds3231_set_time(tm *t)
  *
  * @return	0 for success, -ve for error.
  */
-static int
+
+int
 ds3231_set_alarm(tm *t)
 {
 	int rc;
 	ds_3231_alarm_t alarm;
 	uint8_t regs[3];
-
 	memset(alarm.data, 0, 5);
 
 	/* Set the Alarm 1 registers. */
@@ -312,7 +312,7 @@ ds3231_set_alarm(tm *t)
  *
  * @return	0 for success, -ve for error.
  */
-static int
+int
 ds3231_clear_alarm(void)
 {
 	int rc;
@@ -345,7 +345,7 @@ ds3231_clear_alarm(void)
  * @return	Temperature * 100 (centi %) however accuracy is limited to
  * 		0.25 degree increments.
  */
-static int
+int
 ds3231_temperature(void)
 {
 	int rc;
@@ -371,7 +371,7 @@ ds3231_temperature(void)
 /**
  * value
  */
-static int
+int
 value(int type)
 {
 	switch (type) {
@@ -391,7 +391,7 @@ value(int type)
 /**
  * configure
  */
-static int
+int
 configure(int type, int c)
 {
 	int rc = 0;
@@ -428,7 +428,7 @@ configure(int type, int c)
 /**
  * status
  */
-static int
+int
 status(int type)
 {
 	switch (type) {

@@ -37,7 +37,7 @@
 #include "web.h"
 
 #include "dev/ds3231-sensor.h"  // Clock
-#include "dev/ds3231-sensor.c"
+//#include "dev/ds3231-sensor.c"
 
 #define DEBUG 1
 
@@ -219,7 +219,7 @@ static char psock_buffer[120];
 
 static int handles = 0;
 
-static handle_connection(struct psock *p)
+static int handle_connection(struct psock *p)
 {
   static uint8_t status_code[4];
   static char content_length[8];
