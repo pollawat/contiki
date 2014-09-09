@@ -7,7 +7,7 @@
 #include "dev/adc1-sensor.h"  // ADC 1
 #include "dev/adc2-sensor.h"  // ADC 2
 #include "dev/temperature-sensor.h" // Temp
-#include "dev/battery-sensor.h" // Batt
+#include "dev/batv-sensor.h" // Batt
 #include "adxl345.h"    // Accel
 #include "dev/event-sensor.h" //event sensor (rain)
 
@@ -42,7 +42,7 @@ float get_sensor_temp(void)
 
 float get_sensor_batt(void)
 {
-  return (float)((battery_sensor.value(0)*2.500*2)/4096);
+  return (float)((batv_sensor.value(0)*2.500*2)/4096);
 }
 
 int16_t get_sensor_acc_x(void)
