@@ -1,0 +1,68 @@
+#include "get_sensor.h"
+
+#include "dev/uart1_i2c_master.h"
+
+#include "dev/ds3231-sensor.h"  // Clock
+//#include "dev/ds3231-sensor.c"
+#include "dev/adc1-sensor.h"  // ADC 1
+#include "dev/adc2-sensor.h"  // ADC 2
+#include "dev/temperature-sensor.h" // Temp
+#include "dev/battery-sensor.h" // Batt
+#include "adxl345.h"    // Accel
+#include "dev/event-sensor.h" //event sensor (rain)
+
+uint16_t get_sensor_rain(void)
+{
+  return event_sensor.value(1);
+}
+
+uint16_t get_sensor_ADC1(void)
+{
+  SENSORS_ACTIVATE(adc1_sensor);
+  uint16_t ret = adc1_sensor.value(0);
+  SENSORS_DEACTIVATE(adc1_sensor);
+  return ret;
+}
+
+uint16_t get_sensor_ADC2(void)
+{
+  SENSORS_ACTIVATE(adc2_sensor);
+  uint16_t ret = adc2_sensor.value(0);
+  SENSORS_DEACTIVATE(adc2_sensor);
+  return ret;
+}
+
+float get_sensor_temp(void)
+{
+  SENSORS_ACTIVATE(temperature_sensor);
+  float ret = (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
+  SENSORS_DEACTIVATE(temperature_sensor);
+  return ret;
+}
+
+float get_sensor_batt(void)
+{
+  return (float)((battery_sensor.value(0)*2.500*2)/4096);
+}
+
+int16_t get_sensor_acc_x(void)
+{
+  return accm_read_axis(X_AXIS);
+}
+
+int16_t get_sensor_acc_y(void)
+{
+  return accm_read_axis(Y_AXIS);
+}
+
+int16_t get_sensor_acc_z(void)
+{
+  return accm_read_axis(Z_AXIS);
+}
+
+uint32_t get_time(void)
+{
+  uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
+  time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
+  return time;
+}

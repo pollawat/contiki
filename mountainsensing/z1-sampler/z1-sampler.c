@@ -30,17 +30,12 @@
 #include "readings.pb.h"
 #include "readings.pb.c"
 
-// Sensors
-#include "dev/uart1_i2c_master.h"
+//Methods to get sensor readings
+#include "get_sensor.h"
 
-#include "dev/ds3231-sensor.h" 	// Clock
+
+#include "dev/ds3231-sensor.h"  // Clock
 #include "dev/ds3231-sensor.c"
-#include "dev/adc1-sensor.h" 	// ADC 1
-#include "dev/adc2-sensor.h" 	// ADC 2
-#include "dev/temperature-sensor.h" // Temp
-#include "dev/battery-sensor.h" // Batt
-#include "adxl345.h" 		// Accel
-#include "dev/event-sensor.h"	//event sensor (rain)
 
 #define DEBUG 1
 
@@ -74,53 +69,6 @@ PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
 
 AUTOSTART_PROCESSES(&web_process, &post_process, &sample_process);//, &tick_process);//, &post_process);
-
-static uint16_t get_sensor_rain()
-{
-  return event_sensor.value(1);
-}
-
-static uint16_t get_sensor_ADC1()
-{
-  return adc1_sensor.value(0);
-}
-
-static uint16_t get_sensor_ADC2()
-{
-  return adc2_sensor.value(0);
-}
-
-static float get_sensor_temp()
-{
-  return (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
-}
-
-static float get_sensor_batt()
-{
-  return (float)((battery_sensor.value(0)*2.500*2)/4096);
-}
-
-static int16_t get_sensor_acc_x()
-{
-  return accm_read_axis(X_AXIS);
-}
-
-static int16_t get_sensor_acc_y()
-{
-  return accm_read_axis(Y_AXIS);
-}
-
-static int16_t get_sensor_acc_z()
-{
-  return accm_read_axis(Z_AXIS);
-}
-
-static uint32_t get_time()
-{
-  uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
-  time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
-  return time;
-}
 
 #define SAMPLE_CONFIG 1
 #define COMMS_CONFIG 2
@@ -241,7 +189,7 @@ char* get_url_param(char* url, char* key)
 static uint8_t data[256] = {};
 static uint16_t data_length = 0;
 
-static load_file(char *filename)
+static void load_file(char *filename)
 {
   static int fd;
   fd = cfs_open(filename, CFS_READ);
@@ -726,8 +674,6 @@ PROCESS_THREAD(sample_process, ev, data)
 
   static char* filename;
 
-  SENSORS_ACTIVATE(battery_sensor);
-  SENSORS_ACTIVATE(temperature_sensor);
 
   DPRINT("[SAMP] Sampling sensors activated\n");
 

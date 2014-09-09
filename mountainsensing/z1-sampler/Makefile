@@ -9,7 +9,7 @@ UIP_CONF_IPV6=1
 SMALL=1
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-#CONTIKI_SOURCEFILES += wget.c
+CONTIKI_SOURCEFILES += get_sensor.c
 PROJECTDIRS += ../../examples/ipv6/rpl-border-router
 #PROJECT_SOURCEFILES += httpd-simple.c
 
