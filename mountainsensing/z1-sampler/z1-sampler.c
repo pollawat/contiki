@@ -7,11 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cfs/cfs.h"
+#include "z1-sampler.h"
 
 // Networking
 #include "contiki-net.h"
 //#include "httpd-simple.h"
 //#include "webserver-nogui.h"
+
+#include "web-pages.h" //The #defines to describe version webpages
 
 // Protobuf
 #include "dev/pb_decode.h"
@@ -41,6 +44,7 @@
 #include "dev/battery-sensor.h" // Batt
 #include "adxl345.h" 		// Accel
 #include "dev/event-sensor.h"	//event sensor (rain)
+#include "dev/protobuf-handler.h"
 
 #define DEBUG 1
 
@@ -241,7 +245,7 @@ char* get_url_param(char* url, char* key)
 static uint8_t data[256] = {};
 static uint16_t data_length = 0;
 
-static load_file(char *filename)
+static void load_file(char *filename)
 {
   static int fd;
   fd = cfs_open(filename, CFS_READ);
@@ -269,7 +273,7 @@ static char psock_buffer[120];
 
 static int handles = 0;
 
-static handle_connection(struct psock *p)
+static int handle_connection(struct psock *p)
 {
   static uint8_t status_code[4];
   static char content_length[8];
@@ -300,53 +304,6 @@ static handle_connection(struct psock *p)
 static struct psock web_ps;
 static const uint8_t web_buf[128];
 static char *url;
-
-#define HTTP_RES "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n"
-
-#define TOP "<html><body>"
-#define BOTTOM "</body></html>"
-//static const uint16_t TOP_BOTTOM_SIZE = strlen(TOP) + strlen(BOTTOM);
-
-#define CLOCK_FORM "<form action=\"/clock\" method=\"get\">"                \
-    "Year<input type=\"number\" name=\"y\" min=\"2014\"><br>"               \
-    "Month<input type=\"number\" name=\"mo\" min=\"1\" max=\"12\"><br>"     \
-    "Day<input type=\"number\" name=\"d\" min=\"1\" max=\"31\"><br><br>"    \
-    "Hour (24H)<input type=\"number\" name=\"h\" min=\"0\" max=\"23\"><br>" \
-    "Min<input type=\"number\" name=\"mi\" min=\"0\" max=\"59\"><br>"       \
-    "Sec<input type=\"number\" name=\"s\" min=\"0\" max=\"59\"><br>"        \
-    "<input type=\"submit\" name=\"submit\" value=\"Submit\">"              \
-    "</form>"
-//static uint16_t CLOCK_FORM_SIZE = strlen(CLOCK_FORM);
-
-#define INDEX_BODY "<h1>Index</h1>"             \
-    "<a href=\"/clock\">Clock Config</a><br>"   \
-    "<a href=\"/sample\">Sensors Config</a><br>"\
-    "<a href=\"/comms\">Comms Config</a>"
-//static uint16_t INDEX_BODY_SIZE = strlen(INDEX_BODY);
-
-#define SENSOR_FORM_1 "<form action=\"/sensub\" method=\"get\">" \
-    "Sample Interval (s)<input type=\"number\" name=\"sample\" min=\"1\" value=\""
-#define SENSOR_FORM_2 "\"><br>AVR IDs (.sv)<input type=\"text\" name=\"AVR\" pattern=\"([0-9]{1,3}\.)*[0-9]{1,3}\" value=\""
-#define SENSOR_FORM_3 "\"><br>Rain?<input type=\"checkbox\" name=\"rain\" value=\"y\""
-#define SENSOR_FORM_4 "><br>ADC1?<input type=\"checkbox\" name=\"adc1\" value=\"y\""
-#define SENSOR_FORM_5 "><br>ADC2?<input type=\"checkbox\" name=\"adc2\" value=\"y\""
-#define SENSOR_FORM_6 "><br><input type=\"submit\" name=\"submit\" value=\"Submit\"></form>"
-//static uint16_t SENSOR_FORM_SIZE = strlen(SENSOR_FORM_1)
-//    + strlen(SENSOR_FORM_2) + strlen(SENSOR_FORM_3) + strlen(SENSOR_FORM_4)
-//    + strlen(SENSOR_FORM_5) + strlen(SENSOR_FORM_6);
-
-#define COMMS_FORM_1 "<form action=\"/comsub\" method=\"get\">" \
-    "Comms Interval (s)<input type=\"number\" name=\"interval\" min=\"1\" value=\""
-#define COMMS_FORM_2A "\"><br>Gateway IP<input type=\"text\" size=\"4\" name=\"a\" value=\""
-#define COMMS_FORM_2B "\"><input type=\"text\" name=\"b\" size=\"4\" value=\""
-#define COMMS_FORM_2C "\"><input type=\"text\" name=\"c\" size=\"4\" value=\""
-#define COMMS_FORM_2D "\"><input type=\"text\" name=\"d\" size=\"4\" value=\""
-#define COMMS_FORM_2E "\"><input type=\"text\" name=\"e\" size=\"4\" value=\""
-#define COMMS_FORM_2F "\"><input type=\"text\" name=\"f\" size=\"4\" value=\""
-#define COMMS_FORM_2G "\"><input type=\"text\" name=\"g\" size=\"4\" value=\""
-#define COMMS_FORM_2H "\"><input type=\"text\" name=\"h\" size=\"4\" value=\""
-#define COMMS_FORM_3 "\"><br>Gateway Port<input type=\"text\" name=\"port\" value=\""
-#define COMMS_FORM_4 "\"><br><input type=\"submit\" name=\"submit\" value=\"Submit\"></form>"
 
 //static uint16_t page_size;
 
@@ -702,6 +659,13 @@ static char* get_next_write_filename(uint8_t length)
   return NULL;
 }
 
+static void avr_timer_handler(void *p){
+    process_post(&sample_process, protobuf_event, (process_data_t)NULL);
+}
+static process_event_t protobuf_event;
+static struct ctimer avr_timeout_timer;
+
+
 PROCESS_THREAD(sample_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -726,11 +690,16 @@ PROCESS_THREAD(sample_process, ev, data)
 
   static char* filename;
 
+  static uint8_t avr_recieved = 0;
+  static uint8_t avr_retry_count=0;
+  static uint8_t avr_id = 0;
+
   SENSORS_ACTIVATE(battery_sensor);
   SENSORS_ACTIVATE(temperature_sensor);
 
   DPRINT("[SAMP] Sampling sensors activated\n");
-
+  protobuf_event = process_alloc_event();
+  protobuf_register_process_callback(&temp_process, protobuf_event) ;
   while(1)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
@@ -752,7 +721,8 @@ PROCESS_THREAD(sample_process, ev, data)
     sample.has_accX = 1;
     sample.has_accY = 1;
     sample.has_accZ = 1;
-
+    //These 3 are meant to be a single equals
+    //It saves having to do assignment seperately
     if(sample.has_ADC1 = sensor_config.hasADC1) {
       sample.ADC1 = get_sensor_ADC1();
     }
@@ -763,6 +733,41 @@ PROCESS_THREAD(sample_process, ev, data)
       sample.rain = get_sensor_rain();
     }
 
+    DPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
+    for(i=0; i < avrIDs_count; i++){
+      avr_id = avrIDs[i] & 0xFF; //only use 8bits
+      DPRINT("[SAMP][AVR] using ID: %d\n", avr_id);
+        avr_recieved = 0;
+        avr_retry_count = 0;
+        data = NULL;
+        do{
+            protobuf_send_message(0x01, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
+              DPRINTF("Sent message %d\n", i);
+              i = i+1;
+              ctimer_set(&timeout_timer, CLOCK_SECOND * AVR_TIMEOUT_SECONDS, timer_handler, NULL);
+              PROCESS_YIELD_UNTIL(ev == protobuf_event);
+              if(data != NULL){
+                DPRINTF("\tavr data recieved on retry %d\n", retry_count);
+                ctimer_stop(&timeout_timer);
+                protobuf_data_t *pbd;
+                pbd = data;
+#ifdef DEFBUG
+                printf("\tRecieved %d bytes\t", pbd->length);
+                uint8_t j;
+                for(j=0; j<pbd->length;j++){
+                    printf("%d:", pbd->data[j]);
+                }
+                printf("\n");
+#endif
+                  //process data
+                  avr_recieved = 1;
+              }else{
+                  DPRINT("AVR timedout\n");
+                  avr_retry_count++;
+              }
+         }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
+    }
+      
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
