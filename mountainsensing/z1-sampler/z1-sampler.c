@@ -75,6 +75,7 @@
 
 // Sensors
 #include "sampling-sensors.h"
+#include "ms1-io.h"
 
 #define MAX_POST_SIZE 30
 
@@ -632,23 +633,23 @@ PROCESS_THREAD(sample_process, ev, data)
 
   static char* filename;
 
-  SENSORS_ACTIVATE(battery_sensor);
-  SENSORS_ACTIVATE(temperature_sensor);
+
 
   DPRINT("[SAMP] Sampling sensors activated\n");
-
   while(1)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
-
+    ms1_sense_on();
     sample.time = get_time();
 
     sample.batt = get_sensor_batt();
     sample.has_batt = 1;
 
+    SENSORS_ACTIVATE(temperature_sensor);
     sample.temp = get_sensor_temp();
     sample.has_temp = 1;
+    SENSORS_DEACTIVATE(temperature_sensor);
 
     sample.accX = get_sensor_acc_x();
     sample.accY = get_sensor_acc_y();
@@ -670,6 +671,7 @@ PROCESS_THREAD(sample_process, ev, data)
     if(sensor_config.avrIDs_count > 0) {
       sample.AVR.size = get_sensor_AVR(sensor_config.avrIDs, sensor_config.avrIDs_count, sample.AVR.bytes);
     }
+    ms1_sense_off();
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
