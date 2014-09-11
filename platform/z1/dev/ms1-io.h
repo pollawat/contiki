@@ -1,5 +1,5 @@
-#ifndef MS1IO
-#define MS1IO
+#ifndef MS1IO_H
+#define MS1IO_H
 
 
 extern void ms1_io_init(void);
