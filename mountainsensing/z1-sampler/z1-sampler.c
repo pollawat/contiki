@@ -37,7 +37,8 @@
 #include "web.h"
 
 #include "dev/ds3231-sensor.h"  // Clock
-//#include "dev/ds3231-sensor.c"
+
+#include "dev/ms1-io.h" //The power control required to turn on outputs
 
 #define DEBUG 1
 
@@ -638,7 +639,7 @@ PROCESS_THREAD(sample_process, ev, data)
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
 //    DPRINT("[SAMP] Waiting %lu seconds...\n", sensor_config.interval);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
-
+    ms1_sense_on();
     sample.time = get_time();
 
     sample.batt = get_sensor_batt();
@@ -664,7 +665,7 @@ PROCESS_THREAD(sample_process, ev, data)
     if(sample.has_rain = sensor_config.hasRain) {
       sample.rain = get_sensor_rain();
     }
-
+    ms1_sense_off();
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
