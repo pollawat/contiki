@@ -188,7 +188,7 @@ static uint8_t get_config(uint8_t config)
 static uint8_t data[256] = {0};
 static uint16_t data_length = 0;
 
-static load_file(char *filename)
+static void load_file(char *filename)
 {
   static int fd;
   fd = cfs_open(filename, CFS_READ);
