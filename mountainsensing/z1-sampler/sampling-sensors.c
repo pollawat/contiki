@@ -2,7 +2,6 @@
 #include "dev/uart1_i2c_master.h"
 
 #include "dev/ds3231-sensor.h" 	// Clock
-#include "dev/ds3231-sensor.c"
 #include "dev/adc1-sensor.h" 	// ADC 1
 #include "dev/adc2-sensor.h" 	// ADC 2
 #include "dev/temperature-sensor.h" // Temp
