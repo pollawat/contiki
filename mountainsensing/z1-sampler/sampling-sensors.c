@@ -17,53 +17,53 @@
  *
  * Returns the lenght of the data
  */
-static uint16_t get_sensor_AVR(uint8_t AVR_count, uint8_t *avrIDs, uint8_t *data)
+uint16_t get_sensor_AVR(uint8_t AVR_count, uint8_t *avrIDs, uint8_t *data)
 {
   printf("sampling-sensors.c: get_sensor_AVR(): NOT IMPLEMENTED");
   return 0;
 }
 
-static uint16_t get_sensor_rain()
+uint16_t get_sensor_rain()
 {
   return event_sensor.value(1);
 }
 
-static uint16_t get_sensor_ADC1()
+uint16_t get_sensor_ADC1(void)
 {
   return adc1_sensor.value(0);
 }
 
-static uint16_t get_sensor_ADC2()
+uint16_t get_sensor_ADC2(void)
 {
   return adc2_sensor.value(0);
 }
 
-static float get_sensor_temp()
+float get_sensor_temp(void)
 {
   return (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
 }
 
-static float get_sensor_batt()
+float get_sensor_batt(void)
 {
   return (float)((battery_sensor.value(0)*2.500*2)/4096);
 }
 
-static int16_t get_sensor_acc_x()
+int16_t get_sensor_acc_x(void)
 {
   return accm_read_axis(X_AXIS);
 }
 
-static int16_t get_sensor_acc_y()
+int16_t get_sensor_acc_y(void)
 {
   return accm_read_axis(Y_AXIS);
 }
 
-static int16_t get_sensor_acc_z()
+int16_t get_sensor_acc_z(void)
 {
   return accm_read_axis(Z_AXIS);
 }
 
-static uint32_t get_time()
+uint32_t get_time(void)
 {
   uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
   time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);

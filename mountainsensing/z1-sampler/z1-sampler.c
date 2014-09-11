@@ -73,7 +73,7 @@
 #include "readings.pb.h"
 
 // Sensors
-#include "sampling-sensors.c"
+#include "sampling-sensors.h"
 
 #define MAX_POST_SIZE 30
 
