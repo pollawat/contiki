@@ -66,16 +66,11 @@
 
 // Protobuf
 #include "pb_decode.h"
-#include "pb_decode.c"
 #include "pb_encode.h"
-#include "pb_encode.c"
 
 // Config
 #include "settings.pb.h"
-#include "settings.pb.c"
-
 #include "readings.pb.h"
-#include "readings.pb.c"
 
 // Sensors
 #include "sampling-sensors.c"
