@@ -44,7 +44,9 @@ float get_sensor_temp(void)
 
 float get_sensor_batt(void)
 {
-  return (float)((batv_sensor.value(0));
+  SENSORS_ACTIVATE(batv_sensor);
+  return (float)(batv_sensor.value(0));
+  SENSORS_DEACTIVATE(batv_sensor);
 }
 
 int16_t get_sensor_acc_x(void)
