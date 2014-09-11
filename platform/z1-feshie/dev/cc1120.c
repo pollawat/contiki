@@ -247,13 +247,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	
 	/* Make sure that the TX FIFO is empty as we only want a single packet in it. */
 	cc1120_flush_tx();
-	
-	/* If radio is meant to be in RX, put it back in. */
-	if(radio_on)
-	{	
-		cc1120_set_state(CC1120_STATE_RX);
-	}
-		
+			
 	/* Write to the FIFO. */
 	cc1120_write_txfifo(payload, len);
 	ack_tx  = 0;
@@ -276,6 +270,12 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	tx_seq = ((uint8_t *)payload)[2];   //packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
 
 	lbt_success = 0;
+	
+	/* If radio is meant to be in RX, put it back in. */
+	if(radio_on)
+	{	
+		cc1120_set_state(CC1120_STATE_RX);
+	}
 	
 	return RADIO_TX_OK;
 }
@@ -631,11 +631,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				
 					RELEASE_SPI();
 				}
-				cc1120_flush_rx();	
+				
 			}
 			
 			radio_pending &= ~(ACK_PENDING);
 			cc1120_flush_tx();
+			cc1120_flush_rx();	
 			
 			if(radio_on)
 			{
@@ -888,19 +889,11 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		return 0;		
 	}
 	
-	
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", length);
 	
-	if(packet_pending > 1)
-	{
-		cc1120_flush_rx();
-	}
-	else
-	{
-		packet_pending = 0;
-	}
-
+	cc1120_flush_rx();	/* Make sure that the RX FIFO is empty. */
+	
 	/* Return read length. */
 	return length;
 }
@@ -1004,7 +997,6 @@ int
 cc1120_driver_pending_packet(void)
 {
 	PRINTFRX("**** Radio Driver: Pending Packet? ");
-
 	if((packet_pending > 0))
 	{
 		PRINTFRX(" yes ****\n");
@@ -1077,6 +1069,9 @@ cc1120_misc_config(void)
 	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);		/* Set TXOFF to go to RX for ACK and to stay in RX on bad packet. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_GAIN_ADJUST, (CC1120_RSSI_OFFSET));	/* Set the RSSI Offset. This is a two's compliment number. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, (CC1120_CS_THRESHOLD));   	/* Set Carrier Sense Threshold. This is a two's compliment number. */
+	
+	cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
+
 
 #if RDC_CONF_HARDWARE_CSMA	
 	cc1120_spi_single_write(CC1120_ADDR_PKT_CFG2, 0x10);		/* Configure Listen Before Talk (LBT), see Section 6.12 on Page 42 of the CC1120 userguide (swru295) for details. */
@@ -1652,6 +1647,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
+	//printf("I\n\r");
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
 	if(cc1120_arch_spi_enabled())
 	{
@@ -1686,52 +1682,65 @@ cc1120_interrupt_handler(void)
 	
 	switch (marc_status){
 		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
-			/* RX terminated due to timeout.  Should not get here as there is  */							
+			/* RX terminated due to timeout.  Should not get here as there is  */	
+			printf("RX Timeout.\n\r");						
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
 			/* RX Terminated on CS or PQT. */
+			printf("RXT\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
-			/* EWOR Sync lost. */								
+			/* EWOR Sync lost. */	
+			printf("EWOR\n\r");							
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
 			/* Packet discarded due to being too long. Flush RX FIFO? */	
+			printf("LEN\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
 			/* Packet discarded due to bad address - should not get here 
-			 * as address matching is not being used. Flush RX FIFO? */						
+			 * as address matching is not being used. Flush RX FIFO? */		
+			printf("DISC\n\r");				
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
 			/* Packet discarded due to bad CRC. Should not need to flush 
-			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/			
+			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
+			 printf("CRC\n\r");		
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
 			/* TX FIFO has overflowed. */
-			radio_pending |= TX_FIFO_ERROR;											
+			radio_pending |= TX_FIFO_ERROR;
+			printf("TOF\n\r");											
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
 			/* TX FIFO has underflowed. */
 			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
-			radio_pending |= TX_FIFO_ERROR;					
+			radio_pending |= TX_FIFO_ERROR;	
+			printf("TUF\n\r");				
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
-			cc1120_flush_rx();									
+			cc1120_flush_rx();	
+			if(radio_on)
+			{	
+				cc1120_set_state(CC1120_STATE_RX);
+			}						
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
 			/* RX FIFO has underflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Underflow. !!!\n");
-			radio_pending |= RX_FIFO_UNDER;									
+			radio_pending |= RX_FIFO_UNDER;			
+			printf("RUF\n\r");						
 			break;	
 			
 		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
