@@ -29,12 +29,16 @@ uint16_t get_sensor_rain()
 
 uint16_t get_sensor_ADC1(void)
 {
+  SENSORS_DEACTIVATE(adc1_sensor);
   return adc1_sensor.value(0);
+  SENSORS_DEACTIVATE(adc1_sensor);
 }
 
 uint16_t get_sensor_ADC2(void)
 {
+  SENSORS_ACTIVATE(adc1_sensor);
   return adc2_sensor.value(0);
+  SENSORS_DEACTIVATE(adc2_sensor);
 }
 
 float get_sensor_temp(void)
