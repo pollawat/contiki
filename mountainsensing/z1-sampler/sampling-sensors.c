@@ -29,16 +29,16 @@ uint16_t get_sensor_rain()
 
 uint16_t get_sensor_ADC1(void)
 {
-  uint16_t ret;
+  static uint16_t adc1_ret;
   SENSORS_ACTIVATE(adc1_sensor);
-  ret =  adc1_sensor.value(0);
+  adc1_ret =  adc1_sensor.value(0);
   SENSORS_DEACTIVATE(adc1_sensor);
-  return ret;
+  return adc1_ret;
 }
 
 uint16_t get_sensor_ADC2(void)
 {
-  uint16_t ret;
+  static uint16_t ret;
   SENSORS_ACTIVATE(adc1_sensor);
   ret =  adc2_sensor.value(0);
   SENSORS_DEACTIVATE(adc2_sensor);
@@ -52,11 +52,11 @@ float get_sensor_temp(void)
 
 float get_sensor_batt(void)
 {
-  float ret;
+  static float bat_ret;
   SENSORS_ACTIVATE(batv_sensor);
-  ret =  (float)(batv_sensor.value(0));
+  bat_ret =  (float)(batv_sensor.value(0));
   SENSORS_DEACTIVATE(batv_sensor);
-  return ret;
+  return bat_ret;
 }
 
 int16_t get_sensor_acc_x(void)
