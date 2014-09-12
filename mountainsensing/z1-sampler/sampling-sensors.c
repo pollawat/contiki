@@ -29,7 +29,7 @@ uint16_t get_sensor_rain()
 
 uint16_t get_sensor_ADC1(void)
 {
-  SENSORS_DEACTIVATE(adc1_sensor);
+  SENSORS_ACTIVATE(adc1_sensor);
   return adc1_sensor.value(0);
   SENSORS_DEACTIVATE(adc1_sensor);
 }
