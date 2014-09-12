@@ -209,7 +209,7 @@ cc1120_driver_init(void)
 			break;
 	}
 	
-	printf("Detected & OK\n"); 
+	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -247,13 +247,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	
 	/* Make sure that the TX FIFO is empty as we only want a single packet in it. */
 	cc1120_flush_tx();
-	
-	/* If radio is meant to be in RX, put it back in. */
-	if(radio_on)
-	{	
-		cc1120_set_state(CC1120_STATE_RX);
-	}
-		
+			
 	/* Write to the FIFO. */
 	cc1120_write_txfifo(payload, len);
 	ack_tx  = 0;
@@ -276,6 +270,12 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	tx_seq = ((uint8_t *)payload)[2];   //packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
 
 	lbt_success = 0;
+	
+	/* If radio is meant to be in RX, put it back in. */
+	if(radio_on)
+	{	
+		cc1120_set_state(CC1120_STATE_RX);
+	}
 	
 	return RADIO_TX_OK;
 }
@@ -613,7 +613,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				watchdog_periodic();		/* Feed the dog to stop reboots. */
 			}
 			
-			if(cc1120_get_state() != CC1120_STATUS_RX)
+			if(cc1120_get_state() != CC1120_STATUS_RX || cc1120_read_rxbytes() > 0)
 			{
 				/* We have received something. */
 				transmit_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
@@ -628,18 +628,15 @@ cc1120_driver_transmit(unsigned short transmit_len)
 					cc1120_arch_spi_disable();
 					
 					ack_seq = ack_buf[2];	
-		
-					cc1120_flush_rx();	
 				
 					RELEASE_SPI();
 				}
+				
 			}
-			else
-			{
-				cc1120_set_state(CC1120_STATE_IDLE);
-			}
+			
 			radio_pending &= ~(ACK_PENDING);
 			cc1120_flush_tx();
+			cc1120_flush_rx();	
 			
 			if(radio_on)
 			{
@@ -692,7 +689,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
 	PRINTF("**** Radio Driver: Read ****\n");
 
-	uint8_t length,  rxbytes = 0;
+	uint8_t length, tmp, i, rxbytes = 0;
 	rimeaddr_t dest;
 		
 	if(radio_pending & RX_FIFO_UNDER)
@@ -749,12 +746,125 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	LOCK_SPI();
 	PRINTFRX("\tPacket received.\n"); 
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
-	
+		
 	/* We have received a normal packet. Read the packet. */
 	PRINTFRX("\tRead FIFO.\n");
+
+	
+
 	cc1120_arch_spi_enable();
-	cc1120_arch_rxfifo_read(buf, length);
+	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+	
+	for(i = 0; i < length; i++)
+	{
+		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+		((uint8_t *)buf)[i] = cc1120_arch_spi_rw_byte(0);
+		if((i == 13) && (((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ))
+		{
+			/* ACK handling. */
+			
+			
+			/* Get the address in the correct order. */
+			if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
+			{
+				/* Long address. */
+				dest.u8[7] = ((uint8_t *)buf)[5];
+				dest.u8[6] = ((uint8_t *)buf)[6];
+				dest.u8[5] = ((uint8_t *)buf)[7];
+				dest.u8[4] = ((uint8_t *)buf)[8];
+				dest.u8[3] = ((uint8_t *)buf)[9];
+				dest.u8[2] = ((uint8_t *)buf)[10];
+				dest.u8[1] = ((uint8_t *)buf)[11];
+				dest.u8[0] = ((uint8_t *)buf)[12];
+			}
+			else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
+			{
+				/* Short address. */
+				dest.u8[1] = ((uint8_t *)buf)[5];
+				dest.u8[0] = ((uint8_t *)buf)[6];
+			}
+			
+			/* Work out if we need to send an ACK. */
+			if(rimeaddr_cmp(&dest, &rimeaddr_node_addr))
+			{
+				PRINTFRX("\tSending ACK\n");
+				
+				cc1120_arch_spi_disable();
+				
+				rtimer_clock_t t0;                                                   
+
+				/* Packet is for this node. */
+				watchdog_periodic();	/* Feed the dog to stop reboots. */
+				
+				/* Populate ACK Frame buffer. */
+				ack_buf[0] = ACK_FRAME_CONTROL_LSO;
+				ack_buf[1] = ACK_FRAME_CONTROL_MSO;
+				ack_buf[2] = ((uint8_t *)buf)[2];
+				
+				radio_pending &= ~(TX_COMPLETE);
+				
+				cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);	/* Set TXOFF Mode to IDLE as we are not expecting ACK. */
+				
+				/* Make sure that the TX FIFO is empty & write ACK to it. */
+				cc1120_flush_tx();
+				cc1120_write_txfifo(ack_buf, ACK_LEN);
+				ack_tx = 1;
+				
+				/* Transmit ACK WITHOUT LBT. */
+				cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
+				t0 = RTIMER_NOW(); 
+				
+				/* Block till TX is complete. */	
+				while(!(radio_pending & TX_COMPLETE))
+				{
+					/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
+					watchdog_periodic();	/* Feed the dog to stop reboots. */
+					PRINTFRX(".");
+					
+					if(radio_pending & TX_FIFO_ERROR)
+					{
+						/* TX FIFO has underflowed during ACK TX.  Need to flush TX FIFO. */
+						cc1120_flush_tx();
+						break;
+					}
+					
+					if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
+					{
+						/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
+						 * TX FIFO (all 128 bits) should be transmitted in 0.02 
+						 * seconds. Timeout set to 0.05 seconds to be sure.  If 
+						 * the interrupt has not fired by this time then something 
+						 * went wrong. 
+						 * 
+						 * This timeout needs to be adjusted if lower data rates 
+						 * are used. */	 
+						if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
+						{
+							/* We have actually transmitted everything in the FIFO. */
+							radio_pending |= TX_COMPLETE;
+							PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
+						}
+						else
+						{
+							cc1120_set_state(CC1120_STATE_IDLE);
+							PRINTFTXERR("!!! TX ERROR: TX timeout reached !!!\n");						
+						}
+						break;
+					}
+				}
+				
+				/* Re-load data into TX FIFO. */
+				cc1120_flush_tx();
+				//cc1120_write_txfifo(tx_buf, tx_len);
+				
+				cc1120_arch_spi_enable();
+				(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+			}
+		}
+	}
 	cc1120_arch_spi_disable();
+	watchdog_periodic();
+	
 	PRINTFRX("\tPacketRead\n");
 	
 	if(radio_pending & RX_FIFO_UNDER)
@@ -779,119 +889,11 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		return 0;		
 	}
 	
-	
-	/* If the FCF states that it is an ACK request, */
-	if(((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ)
-	{
-		/* Get the address in the correct order. */
-		if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
-		{
-			/* Long address. */
-			dest.u8[7] = ((uint8_t *)buf)[5];
-			dest.u8[6] = ((uint8_t *)buf)[6];
-			dest.u8[5] = ((uint8_t *)buf)[7];
-			dest.u8[4] = ((uint8_t *)buf)[8];
-			dest.u8[3] = ((uint8_t *)buf)[9];
-			dest.u8[2] = ((uint8_t *)buf)[10];
-			dest.u8[1] = ((uint8_t *)buf)[11];
-			dest.u8[0] = ((uint8_t *)buf)[12];
-		}
-		else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
-		{
-			/* Short address. */
-			dest.u8[1] = ((uint8_t *)buf)[5];
-			dest.u8[0] = ((uint8_t *)buf)[6];
-		}
-		
-		/* Work out if we need to send an ACK. */
-		if(rimeaddr_cmp(&dest, &rimeaddr_node_addr))
-		{
-			PRINTFRX("\tSending ACK\n");
-			
-			rtimer_clock_t t0;                                                   
-
-			/* Packet is for this node. */
-			watchdog_periodic();	/* Feed the dog to stop reboots. */
-			
-			/* Populate ACK Frame buffer. */
-			ack_buf[0] = ACK_FRAME_CONTROL_LSO;
-			ack_buf[1] = ACK_FRAME_CONTROL_MSO;
-			ack_buf[2] = ((uint8_t *)buf)[2];
-			
-			radio_pending &= ~(TX_COMPLETE);
-			
-			LOCK_SPI();
-			
-			cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);	/* Set TXOFF Mode to IDLE as we are not expecting ACK. */
-			
-			/* Make sure that the TX FIFO is empty & write ACK to it. */
-			cc1120_flush_tx();
-			cc1120_write_txfifo(ack_buf, ACK_LEN);
-			ack_tx = 1;
-			
-			/* Transmit ACK WITHOUT LBT. */
-			cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
-			t0 = RTIMER_NOW(); 
-			
-			/* Block till TX is complete. */	
-			while(!(radio_pending & TX_COMPLETE))
-			{
-				/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
-				watchdog_periodic();	/* Feed the dog to stop reboots. */
-				PRINTFRX(".");
-				
-				if(radio_pending & TX_FIFO_ERROR)
-				{
-					/* TX FIFO has underflowed during ACK TX.  Need to flush TX FIFO. */
-					cc1120_flush_tx();
-					break;
-				}
-				
-				if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
-				{
-					/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
-					 * TX FIFO (all 128 bits) should be transmitted in 0.02 
-					 * seconds. Timeout set to 0.05 seconds to be sure.  If 
-					 * the interrupt has not fired by this time then something 
-					 * went wrong. 
-					 * 
-					 * This timeout needs to be adjusted if lower data rates 
-					 * are used. */	 
-					if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
-					{
-						/* We have actually transmitted everything in the FIFO. */
-						radio_pending |= TX_COMPLETE;
-						PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
-					}
-					else
-					{
-						cc1120_set_state(CC1120_STATE_IDLE);
-						PRINTFTXERR("!!! TX ERROR: TX timeout reached !!!\n");						
-					}
-					break;
-				}
-			}
-			
-			/* Re-load data into TX FIFO. */
-			cc1120_flush_tx();
-			cc1120_write_txfifo(tx_buf, tx_len);
-			
-			RELEASE_SPI();
-		}
-	}
-	
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", length);
 	
-	if(packet_pending > 1)
-	{
-		cc1120_flush_rx();
-	}
-	else
-	{
-		packet_pending = 0;
-	}
-
+	cc1120_flush_rx();	/* Make sure that the RX FIFO is empty. */
+	
 	/* Return read length. */
 	return length;
 }
@@ -975,8 +977,7 @@ cc1120_driver_receiving_packet(void)
 		else
 		{
 			pqt = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);			/* Check PQT. */
-			if(((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) && (pqt & CC1120_MODEM_STATUS1_PQT_VALID))
-				|| (pqt & CC1120_MODEM_STATUS1_SYNC_FOUND))// || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
+			if((pqt & CC1120_MODEM_STATUS1_SYNC_FOUND))// ((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) && (pqt & CC1120_MODEM_STATUS1_PQT_VALID)) || || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
 			{
 				PRINTF(" Yes. ****\n");
 				return 1;
@@ -996,7 +997,6 @@ int
 cc1120_driver_pending_packet(void)
 {
 	PRINTFRX("**** Radio Driver: Pending Packet? ");
-
 	if((packet_pending > 0))
 	{
 		PRINTFRX(" yes ****\n");
@@ -1069,6 +1069,9 @@ cc1120_misc_config(void)
 	cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);		/* Set TXOFF to go to RX for ACK and to stay in RX on bad packet. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_GAIN_ADJUST, (CC1120_RSSI_OFFSET));	/* Set the RSSI Offset. This is a two's compliment number. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, (CC1120_CS_THRESHOLD));   	/* Set Carrier Sense Threshold. This is a two's compliment number. */
+	
+	cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
+
 
 #if RDC_CONF_HARDWARE_CSMA	
 	cc1120_spi_single_write(CC1120_ADDR_PKT_CFG2, 0x10);		/* Configure Listen Before Talk (LBT), see Section 6.12 on Page 42 of the CC1120 userguide (swru295) for details. */
@@ -1644,6 +1647,7 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
+	//printf("I\n\r");
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
 	if(cc1120_arch_spi_enabled())
 	{
@@ -1678,52 +1682,65 @@ cc1120_interrupt_handler(void)
 	
 	switch (marc_status){
 		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
-			/* RX terminated due to timeout.  Should not get here as there is  */							
+			/* RX terminated due to timeout.  Should not get here as there is  */	
+			printf("RX Timeout.\n\r");						
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
 			/* RX Terminated on CS or PQT. */
+			printf("RXT\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
-			/* EWOR Sync lost. */								
+			/* EWOR Sync lost. */	
+			printf("EWOR\n\r");							
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
 			/* Packet discarded due to being too long. Flush RX FIFO? */	
+			printf("LEN\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
 			/* Packet discarded due to bad address - should not get here 
-			 * as address matching is not being used. Flush RX FIFO? */						
+			 * as address matching is not being used. Flush RX FIFO? */		
+			printf("DISC\n\r");				
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
 			/* Packet discarded due to bad CRC. Should not need to flush 
-			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/			
+			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
+			 printf("CRC\n\r");		
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
 			/* TX FIFO has overflowed. */
-			radio_pending |= TX_FIFO_ERROR;											
+			radio_pending |= TX_FIFO_ERROR;
+			printf("TOF\n\r");											
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
 			/* TX FIFO has underflowed. */
 			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
-			radio_pending |= TX_FIFO_ERROR;					
+			radio_pending |= TX_FIFO_ERROR;	
+			printf("TUF\n\r");				
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
-			cc1120_flush_rx();									
+			cc1120_flush_rx();	
+			if(radio_on)
+			{	
+				cc1120_set_state(CC1120_STATE_RX);
+			}						
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
 			/* RX FIFO has underflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Underflow. !!!\n");
-			radio_pending |= RX_FIFO_UNDER;									
+			radio_pending |= RX_FIFO_UNDER;			
+			printf("RUF\n\r");						
 			break;	
 			
 		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	

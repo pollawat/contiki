@@ -1,6 +1,60 @@
 /*
- * Extended from z1-websense.c
+ * Based on Z1-Websense, which has the following licence:
+ *
+ * Copyright (c) 2011, Zolertia(TM) is a trademark by Advancare,SL
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
+
+/**
+ * \file
+ *         Battery and Temperature IPv6 Demo for Zolertia Z1
+ * \author
+ *         Niclas Finne    <nfi@sics.se>
+ *         Joakim Eriksson <joakime@sics.se>
+ *         Joel Hoglund    <joel@sics.se>
+ *         Enric M. Calvo  <ecalvo@zolertia.com>
+ */
+
+#include "contiki.h"
+#include "httpd-simple.h"
+#include "webserver-nogui.h"
+#include "dev/temperature-sensor.h"
+#include "dev/battery-sensor.h"
+
+#ifndef CC11xx_CC1120
+#include "dev/cc2420.h"
+#endif
+
+#include "dev/leds.h"
+#include <stdio.h>
+
+#include "z1-sampler-config-defaults.h"
+#include "web_defines.h"
 
 // General
 #include "contiki.h"
@@ -11,42 +65,24 @@
 
 // Networking
 #include "contiki-net.h"
-//#include "httpd-simple.h"
-//#include "webserver-nogui.h"
 
 #include "web-pages.h" //The #defines to describe version webpages
 
 // Protobuf
-#include "dev/pb_decode.h"
-#include "dev/pb_decode.c"
-#include "dev/pb_encode.h"
-#include "dev/pb_encode.c"
-
+#include "pb_decode.h"
+#include "pb_encode.h"
 
 // Config
 #include "settings.pb.h"
-#include "settings.pb.c"
-
-//#include "message.pb.h"
-//#include "message.pb.c"
-
 #include "readings.pb.h"
-#include "readings.pb.c"
 
 // Sensors
-#include "dev/uart1_i2c_master.h"
+#include "sampling-sensors.h"
+#include "ms1-io.h"
 
-#include "dev/ds3231-sensor.h" 	// Clock
-#include "dev/ds3231-sensor.c"
-#include "dev/adc1-sensor.h" 	// ADC 1
-#include "dev/adc2-sensor.h" 	// ADC 2
-#include "dev/temperature-sensor.h" // Temp
-#include "dev/battery-sensor.h" // Batt
-#include "adxl345.h" 		// Accel
-#include "dev/event-sensor.h"	//event sensor (rain)
-#include "dev/protobuf-handler.h"
+#define MAX_POST_SIZE 30
 
-#define DEBUG 1
+#define DEBUG 0
 
 #if DEBUG == 1
     #define DPRINT(...) printf(__VA_ARGS__)
@@ -54,77 +90,26 @@
     #define DPRINT(...)
 #endif
 
-#define WIPE_ON_BOOT 0
-
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
-//#define READINGS_DIRECTORY "readings"
-//#define CONFIG_FILENAME "config"
-
-//static uint32_t comms_interval = 1200;
-//static uint32_t sample_interval = 600;
-
-static SensorConfig sensor_config;
-static POSTConfig POST_config;
-
-/*float floor(float x){
+float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
   else        return (float) ((int)x-1);
-}*/
+}
 
+PROCESS(web_sense_process, "Sense Web Demo");
 PROCESS(web_process, "Web Server Process");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
 
-AUTOSTART_PROCESSES(&web_process, &post_process, &sample_process);//, &tick_process);//, &post_process);
+AUTOSTART_PROCESSES(&web_sense_process);
 
-static uint16_t get_sensor_rain()
-{
-  return event_sensor.value(1);
-}
+/*---------------------------------------------------------------------------*/
+// CONFIG CODE 
 
-static uint16_t get_sensor_ADC1()
-{
-  return adc1_sensor.value(0);
-}
-
-static uint16_t get_sensor_ADC2()
-{
-  return adc2_sensor.value(0);
-}
-
-static float get_sensor_temp()
-{
-  return (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
-}
-
-static float get_sensor_batt()
-{
-  return (float)((battery_sensor.value(0)*2.500*2)/4096);
-}
-
-static int16_t get_sensor_acc_x()
-{
-  return accm_read_axis(X_AXIS);
-}
-
-static int16_t get_sensor_acc_y()
-{
-  return accm_read_axis(Y_AXIS);
-}
-
-static int16_t get_sensor_acc_z()
-{
-  return accm_read_axis(Z_AXIS);
-}
-
-static uint32_t get_time()
-{
-  uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
-  time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
-  return time;
-}
+static SensorConfig sensor_config;
+static POSTConfig POST_config;
 
 #define SAMPLE_CONFIG 1
 #define COMMS_CONFIG 2
@@ -134,55 +119,6 @@ static uint32_t get_time()
 #else
     static char cfg_buf[POSTConfig_size + 4];
 #endif
-
-/*
- * Returns 0 upon success, 1 upon failure
- */
-static uint8_t get_config(uint8_t config)
-{
-  memset(cfg_buf, 0, sizeof(cfg_buf));
-  static int read;
-  if(config == SAMPLE_CONFIG) {
-    DPRINT("[RCFG] Opening `sampleconfig`\n");
-    read = cfs_open("sampleconfig", CFS_READ);
-  } else {
-    DPRINT("[RCFG] Opening `commsconfig`\n");
-    read = cfs_open("commsconfig", CFS_READ);
-  }
-  //static Example config;
-  if(read != -1) {
-    cfs_read(read, cfg_buf, sizeof(cfg_buf));
-    cfs_close(read);
-
-    pb_istream_t istream = pb_istream_from_buffer(cfg_buf, sizeof(cfg_buf));
-
-    DPRINT("[RCFG] Bytes left = %d\n", istream.bytes_left);
-
-    if(config == SAMPLE_CONFIG) {
-      pb_decode_delimited(&istream, SensorConfig_fields, &sensor_config);
-    } else {
-      pb_decode_delimited(&istream, POSTConfig_fields, &POST_config);
-    }
-    return 0;
-  } else {
-    DPRINT("[RCFG] ERROR: could not read from disk\n");
-    return 1;
-  }
-}
-
-void set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
-{
-  static tm t;
-
-  t.tm_year = y - 1900;
-  t.tm_mon = mo - 1;
-  t.tm_mday = d;
-  t.tm_hour = h;
-  t.tm_min = mi;
-  t.tm_sec = s;
-
-  ds3231_set_time(&t);
-}
 
 /*
  * Returns 0 upon success, 1 on failure
@@ -214,6 +150,68 @@ uint8_t set_config(uint8_t config)
 }
 
 /*
+ * Returns 0 upon success, 1 upon failure
+ */
+static uint8_t get_config(uint8_t config)
+{
+  memset(cfg_buf, 0, sizeof(cfg_buf));
+  static int read;
+  if(config == SAMPLE_CONFIG) {
+    DPRINT("[RCFG] Opening `sampleconfig`\n");
+    read = cfs_open("sampleconfig", CFS_READ);
+    DPRINT("[RCFG] Opened\n");
+  } else {
+    DPRINT("[RCFG] Opening `commsconfig`\n");
+    read = cfs_open("commsconfig", CFS_READ);
+  }
+  DPRINT("[RCFG] Attmepting to read\n");
+  //static Example config;
+  if(read != -1) {
+    DPRINT("[RCFG] Reading...\n");
+    cfs_read(read, cfg_buf, sizeof(cfg_buf));
+    cfs_close(read);
+
+    pb_istream_t istream = pb_istream_from_buffer(cfg_buf, sizeof(cfg_buf));
+
+    DPRINT("[RCFG] Bytes left = %d\n", istream.bytes_left);
+
+    if(config == SAMPLE_CONFIG) {
+      pb_decode_delimited(&istream, SensorConfig_fields, &sensor_config);
+    } else {
+      pb_decode_delimited(&istream, POSTConfig_fields, &POST_config);
+    }
+    return 0;
+  } else {
+    DPRINT("[RCFG] ERROR: could not read from disk\n");
+    return 1;
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+
+static uint8_t data[256] = {0};
+static uint16_t data_length = 0;
+
+static void load_file(char *filename)
+{
+  static int fd;
+  fd = cfs_open(filename, CFS_READ);
+  if(fd >= 0)
+  {
+    data_length = cfs_read(fd, data, sizeof(data));
+    cfs_close(fd);
+    DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
+  }
+  else
+  {
+    DPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+// 
+
+/*
  * Gets the value associated with the key in a URL
  *
  * Example:
@@ -242,25 +240,6 @@ char* get_url_param(char* url, char* key)
   return NULL;
 }
 
-static uint8_t data[256] = {};
-static uint16_t data_length = 0;
-
-static void load_file(char *filename)
-{
-  static int fd;
-  fd = cfs_open(filename, CFS_READ);
-  if(fd >= 0)
-  {
-    data_length = cfs_read(fd, data, sizeof(data));
-    cfs_close(fd);
-    DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
-  }
-  else
-  {
-    DPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
-  }
-}
-
 static struct psock ps;
 
 static struct etimer timer;
@@ -271,7 +250,9 @@ static int http_status = 0;
 static uint8_t attempting = 0;
 static char psock_buffer[120];
 
-static int handles = 0;
+static struct psock web_ps;
+static const uint8_t web_buf[128];
+static char *url;
 
 static int handle_connection(struct psock *p)
 {
@@ -301,14 +282,7 @@ static int handle_connection(struct psock *p)
 }
 
 
-static struct psock web_ps;
-static const uint8_t web_buf[128];
-static char *url;
 
-//static uint16_t page_size;
-
-
-//static PT_THREAD(web_handle_connection(struct psock *p))
 
 static
 PT_THREAD(web_handle_connection(struct psock *p))
@@ -317,249 +291,213 @@ PT_THREAD(web_handle_connection(struct psock *p))
   static uint8_t i;
   static char* param;
 
-  //page_size = 0;
+  DPRINT("[WEBD] Reading HTTP request line...\n");
 
-  //while(1)
-  //{
-    DPRINT("[WEBD] Reading HTTP request line...\n");
+  PSOCK_BEGIN(p);
+  PSOCK_READTO(p, '\n');
 
-//    memset(web_buf, 0, sizeof(web_buf));
-    PSOCK_BEGIN(p);
-//    PSOCK_WAIT_UNTIL(p, PSOCK_NEWDATA(p));
-    PSOCK_READTO(p, '\n');
-    //PSOCK_READBUF_LEN(p, 20);
-//    DPRINT("[WEBD] Read {%.*s}\n", PSOCK_DATALEN(p), p->bufptr);
-
-    if(strncmp("GET ", web_buf, 4) == 0)
+  if(strncmp("GET ", web_buf, 4) == 0)
+  {
+    url = web_buf + 4;
+    strtok(url, " ");
+    DPRINT("[WEBD] Got request for %s\n", url);
+    static char num[8];
+    if(strncmp(url, "/clock", 6) == 0)
+    { // Serve clock form
+      static uint16_t y;
+      static uint8_t mo, d, h, mi, se;
+      static bool submitted;
+      static const char* ZERO = "0";
+      DPRINT("[WEBD] Serving /clock\n");
+      submitted = 0;
+      if(get_url_param(url, "submit") != NULL) {
+        submitted = 1;
+        param = get_url_param(url, "y");
+        y = atol(param == NULL ? ZERO : param);
+        param = get_url_param(url, "mo");
+        mo = atoi(param == NULL ? ZERO : param);
+        param = get_url_param(url, "d");
+        d = atoi(param == NULL ? ZERO : param);
+        param = get_url_param(url, "h");
+        h = atoi(param == NULL ? ZERO : param);
+        param = get_url_param(url, "mi");
+        mi = atoi(param == NULL ? ZERO : param);
+        param = get_url_param(url, "s");
+        se = atoi(param == NULL? ZERO : param);
+        set_time(y, mo, d, h, mi, se);
+      }
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      if(submitted) {
+        PSOCK_SEND_STR(p, "<h1>Success! Time set</h1>");
+      }
+      PSOCK_SEND_STR(p, CLOCK_FORM);
+      PSOCK_SEND_STR(p, BOTTOM);
+    }
+    else if(strncmp(url, "/sample", 7) == 0)
     {
-      url = web_buf + 4;
-      strtok(url, " ");
-      DPRINT("[WEBD] Got request for %s\n", url);
-      static char num[8];
-      if(strncmp(url, "/clock", 6) == 0)
-      { // Serve clock form
-        static uint16_t y;
-        static uint8_t mo, d, h, mi, se;
-        static bool submitted;
-        static const char* ZERO = "0";
-        DPRINT("[WEBD] Serving /clock\n");
-        submitted = 0;
-        if(get_url_param(url, "submit") != NULL) {
-          submitted = 1;
-
-          param = get_url_param(url, "y");
-          y = atol(param == NULL ? ZERO : param);
-
-          param = get_url_param(url, "mo");
-          mo = atoi(param == NULL ? ZERO : param);
-
-          param = get_url_param(url, "d");
-          d = atoi(param == NULL ? ZERO : param);
-
-          param = get_url_param(url, "h");
-          h = atoi(param == NULL ? ZERO : param);
-
-          param = get_url_param(url, "mi");
-          mi = atoi(param == NULL ? ZERO : param);
-
-          param = get_url_param(url, "s");
-          se = atoi(param == NULL? ZERO : param);
-
-          set_time(y, mo, d, h, mi, se);
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      PSOCK_SEND_STR(p, SENSOR_FORM_1);
+      //Interval
+      ltoa(sensor_config.interval, num, 10);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, SENSOR_FORM_2);
+      //AVR IDs
+      DPRINT("[WEBD] Producing AVR IDs from config\n");
+      for(i = 0; i < sensor_config.avrIDs_count; i++) {
+        DPRINT(".");
+        itoa(sensor_config.avrIDs[i], num, 10);
+        PSOCK_SEND_STR(p, num);
+        if(i != sensor_config.avrIDs_count - 1) {
+          PSOCK_SEND_STR(p, ".");
         }
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        if(submitted) {
-          PSOCK_SEND_STR(p, "<h1>Success! Time set</h1>");
-        }
-        PSOCK_SEND_STR(p, CLOCK_FORM);
-        PSOCK_SEND_STR(p, BOTTOM);
-        //PSOCK_CLOSE(p);
-        //break;
       }
-      else if(strncmp(url, "/sample", 7) == 0)
+      DPRINT("\n[WEBD] Producing other data\n");
+      PSOCK_SEND_STR(p, SENSOR_FORM_3);
+      //Rain?
+      if(sensor_config.hasRain) {
+        PSOCK_SEND_STR(p, " checked");
+      }
+      DPRINT("  RAIN DONE\n");
+      PSOCK_SEND_STR(p, SENSOR_FORM_4);
+      //ADC1?
+      if(sensor_config.hasADC1) {
+        PSOCK_SEND_STR(p, " checked");
+      }
+      DPRINT("  ADC1 DONE\n");
+      PSOCK_SEND_STR(p, SENSOR_FORM_5);
+      //ADC2?
+      if(sensor_config.hasADC2) {
+        PSOCK_SEND_STR(p, " checked");
+      }
+      DPRINT("  ADC2 DONE\n");
+      PSOCK_SEND_STR(p, SENSOR_FORM_6);
+      PSOCK_SEND_STR(p, BOTTOM);
+      DPRINT("[WEBD] Closing connection.\n");
+    }
+    else if(strncmp(url, "/sensub", 7) == 0)
+    {
+      param = get_url_param(url, "sample");
+      sensor_config.interval = (param == NULL ? 900 : atol(param));
+
+      param = get_url_param(url, "AVR");
+      static char AVRs[32];
+      if(param != NULL)
       {
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        PSOCK_SEND_STR(p, SENSOR_FORM_1);
-        //Interval
-        ltoa(sensor_config.interval, num, 10);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, SENSOR_FORM_2);
-        //AVR IDs
-        DPRINT("[WEBD] Producing AVR IDs from config\n");
-        for(i = 0; i < sensor_config.avrIDs_count; i++) {
-          DPRINT(".");
-          itoa(sensor_config.avrIDs[i], num, 10);
-          PSOCK_SEND_STR(p, num);
-          if(i != sensor_config.avrIDs_count - 1) {
-            PSOCK_SEND_STR(p, ".");
-          }
+        strcpy(AVRs, param);
+        static char *pch;
+        pch = strtok(AVRs, ".");
+        i = 0;
+        while(pch != NULL) {
+          sensor_config.avrIDs[i++] = atoi(pch);
+          pch = strtok(NULL, ".");
         }
-        DPRINT("\n[WEBD] Producing other data\n");
-        PSOCK_SEND_STR(p, SENSOR_FORM_3);
-        //Rain?
-        if(sensor_config.hasRain) {
-          PSOCK_SEND_STR(p, " checked");
-        }
-        DPRINT("  RAIN DONE\n");
-        PSOCK_SEND_STR(p, SENSOR_FORM_4);
-        //ADC1?
-        if(sensor_config.hasADC1) {
-          PSOCK_SEND_STR(p, " checked");
-        }
-        DPRINT("  ADC1 DONE\n");
-        PSOCK_SEND_STR(p, SENSOR_FORM_5);
-        //ADC2?
-        if(sensor_config.hasADC2) {
-          PSOCK_SEND_STR(p, " checked");
-        }
-        DPRINT("  ADC2 DONE\n");
-        PSOCK_SEND_STR(p, SENSOR_FORM_6);
-        PSOCK_SEND_STR(p, BOTTOM);
-        DPRINT("[WEBD] Closing connection.\n");
-        //PSOCK_CLOSE(p);
-        //break;
+        sensor_config.avrIDs_count = i;
       }
-      else if(strncmp(url, "/sensub", 7) == 0)
-      {
-        param = get_url_param(url, "sample");
-        sensor_config.interval = (param == NULL ? 900 : atol(param));
 
-        param = get_url_param(url, "AVR");
-        static char AVRs[32];
-        if(param != NULL)
-        {
-          strcpy(AVRs, param);
-          static char *pch;
-          pch = strtok(AVRs, ".");
-          i = 0;
-          while(pch != NULL) {
-            sensor_config.avrIDs[i++] = atoi(pch);
-            pch = strtok(NULL, ".");
-          }
-          sensor_config.avrIDs_count = i;
-        }
-
-        param = get_url_param(url, "rain");
-        if(param != NULL) {
-          sensor_config.hasRain = 1;
-        } else {
-          sensor_config.hasRain = 0;
-        }
-
-        param = get_url_param(url, "adc1");
-        if(param != NULL) {
-          sensor_config.hasADC1 = 1;
-        } else {
-          sensor_config.hasADC1 = 0;
-        }
-
-        param = get_url_param(url, "adc2");
-        if(param != NULL) {
-          sensor_config.hasADC2 = 1;
-        } else {
-          sensor_config.hasADC2 = 0;
-        }
-
-        set_config(SAMPLE_CONFIG);
-
-        DPRINT("[WEBD] Stored Data\n");
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        PSOCK_SEND_STR(p, "<h1>Success</h1>");
-        PSOCK_SEND_STR(p, BOTTOM);
-        //PSOCK_CLOSE(p);
-        //break;
+      param = get_url_param(url, "rain");
+      if(param != NULL && strcmp(param, "y") == 0) {
+        sensor_config.hasRain = 1;
+      } else {
+        sensor_config.hasRain = 0;
       }
-      else if(strncmp(url, "/comms", 6) == 0)
-      {
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        PSOCK_SEND_STR(p, COMMS_FORM_1);
-        // Interval
-        ltoa(POST_config.interval, num, 10);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2A);
-        ltoa(POST_config.ip[0], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2B);
-        ltoa(POST_config.ip[1], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2C);
-        ltoa(POST_config.ip[2], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2D);
-        ltoa(POST_config.ip[3], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2E);
-        ltoa(POST_config.ip[4], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2F);
-        ltoa(POST_config.ip[5], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2G);
-        ltoa(POST_config.ip[6], num, 16);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_2H);
-        ltoa(POST_config.ip[7], num, 16);
-        PSOCK_SEND_STR(p, num);
 
-        PSOCK_SEND_STR(p, COMMS_FORM_3);
-        // R
-        ltoa(POST_config.port, num, 10);
-        PSOCK_SEND_STR(p, num);
-        PSOCK_SEND_STR(p, COMMS_FORM_4);
-
-        PSOCK_SEND_STR(p, BOTTOM);
-        //PSOCK_CLOSE(p);
-        //break;
+      param = get_url_param(url, "adc1");
+      if(param != NULL && strcmp(param, "y") == 0) {
+        sensor_config.hasADC1 = 1;
+      } else {
+        sensor_config.hasADC1 = 0;
       }
-      else if(strncmp(url, "/comsub", 7) == 0)
-      {
-        param = get_url_param(url, "interval");
-        POST_config.interval = (param == NULL ? 3600 : atol(param));
 
-        static char chr[2] = {'a',0};
-
-        for(i = 0; i < 8; i++) {
-          chr[0] = 'a' + i;
-          param = get_url_param(url, chr);
-          POST_config.ip[i] = (param == NULL ? 0 : strtol(param, NULL, 16));
-        }
-
-        param = get_url_param(url, "port");
-        POST_config.port = (param == NULL ? 8080 : atol(param));
-
-        set_config(COMMS_CONFIG);
-
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        PSOCK_SEND_STR(p, "<h1>Success!</h1>");
-        PSOCK_SEND_STR(p, BOTTOM);
-        //PSOCK_CLOSE(p);
+      param = get_url_param(url, "adc2");
+      if(param != NULL && strcmp(param, "y") == 0) {
+        sensor_config.hasADC2 = 1;
+      } else {
+        sensor_config.hasADC2 = 0;
       }
-      else
-      {
-        //page_size += TOP_BOTTOM_SIZE + INDEX_BODY_SIZE;
-        //itoa(page_size, num, 10);
-        DPRINT("Serving / \"INDEX\"\n");
-        PSOCK_SEND_STR(p, HTTP_RES);
-        PSOCK_SEND_STR(p, TOP);
-        PSOCK_SEND_STR(p, INDEX_BODY);
-        PSOCK_SEND_STR(p, BOTTOM);
-        //PSOCK_CLOSE(p);
-        //break;
+
+      set_config(SAMPLE_CONFIG);
+
+      DPRINT("[WEBD] Stored Data\n");
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      PSOCK_SEND_STR(p, "<h1>Success</h1>");
+      PSOCK_SEND_STR(p, BOTTOM);
+    }
+    else if(strncmp(url, "/comms", 6) == 0)
+    {
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      PSOCK_SEND_STR(p, COMMS_FORM_1);
+      // Interval
+      ltoa(POST_config.interval, num, 10);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2A);
+      ltoa(POST_config.ip[0], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2B);
+      ltoa(POST_config.ip[1], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2C);
+      ltoa(POST_config.ip[2], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2D);
+      ltoa(POST_config.ip[3], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2E);
+      ltoa(POST_config.ip[4], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2F);
+      ltoa(POST_config.ip[5], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2G);
+      ltoa(POST_config.ip[6], num, 16);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_2H);
+      ltoa(POST_config.ip[7], num, 16);
+      PSOCK_SEND_STR(p, num);
+
+      PSOCK_SEND_STR(p, COMMS_FORM_3);
+
+      ltoa(POST_config.port, num, 10);
+      PSOCK_SEND_STR(p, num);
+      PSOCK_SEND_STR(p, COMMS_FORM_4);
+
+      PSOCK_SEND_STR(p, BOTTOM);
+    }
+    else if(strncmp(url, "/comsub", 7) == 0)
+    {
+      param = get_url_param(url, "interval");
+      POST_config.interval = (param == NULL ? POST_INTERVAL : atol(param));
+
+      static char chr[2] = {'a',0};
+
+      for(i = 0; i < 8; i++) {
+        chr[0] = 'a' + i;
+        param = get_url_param(url, chr);
+        POST_config.ip[i] = (param == NULL ? 0 : strtol(param, NULL, 16));
       }
+
+      param = get_url_param(url, "port");
+      POST_config.port = (param == NULL ? POST_PORT : atol(param));
+
+      set_config(COMMS_CONFIG);
+
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      PSOCK_SEND_STR(p, "<h1>Success!</h1>");
+      PSOCK_SEND_STR(p, BOTTOM);
     }
     else
     {
-//      PSOCK_SEND_STR(p, "HTTP/1.0 503\r\nRetry-After: 1\r\n\r\n");
-      //PSOCK_CLOSE(p);
+      DPRINT("Serving / \"INDEX\"\n");
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+      PSOCK_SEND_STR(p, INDEX_BODY);
+      PSOCK_SEND_STR(p, BOTTOM);
     }
-  //}
-
-//  PSOCK_CLOSE(p);
+  }
 
   PSOCK_CLOSE(p);
   PSOCK_END(p);
@@ -585,13 +523,28 @@ PROCESS_THREAD(web_process, ev, data)
         DPRINT("[WEBD] Handle connection\n");
         web_handle_connection(&web_ps);
         DPRINT("[WEBD] Handle COMPLETE!\n");
-//        break;
       }
     }
   }
   PROCESS_END();
 }
 
+PROCESS_THREAD(web_sense_process, ev, data)
+{
+  static struct etimer timer;
+  PROCESS_BEGIN();
+  #ifndef CC11xx_CC1120
+  cc2420_set_txpower(31);
+  #endif
+
+  process_start(&web_process, NULL);
+  process_start(&sample_process, NULL);
+  process_start(&post_process, NULL);
+
+
+  PROCESS_END();
+}
+/*---------------------------------------------------------------------------*/
 
 /*
  * Returns the filename that is to be read for POSTing
@@ -647,7 +600,7 @@ static char* get_next_write_filename(uint8_t length)
       filename[2] = '0';
       filename[3] = 0;
     }
-    else if((uint16_t)file_size + (uint16_t)length > 255) {
+    else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
     }
     else {
@@ -672,11 +625,11 @@ PROCESS_THREAD(sample_process, ev, data)
 
   if(get_config(SAMPLE_CONFIG) == 1)
   { // Config file does not exist! Use default and set file
-    sensor_config.interval = 900;
-    sensor_config.avrIDs_count = 0;
-    sensor_config.hasADC1 = 0;
-    sensor_config.hasADC2 = 0;
-    sensor_config.hasRain = 0;
+    sensor_config.interval = SENSOR_INTERVAL;
+    sensor_config.avrIDs_count = SENSOR_AVRIDS_COUNT;
+    sensor_config.hasADC1 = SENSOR_HASADC1;
+    sensor_config.hasADC2 = SENSOR_HASADC2;
+    sensor_config.hasRain = SENSOR_HASRAIN;
     set_config(SAMPLE_CONFIG);
   }
 
@@ -703,16 +656,17 @@ PROCESS_THREAD(sample_process, ev, data)
   while(1)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
-//    DPRINT("[SAMP] Waiting %lu seconds...\n", sensor_config.interval);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
-
+    ms1_sense_on();
     sample.time = get_time();
 
     sample.batt = get_sensor_batt();
     sample.has_batt = 1;
 
+    SENSORS_ACTIVATE(temperature_sensor);
     sample.temp = get_sensor_temp();
     sample.has_temp = 1;
+    SENSORS_DEACTIVATE(temperature_sensor);
 
     sample.accX = get_sensor_acc_x();
     sample.accY = get_sensor_acc_y();
@@ -721,15 +675,18 @@ PROCESS_THREAD(sample_process, ev, data)
     sample.has_accX = 1;
     sample.has_accY = 1;
     sample.has_accZ = 1;
-    //These 3 are meant to be a single equals
-    //It saves having to do assignment seperately
-    if(sample.has_ADC1 = sensor_config.hasADC1) {
+
+    if(sensor_config.hasADC1) {
+      sample.has_ADC1 = sensor_config.hasADC1;
       sample.ADC1 = get_sensor_ADC1();
     }
-    if(sample.has_ADC2 = sensor_config.hasADC2) {
+    if(sensor_config.hasADC2) {
+
+      sample.has_ADC2 = sensor_config.hasADC2;
       sample.ADC2 = get_sensor_ADC2();
     }
-    if(sample.has_rain = sensor_config.hasRain) {
+    if(sensor_config.hasRain) {
+      sample.has_rain = sensor_config.hasRain;
       sample.rain = get_sensor_rain();
     }
 
@@ -768,6 +725,7 @@ PROCESS_THREAD(sample_process, ev, data)
          }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
       
+    ms1_sense_off();
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
@@ -801,21 +759,6 @@ PROCESS_THREAD(post_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  #if WIPE_ON_BOOT == 1
-      static int fd;
-      static struct cfs_dirent dirent;
-      static struct cfs_dir dir;
-
-      if(cfs_opendir(&dir, "/") == 0)
-      {
-        while(cfs_readdir(&dir, &dirent) != -1)
-        {
-          DPRINT("Deleting %s\n", dirent.name);
-          cfs_remove(dirent.name);
-        }
-      }
-  #endif
-
   static uint8_t retries;
 
   static uip_ipaddr_t addr;
@@ -824,17 +767,17 @@ PROCESS_THREAD(post_process, ev, data)
 
   if(get_config(COMMS_CONFIG) == 1)
   { // Config file does not exist! Use default and set file
-    POST_config.interval = 3600;
-    POST_config.ip_count = 8;
-    POST_config.ip[0] = 0x2001;
-    POST_config.ip[1] = 0x630;
-    POST_config.ip[2] = 0xd0;
-    POST_config.ip[3] = 0xf111;
-    POST_config.ip[4] = 0x224;
-    POST_config.ip[5] = 0xe8ff;
-    POST_config.ip[6] = 0xfe38;
-    POST_config.ip[7] = 0x6cf2;
-    POST_config.port = 8080;
+    POST_config.interval = POST_INTERVAL;
+    POST_config.ip_count = POST_IP_COUNT;
+    POST_config.ip[0] = POST_IP0;
+    POST_config.ip[1] = POST_IP1;
+    POST_config.ip[2] = POST_IP2;
+    POST_config.ip[3] = POST_IP3;
+    POST_config.ip[4] = POST_IP4;
+    POST_config.ip[5] = POST_IP5;
+    POST_config.ip[6] = POST_IP6;
+    POST_config.ip[7] = POST_IP7;
+    POST_config.port = POST_PORT;
     set_config(COMMS_CONFIG);
   }
 
@@ -850,7 +793,7 @@ PROCESS_THREAD(post_process, ev, data)
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
           POST_config.ip[6], POST_config.ip[7]);
       DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
-      tcp_connect(&addr, UIP_HTONS(8081), NULL);
+      tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
       load_file(filename);
       DPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);

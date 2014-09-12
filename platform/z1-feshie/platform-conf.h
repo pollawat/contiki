@@ -200,7 +200,7 @@ typedef unsigned long off_t;
 
 #define RF_CHANNEL				42
 
-#define CC1120_CS_THRESHOLD		0xA6	/*-100dBm */
+#define CC1120_CS_THRESHOLD		0xA6	/*-90dBm */
 
 /* Other possible sensible values:
  * 0xC4	-60dBm.
@@ -238,7 +238,7 @@ typedef unsigned long off_t;
 #define CC1120_LBT_TIMEOUT 		RTIMER_ARCH_SECOND			//80
 #define CC1120_ACK_WAIT			RTIMER_ARCH_SECOND/667	/* ~1.5ms. */
 
-#define CC1120_INTER_PACKET_INTERVAL	RTIMER_ARCH_SECOND/222
+#define CC1120_INTER_PACKET_INTERVAL	RTIMER_ARCH_SECOND/300 //275 //222
 
 #define CC1120_EN_TIMEOUT		RTIMER_ARCH_SECOND/500
 

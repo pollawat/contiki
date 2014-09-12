@@ -37,13 +37,8 @@ void ms1_io_init(void){
   RADIO_EN_PORT(REN) &= ~BV(RADIO_EN_PIN);
   PRINTF("\tTurning on radio\n");
   //Turn on by default
-  RADIO_EN_PORT(OUT) |= BV(RADIO_EN_PIN);
-  PRINTF("\tP4 status\n");
-  PRINTF("\tSEL: %i\n", (int)P4SEL);
-  PRINTF("\tDIR: %i\n", (int)P4DIR);
-  PRINTF("\tREN: %i\n", (int)P4REN);
-  PRINTF("\tOUT: %i\n", (int)P4OUT);
-  PRINTF("\tComplete\n");
+  ms1_radio_on();
+  ms1_sense_off; //turn off sensors by default
 }
 
 void ms1_radio_on(void){

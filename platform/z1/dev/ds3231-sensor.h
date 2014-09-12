@@ -51,6 +51,12 @@
 #define DS3231_CONFIG_SET_ALARM					56
 #define DS3231_CONFIG_CLEAR_ALARM				57
 
+#define DS3231_MASTER					0x00
+#define DS3231_ADDR			0x68 //0xd0 with shift
+#define DS3231_CONTROL_A1IE_SET_MASK	0x05
+#define DS3231_CONTROL_A1IE_CLEAR_MASK	0xfe
+#define DS3231_STATUS_A1F_CLEAR_MASK	0xfe
+
 /**
  * tm
  *
@@ -65,6 +71,67 @@ typedef struct {
 	int tm_mon; 	// month of year [0,11]
 	int tm_year; 	// years since 1900
 } tm;
+
+typedef union {
+	struct {
+		/* Start Address on RTC for time registers. */
+		uint8_t address;
+		/* Byte 0 */
+		uint8_t sec : 4;
+		uint8_t dsec : 3;
+		uint8_t : 1;
+		/* Byte 1 */
+		uint8_t min : 4;
+		uint8_t dmin : 3;
+		uint8_t : 1;
+		/* Byte 2 */
+		uint8_t hour : 4;
+		uint8_t dhour : 2;
+		uint8_t : 2; /* Runs 24 hour time (default). */
+		/* Byte 3 */
+		uint8_t day : 3;
+		uint8_t : 5;
+		/* Byte 4 */
+		uint8_t date : 4;
+		uint8_t ddate : 2;
+		uint8_t : 2;
+		/* Byte 5 */
+		uint8_t mon : 4;
+		uint8_t dmon : 1;
+		uint8_t : 2;
+		uint8_t cent : 1;
+		/* Byte 6 */
+		uint8_t year : 4;
+		uint8_t dyear : 4;
+	} tm;
+	uint8_t data[8];
+} ds_3231_time_t;
+
+typedef union {
+	struct {
+		/* Start Address on RTC for alarm registers. */
+		uint8_t address;
+		/* Byte 0 */
+		uint8_t sec : 4;
+		uint8_t dsec : 3;
+		uint8_t a1m1 : 1;
+		/* Byte 1 */
+		uint8_t min : 4;
+		uint8_t dmin : 3;
+		uint8_t a1m2: 1;
+		/* Byte 2 */
+		uint8_t hour : 4;
+		uint8_t dhour : 2;
+		uint8_t : 1; /* Runs 24 hour time (default). */
+		uint8_t a1m3 : 1;
+		/* Byte 3 */
+		uint8_t date : 4;
+		uint8_t ddate : 2;
+		uint8_t : 1; /* Date based alarm (default) */
+		uint8_t a1m4 : 1;
+	} tm;
+	uint8_t data[5];
+} ds_3231_alarm_t;
 
 /**
  * Export the DS3231 sensor object.
@@ -83,13 +150,13 @@ typedef struct {
  */
 extern const struct sensors_sensor ds3231_sensor;
 
-//static uint32_t ds3231_get_epoch_seconds(void);
-//static int ds3231_set_time(tm *t);
-//static int ds3231_set_alarm(tm *t);
-//static int ds3231_clear_alarm(void);
-//static int ds3231_temperature(void);
-//static int value(int type);
-//static int configure(int type, int c);
-//static int status(int type);
+uint32_t ds3231_get_epoch_seconds(void);
+int ds3231_set_time(tm *t);
+int ds3231_set_alarm(tm *t);
+int ds3231_clear_alarm(void);
+int ds3231_temperature(void);
+int value(int type);
+int configure(int type, int c);
+int status(int type);
 
 #endif

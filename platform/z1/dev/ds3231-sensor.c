@@ -45,11 +45,12 @@
 #include "ds3231-sensor.h"
 
 
-#define DS3231_MASTER					0x00
-#define DS3231_ADDR			0x68 //0xd0 with shift
-#define DS3231_CONTROL_A1IE_SET_MASK	0x05
-#define DS3231_CONTROL_A1IE_CLEAR_MASK	0xfe
-#define DS3231_STATUS_A1F_CLEAR_MASK	0xfe
+//#define DEBUG
+#ifdef DEBUG
+#define dprintf(FORMAT, args...) printf_P(PSTR(FORMAT), ##args)
+#else
+#define dprintf(...)
+#endif
 
 
 /**
@@ -76,76 +77,6 @@ int I2C(uint8_t* write,uint16_t write_len,uint8_t* read,uint16_t read_len)
 
 	return(0);
 }
-
-typedef union {
-	struct {
-		/* Start Address on RTC for time registers. */
-		uint8_t address;
-		/* Byte 0 */
-		uint8_t sec : 4;
-		uint8_t dsec : 3;
-		uint8_t : 1;
-		/* Byte 1 */
-		uint8_t min : 4;
-		uint8_t dmin : 3;
-		uint8_t : 1;
-		/* Byte 2 */
-		uint8_t hour : 4;
-		uint8_t dhour : 2;
-		uint8_t : 2; /* Runs 24 hour time (default). */
-		/* Byte 3 */
-		uint8_t day : 3;
-		uint8_t : 5;
-		/* Byte 4 */
-		uint8_t date : 4;
-		uint8_t ddate : 2;
-		uint8_t : 2;
-		/* Byte 5 */
-		uint8_t mon : 4;
-		uint8_t dmon : 1;
-		uint8_t : 2;
-		uint8_t cent : 1;
-		/* Byte 6 */
-		uint8_t year : 4;
-		uint8_t dyear : 4;
-	} tm;
-	uint8_t data[8];
-} ds_3231_time_t;
-
-typedef union {
-	struct {
-		/* Start Address on RTC for alarm registers. */
-		uint8_t address;
-		/* Byte 0 */
-		uint8_t sec : 4;
-		uint8_t dsec : 3;
-		uint8_t a1m1 : 1;
-		/* Byte 1 */
-		uint8_t min : 4;
-		uint8_t dmin : 3;
-		uint8_t a1m2: 1;
-		/* Byte 2 */
-		uint8_t hour : 4;
-		uint8_t dhour : 2;
-		uint8_t : 1; /* Runs 24 hour time (default). */
-		uint8_t a1m3 : 1;
-		/* Byte 3 */
-		uint8_t date : 4;
-		uint8_t ddate : 2;
-		uint8_t : 1; /* Date based alarm (default) */
-		uint8_t a1m4 : 1;
-	} tm;
-	uint8_t data[5];
-} ds_3231_alarm_t;
-
-
-//#define DEBUG
-#ifdef DEBUG
-#define dprintf(FORMAT, args...) printf_P(PSTR(FORMAT), ##args)
-#else
-#define dprintf(...)
-#endif
-
 
 /* Define the sensor object. */
 const struct sensors_sensor ds3231_sensor;
@@ -175,8 +106,7 @@ static int accum_days[] = {
  * 			return value will need to be cast from int to uint_16t and shifted
  * 			accordingly.
  */
-static uint32_t
-ds3231_get_epoch_seconds(void)
+uint32_t ds3231_get_epoch_seconds(void)
 {
 	int rc;
 	int years, months, minutes, seconds;
@@ -217,8 +147,7 @@ ds3231_get_epoch_seconds(void)
  * 			in the RTC for this application is 2000-01-01. An adjustment of
  * 			100 is made before setting the time.
  */
-static int
-ds3231_set_time(tm *t)
+int ds3231_set_time(tm *t)
 {
 	int rc;
 	ds_3231_time_t time;
@@ -261,8 +190,7 @@ ds3231_set_time(tm *t)
  *
  * @return	0 for success, -ve for error.
  */
-static int
-ds3231_set_alarm(tm *t)
+int ds3231_set_alarm(tm *t)
 {
 	int rc;
 	ds_3231_alarm_t alarm;
@@ -312,8 +240,7 @@ ds3231_set_alarm(tm *t)
  *
  * @return	0 for success, -ve for error.
  */
-static int
-ds3231_clear_alarm(void)
+int ds3231_clear_alarm(void)
 {
 	int rc;
 	uint8_t regs[3];
@@ -345,8 +272,7 @@ ds3231_clear_alarm(void)
  * @return	Temperature * 100 (centi %) however accuracy is limited to
  * 		0.25 degree increments.
  */
-static int
-ds3231_temperature(void)
+int ds3231_temperature(void)
 {
 	int rc;
 	uint8_t addr_set[6] = { 0x11 };
@@ -371,8 +297,7 @@ ds3231_temperature(void)
 /**
  * value
  */
-static int
-value(int type)
+int value(int type)
 {
 	switch (type) {
 	case DS3231_SENSOR_TEMP:
@@ -391,8 +316,7 @@ value(int type)
 /**
  * configure
  */
-static int
-configure(int type, int c)
+int configure(int type, int c)
 {
 	int rc = 0;
 	uint8_t addr_set[1] = { 0 };
@@ -428,8 +352,7 @@ configure(int type, int c)
 /**
  * status
  */
-static int
-status(int type)
+int status(int type)
 {
 	switch (type) {
 	case SENSORS_ACTIVE:
@@ -439,6 +362,7 @@ status(int type)
 		return 0;
 	}
 }
+
 
 /* Initialise the sensor object and make it available to Contiki OS. */
 SENSORS_SENSOR(ds3231_sensor, "ds3231", value, configure, status);
