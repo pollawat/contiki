@@ -32,7 +32,7 @@ uint16_t get_sensor_ADC1(void)
   static uint16_t adc1_ret;
   SENSORS_ACTIVATE(adc1_sensor);
   adc1_ret =  adc1_sensor.value(0);
-  SENSORS_DEACTIVATE(adc1_sensor);
+//  SENSORS_DEACTIVATE(adc1_sensor);
   return adc1_ret;
 }
 
@@ -41,7 +41,7 @@ uint16_t get_sensor_ADC2(void)
   static uint16_t ret;
   SENSORS_ACTIVATE(adc1_sensor);
   ret =  adc2_sensor.value(0);
-  SENSORS_DEACTIVATE(adc2_sensor);
+//  SENSORS_DEACTIVATE(adc2_sensor);
   return ret;
 }
 
@@ -55,7 +55,7 @@ float get_sensor_batt(void)
   static float bat_ret;
   SENSORS_ACTIVATE(batv_sensor);
   bat_ret =  (float)(batv_sensor.value(0));
-  SENSORS_DEACTIVATE(batv_sensor);
+//  SENSORS_DEACTIVATE(batv_sensor);
   return bat_ret;
 }
 
