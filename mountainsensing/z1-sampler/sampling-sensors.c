@@ -9,6 +9,8 @@
 #include "adxl345.h" 		// Accel
 #include "dev/event-sensor.h"	//event sensor (rain)
 
+#define ADC_ACTIVATE_DELAY 10 //delay in ms
+
 /*
  * AVR_count - number of AVR IDs
  * avrIDs - array of AVR IDs
@@ -31,6 +33,9 @@ uint16_t get_sensor_ADC1(void)
 {
   static uint16_t adc1_ret;
   SENSORS_ACTIVATE(adc1_sensor);
+  rtimer_clock_t t0;
+  t0 = RTIMER_NOW();
+  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
   adc1_ret =  adc1_sensor.value(0);
   SENSORS_DEACTIVATE(adc1_sensor);
   return adc1_ret;
@@ -40,6 +45,9 @@ uint16_t get_sensor_ADC2(void)
 {
   static uint16_t ret;
   SENSORS_ACTIVATE(adc1_sensor);
+  rtimer_clock_t t0;
+  t0 = RTIMER_NOW();
+  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
   ret =  adc2_sensor.value(0);
   SENSORS_DEACTIVATE(adc2_sensor);
   return ret;
@@ -54,6 +62,9 @@ float get_sensor_batt(void)
 {
   static float bat_ret;
   SENSORS_ACTIVATE(batv_sensor);
+  rtimer_clock_t t0;
+  t0 = RTIMER_NOW();
+  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
   bat_ret =  (float)(batv_sensor.value(0));
   SENSORS_DEACTIVATE(batv_sensor);
   return bat_ret;
