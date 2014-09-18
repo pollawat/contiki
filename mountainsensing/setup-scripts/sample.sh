@@ -8,7 +8,7 @@ read node
 echo "Enter Sample Interval (Seconds)"
 read interval
 
-echo "Enter `.` Seperated AVR IDs (Like 1.26.239)"
+echo "Enter '.' Seperated AVR IDs (Like 1.26.239)"
 read avrids
 
 echo "Does this node have a rain sensor? [y/N]"
