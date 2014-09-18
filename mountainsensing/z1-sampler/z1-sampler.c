@@ -54,7 +54,6 @@
 #include <stdio.h>
 
 #include "z1-sampler-config-defaults.h"
-#include "web_defines.h"
 
 // General
 #include "contiki.h"
@@ -66,7 +65,7 @@
 // Networking
 #include "contiki-net.h"
 
-#include "web-pages.h" //The #defines to describe version webpages
+#include "web_defines.h" //The #defines to describe version webpages
 
 // Protobuf
 #include "pb_decode.h"

@@ -1,7 +1,7 @@
 #define HTTP_RES "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n"
 
 #define TOP "<html><body>"
-#define BOTTOM "</body></html>"
+#define BOTTOM "</body></html>" 
 
 #define CLOCK_FORM "<form action=\"/clock\" method=\"get\">"                \
     "Year<input type=\"number\" name=\"y\" min=\"2014\"><br>"               \
