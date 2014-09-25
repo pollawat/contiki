@@ -85,9 +85,16 @@
 
 #if DEBUG == 1
     #define DPRINT(...) printf(__VA_ARGS__)
+    #define AVRDEFBUG
 #else
     #define DPRINT(...)
 #endif
+#define AVRDEFBUG
+ #ifdef AVRDEFBUG
+  #define AVRDPRINT(...) printf(__VA_ARGS__)
+ #else
+    #define AVRDPRINT(...)
+ #endif
 
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
