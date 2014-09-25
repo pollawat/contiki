@@ -78,12 +78,17 @@
 // Sensors
 #include "sampling-sensors.h"
 #include "ms1-io.h"
+#include "dev/event-sensor.h"  //event sensor (rain)
+
+
+//AVR stuff
+#include "dev/protobuf-handler.h"
 
 #define MAX_POST_SIZE 30
 
-#define DEBUG 0
+//#define DEBUG 1
 
-#if DEBUG == 1
+#ifdef DEBUG
     #define DPRINT(...) printf(__VA_ARGS__)
     #define AVRDEFBUG
 #else
@@ -98,6 +103,8 @@
 
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
+
+ #define SENSE_ON
 
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
@@ -618,13 +625,14 @@ static char* get_next_write_filename(uint8_t length)
   return NULL;
 }
 
-static void avr_timer_handler(void *p){
-    process_post(&sample_process, protobuf_event, (process_data_t)NULL);
-}
 static process_event_t protobuf_event;
 static struct ctimer avr_timeout_timer;
 
+static void avr_timer_handler(void *p){
+    process_post(&sample_process, protobuf_event, (process_data_t)NULL);
+}
 
+/*******************************************************************SAMPLE PROCESS ******************/
 PROCESS_THREAD(sample_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -649,16 +657,18 @@ PROCESS_THREAD(sample_process, ev, data)
 
   static char* filename;
 
-  static uint8_t avr_recieved = 0;
-  static uint8_t avr_retry_count=0;
-  static uint8_t avr_id = 0;
 
-  SENSORS_ACTIVATE(battery_sensor);
-  SENSORS_ACTIVATE(temperature_sensor);
+
 
   DPRINT("[SAMP] Sampling sensors activated\n");
   protobuf_event = process_alloc_event();
-  protobuf_register_process_callback(&temp_process, protobuf_event) ;
+  protobuf_register_process_callback(&sample_process, protobuf_event) ;
+  event_sensor.configure(SENSORS_ACTIVE,1);
+  uart1_init(0);
+  printf("Configured rain");
+#ifdef SENSE_ON
+    ms1_sense_on();
+#endif
   while(1)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
@@ -696,25 +706,25 @@ PROCESS_THREAD(sample_process, ev, data)
       sample.rain = get_sensor_rain();
     }
 
-    DPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
-    for(i=0; i < avrIDs_count; i++){
-      avr_id = avrIDs[i] & 0xFF; //only use 8bits
-      DPRINT("[SAMP][AVR] using ID: %d\n", avr_id);
+    AVRDPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
+    for(i=0; i < sensor_config.avrIDs_count; i++){
+      avr_id = sensor_config.avrIDs[i] & 0xFF; //only use 8bits
+      AVRDPRINT("[SAMP][AVR] using ID: %d\n", avr_id);
         avr_recieved = 0;
         avr_retry_count = 0;
         data = NULL;
         do{
             protobuf_send_message(0x01, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
-              DPRINTF("Sent message %d\n", i);
+              AVRDPRINT("Sent message %d\n", i);
               i = i+1;
-              ctimer_set(&timeout_timer, CLOCK_SECOND * AVR_TIMEOUT_SECONDS, timer_handler, NULL);
+              ctimer_set(&avr_timeout_timer, CLOCK_SECOND * AVR_TIMEOUT_SECONDS, avr_timer_handler, NULL);
               PROCESS_YIELD_UNTIL(ev == protobuf_event);
               if(data != NULL){
-                DPRINTF("\tavr data recieved on retry %d\n", retry_count);
-                ctimer_stop(&timeout_timer);
+                AVRDPRINT("\tavr data recieved on retry %d\n", avr_retry_count);
+                ctimer_stop(&avr_timeout_timer);
                 protobuf_data_t *pbd;
                 pbd = data;
-#ifdef DEFBUG
+#ifdef AVRDEFBUG
                 printf("\tRecieved %d bytes\t", pbd->length);
                 uint8_t j;
                 for(j=0; j<pbd->length;j++){
@@ -725,13 +735,14 @@ PROCESS_THREAD(sample_process, ev, data)
                   //process data
                   avr_recieved = 1;
               }else{
-                  DPRINT("AVR timedout\n");
+                  AVRDPRINT("AVR timedout\n");
                   avr_retry_count++;
               }
          }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
-      
+#ifndef SENSE_ON      
     ms1_sense_off();
+#endif
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
