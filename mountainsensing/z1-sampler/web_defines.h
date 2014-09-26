@@ -20,7 +20,7 @@
 
 #define SENSOR_FORM_1 "<form action=\"/sensub\" method=\"get\">" \
     "Sample Interval (s)<input type=\"number\" name=\"sample\" min=\"1\" value=\""
-#define SENSOR_FORM_2 "\"><br>AVR IDs (.sv)<input type=\"text\" name=\"AVR\" pattern=\"([0-9]{1,3}\.)*[0-9]{1,3}\" value=\""
+#define SENSOR_FORM_2 "\"><br>AVR IDs (.sv)<input type=\"text\" name=\"AVR\" pattern=\"([0-9]{1,3}\\.)*[0-9]{1,3}\" value=\""
 #define SENSOR_FORM_3 "\"><br>Rain?<input type=\"checkbox\" name=\"rain\" value=\"y\""
 #define SENSOR_FORM_4 "><br>ADC1?<input type=\"checkbox\" name=\"adc1\" value=\"y\""
 #define SENSOR_FORM_5 "><br>ADC2?<input type=\"checkbox\" name=\"adc2\" value=\"y\""

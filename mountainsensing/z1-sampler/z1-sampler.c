@@ -87,6 +87,7 @@
 #define MAX_POST_SIZE 30
 
 //#define DEBUG 1
+ #include "platform-conf.h"
 
 #ifdef DEBUG
     #define DPRINT(...) printf(__VA_ARGS__)
@@ -356,7 +357,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
       ltoa(sensor_config.interval, num, 10);
       PSOCK_SEND_STR(p, num);
       PSOCK_SEND_STR(p, SENSOR_FORM_2);
-      //AVR IDs
       DPRINT("[WEBD] Producing AVR IDs from config\n");
       for(i = 0; i < sensor_config.avrIDs_count; i++) {
         DPRINT(".");
@@ -666,6 +666,8 @@ PROCESS_THREAD(sample_process, ev, data)
   event_sensor.configure(SENSORS_ACTIVE,1);
   uart1_init(0);
   printf("Configured rain");
+  printf("uart1-dir %d\n",UART1_RX_PORT(DIR));
+  printf("uart1-sel %d\n", UART1_RX_PORT(SEL));
 #ifdef SENSE_ON
     ms1_sense_on();
 #endif
