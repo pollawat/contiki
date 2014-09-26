@@ -23,7 +23,7 @@ PROCESS_THREAD (temp_process, ev, data)
         etimer_set(&et, TMP102_READ_INTERVAL);          // Set the timer
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));  // wait for its expiration
  
-	uart1_writearray((unsigned char*)"look sending",12);
+	uart1_writearray((unsigned char*)"look sending\r\n",14);
 	printf ("sent");
 	
       }
