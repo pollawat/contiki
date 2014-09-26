@@ -45,6 +45,11 @@
 #include "tmp102.h"
 
 
+#ifdef TMP102_DEBUG
+ #define PRINTFDEBUG(...) printf(__VA_ARGS__)
+#else
+ #define PRINTFDEBUG(...)
+ #endif
 
 /* Bitmasks and bit flag variable for keeping track of tmp102 status. */
 enum TMP102_STATUSTYPES
@@ -164,7 +169,6 @@ int16_t
 tmp102_read_temp_x100(void)
 {
   int16_t raw = 0;
-  int8_t rd = 0;
   int16_t sign = 1;
   int16_t abstemp, temp_int;
 
