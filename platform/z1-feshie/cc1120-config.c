@@ -25,7 +25,7 @@
  *  "File" contains cc1120-config.c
  *  "Comment" contains C-Comment initiator and terminator
  *  "Parameter Summary" box is ticked
- *  "Header" contains all text from "/* CC1120 setttings..." to opening {
+ *  "Header" contains all text from " CC1120 setttings..." to opening {
  *  "Registers" contains the formatting string "   cc1120_spi_single_write(CC1120_ADDR_@RN@, 0x@VH@); @<<@ // @Rd@."
  *  "Footer" contains a closing brace }
  *
