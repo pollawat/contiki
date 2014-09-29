@@ -79,6 +79,7 @@
 #include "sampling-sensors.h"
 #include "ms1-io.h"
 #include "dev/event-sensor.h"  //event sensor (rain)
+ #include "dev/uart1_i2c_master.h"  
 
 
 //AVR stuff
