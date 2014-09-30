@@ -44,6 +44,7 @@
 #include "httpd-simple.h"
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
+#include "z1-sampler.h"
 
 #ifndef CC11xx_CC1120
     #include "dev/cc2420.h"
@@ -76,7 +77,6 @@
 #include "sampling-sensors.h"
 #include "ms1-io.h"
 
-#define MAX_POST_SIZE 30
 
 #define DEBUG 0
 
@@ -86,8 +86,6 @@
     #define DPRINT(...)
 #endif
 
-#define LIVE_CONNECTION_TIMEOUT 300
-#define CONNECTION_RETRIES 3
 
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
@@ -107,8 +105,6 @@ AUTOSTART_PROCESSES(&web_sense_process);
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
 
-#define SAMPLE_CONFIG 1
-#define COMMS_CONFIG 2
 
 #if SensorConfig_size > PostConfig_size
     static char cfg_buf[SensorConfig_size + 4];
