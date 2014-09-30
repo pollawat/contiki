@@ -1,5 +1,5 @@
 all: z1-websense
-
+TARGET=z1
 CONTIKI=../../
 
 WITH_UIP6=1
