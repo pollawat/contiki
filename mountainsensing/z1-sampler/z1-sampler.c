@@ -118,8 +118,8 @@ static POSTConfig POST_config;
 // WEBSERVER VARIABLES
 static struct psock ps;
 
-static struct etimer timer;
-static struct etimer timeout_timer;
+static struct etimer post_timer;
+static struct etimer post_timeout_timer;
 
 static int http_status = 0;
 
@@ -555,7 +555,7 @@ PROCESS_THREAD(sample_process, ev, data){
     set_config(SAMPLE_CONFIG);
   }
 
-  static struct etimer stimer;
+  static struct etimer sample_timer;
   static uint8_t pb_buf[64];
   static int fd;
 
@@ -567,8 +567,8 @@ PROCESS_THREAD(sample_process, ev, data){
   
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)  {
-    etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
+    etimer_set(&sample_timer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&sample_timer));
     ms1_sense_on();
     sample.time = get_time();
 
@@ -684,8 +684,8 @@ PROCESS_THREAD(post_process, ev, data){
 
   while(1) {
     retries = 0;
-    etimer_set(&timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+    etimer_set(&post_timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&post_timer));
     while((filename = get_next_read_filename()) != NULL && retries < CONNECTION_RETRIES)   {
       uip_ip6addr(&addr,
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
@@ -702,9 +702,9 @@ PROCESS_THREAD(post_process, ev, data){
       } else if(uip_connected()) {
         DPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
-        etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+        etimer_set(&post_timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
         do {
-          if(etimer_expired(&timeout_timer)) {
+          if(etimer_expired(&post_timeout_timer)) {
             DPRINT("Connection took too long. TIMEOUT\n");
             PSOCK_CLOSE(&ps);
             retries++;
