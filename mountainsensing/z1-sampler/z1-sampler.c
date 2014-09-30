@@ -92,12 +92,11 @@ float floor(float x){
   else        return (float) ((int)x-1);
 }
 
-PROCESS(web_sense_process, "Sense Web Demo");
 PROCESS(web_process, "Web Server Process");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
 
-AUTOSTART_PROCESSES(&web_sense_process);
+AUTOSTART_PROCESSES(&web_process, &sample_process, &post_process);
 
 /*---------------------------------------------------------------------------*/
 // CONFIG CODE 
@@ -523,22 +522,6 @@ PROCESS_THREAD(web_process, ev, data)
   PROCESS_END();
 }
 
-PROCESS_THREAD(web_sense_process, ev, data)
-{
-  static struct etimer timer;
-  PROCESS_BEGIN();
-  #ifndef CC11xx_CC1120
-  cc2420_set_txpower(31);
-  #endif
-
-  process_start(&web_process, NULL);
-  process_start(&sample_process, NULL);
-  process_start(&post_process, NULL);
-
-
-  PROCESS_END();
-}
-/*---------------------------------------------------------------------------*/
 
 /*
  * Returns the filename that is to be read for POSTing
