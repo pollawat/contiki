@@ -113,6 +113,8 @@ static POSTConfig POST_config;
 #endif
 
 /*
+ * Write the config from cfg_buf to a file
+ * The filename is determined by the uint8_t passed in
  * Returns 0 upon success, 1 on failure
  */
 uint8_t set_config(uint8_t config)
