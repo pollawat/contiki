@@ -99,17 +99,41 @@ PROCESS(post_process, "POST Process");
 AUTOSTART_PROCESSES(&web_process, &sample_process, &post_process);
 
 /*---------------------------------------------------------------------------*/
-// CONFIG CODE 
 
+
+static uint8_t data[256] = {0};
+static uint16_t data_length = 0;
+
+/*---------------------------------------------------------------------------*/
+// CONFIG VARIABLES
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
-
-
 #if SensorConfig_size > PostConfig_size
     static char cfg_buf[SensorConfig_size + 4];
 #else
     static char cfg_buf[POSTConfig_size + 4];
 #endif
+
+/*---------------------------------------------------------------------------*/
+// WEBSERVER VARIABLES
+static struct psock ps;
+
+static struct etimer timer;
+static struct etimer timeout_timer;
+
+static int http_status = 0;
+
+static uint8_t attempting = 0;
+static char psock_buffer[120];
+
+static struct psock web_ps;
+static const uint8_t web_buf[128];
+static char *url;
+
+/*---------------------------------------------------------------------------*/
+// CONFIG CODE 
+
+
 
 /*
  * Write the config from cfg_buf to a file
@@ -140,7 +164,7 @@ uint8_t set_config(uint8_t config){
     return 1;
   }
 }
-
+/*---------------------------------------------------------------------------*/
 /*
  * Returns 0 upon success, 1 upon failure
  */
@@ -180,8 +204,7 @@ static uint8_t get_config(uint8_t config){
 
 /*---------------------------------------------------------------------------*/
 
-static uint8_t data[256] = {0};
-static uint16_t data_length = 0;
+
 
 static void load_file(char *filename){
   static int fd;
@@ -225,48 +248,7 @@ char* get_url_param(char* url, char* key){
   }
   return NULL;
 }
-
-static struct psock ps;
-
-static struct etimer timer;
-static struct etimer timeout_timer;
-
-static int http_status = 0;
-
-static uint8_t attempting = 0;
-static char psock_buffer[120];
-
-static struct psock web_ps;
-static const uint8_t web_buf[128];
-static char *url;
-
-static handle_connection(struct psock *p){
-  static uint8_t status_code[4];
-  static char content_length[8];
-
-  itoa(data_length, content_length, 10);
-
-  PSOCK_BEGIN(p);
-
-  PSOCK_SEND_STR(p, "POST / HTTP/1.0\r\n");
-  PSOCK_SEND_STR(p, "Content-Length: ");
-  PSOCK_SEND_STR(p, content_length);
-  PSOCK_SEND_STR(p, "\r\n\r\n");
-  PSOCK_SEND(p, data, data_length);
-
-  while(1) {
-    PSOCK_READTO(p, '\n');
-    if(strncmp(psock_buffer, "HTTP/", 5) == 0)    { // Status line
-      memcpy(status_code, psock_buffer + 9, 3);
-      http_status = atoi(psock_buffer + 9);
-    }
-  }
-
-  PSOCK_END(p);
-}
-
-
-
+/*---------------------------------------------------------------------------*/
 
 static
 PT_THREAD(web_handle_connection(struct psock *p)){
@@ -472,6 +454,8 @@ PT_THREAD(web_handle_connection(struct psock *p)){
   PSOCK_CLOSE(p);
   PSOCK_END(p);
 }
+/*---------------------------------------------------------------------------*/
+
 
 PROCESS_THREAD(web_process, ev, data){
   PROCESS_BEGIN();
@@ -494,7 +478,7 @@ PROCESS_THREAD(web_process, ev, data){
   }
   PROCESS_END();
 }
-
+/*---------------------------------------------------------------------------*/
 
 /*
  * Returns the filename that is to be read for POSTing
@@ -516,7 +500,7 @@ static char* get_next_read_filename(){
   DPRINT("[NEXT] No file found. NULL\n");
   return NULL;
 }
-
+/*---------------------------------------------------------------------------*/
 /*
  * Returns the filename of the next file where it is safe to store `length` bytes of data
  */
@@ -557,7 +541,7 @@ static char* get_next_write_filename(uint8_t length){
   DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
   return NULL;
 }
-
+/*---------------------------------------------------------------------------*/
 PROCESS_THREAD(sample_process, ev, data){
   PROCESS_BEGIN();
 
@@ -580,9 +564,7 @@ PROCESS_THREAD(sample_process, ev, data){
   static int i;
 
   static char* filename;
-
-
-
+  
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)  {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
@@ -649,6 +631,32 @@ PROCESS_THREAD(sample_process, ev, data){
   PROCESS_END();
 }
 
+/*---------------------------------------------------------------------------*/
+static handle_connection(struct psock *p){
+  static uint8_t status_code[4];
+  static char content_length[8];
+
+  itoa(data_length, content_length, 10);
+
+  PSOCK_BEGIN(p);
+
+  PSOCK_SEND_STR(p, "POST / HTTP/1.0\r\n");
+  PSOCK_SEND_STR(p, "Content-Length: ");
+  PSOCK_SEND_STR(p, content_length);
+  PSOCK_SEND_STR(p, "\r\n\r\n");
+  PSOCK_SEND(p, data, data_length);
+
+  while(1) {
+    PSOCK_READTO(p, '\n');
+    if(strncmp(psock_buffer, "HTTP/", 5) == 0)    { // Status line
+      memcpy(status_code, psock_buffer + 9, 3);
+      http_status = atoi(psock_buffer + 9);
+    }
+  }
+
+  PSOCK_END(p);
+}
+/*---------------------------------------------------------------------------*/
 PROCESS_THREAD(post_process, ev, data){
   PROCESS_BEGIN();
 
