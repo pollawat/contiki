@@ -34,20 +34,19 @@
  * \file
  *         Battery and Temperature IPv6 Demo for Zolertia Z1
  * \author
- *         Niclas Finne    <nfi@sics.se>
- *         Joakim Eriksson <joakime@sics.se>
- *         Joel Hoglund    <joel@sics.se>
- *         Enric M. Calvo  <ecalvo@zolertia.com>
+ *          Dan Playle      <djap1g12@soton.ac.uk>
+ *          Philip Basford  <pjb@ecs.soton.ac.uk>
+ *          Graeme Bragg    <gmb1g08@ecs.soton.ac.uk>
+ *          Tyler Ward      <tw16g08@ecs.soton.ac.uk>
  */
 
 #include "contiki.h"
 #include "httpd-simple.h"
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
-#include "dev/battery-sensor.h"
 
 #ifndef CC11xx_CC1120
-#include "dev/cc2420.h"
+    #include "dev/cc2420.h"
 #endif
 
 #include "dev/leds.h"
