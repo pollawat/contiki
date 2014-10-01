@@ -50,12 +50,14 @@
 
 #include "platform-conf.h"
 
+#define UART1_DEBUG
 #ifdef UART1_DEBUG
   #include <stdio.h>
   #define PRINTFDEBUG(...) printf(__VA_ARGS__)
 #else
   #define PRINTFDEBUG(...)
 #endif
+
 signed   char tx_byte_ctr, rx_byte_ctr;
 unsigned char rx_buf[2];
 unsigned char* tx_buf_ptr;
@@ -407,6 +409,8 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
+  printf("!");
+  PRINTFDEBUG("ISR\n");
   uint8_t c;
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
