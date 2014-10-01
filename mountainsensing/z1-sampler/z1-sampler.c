@@ -598,7 +598,10 @@ PROCESS_THREAD(sample_process, ev, data){
   static int i;
 
   static char* filename;
-
+  static uint8_t avr_id;
+    static struct ctimer avr_timeout_timer;
+    static uint8_t avr_recieved = 0;
+    static uint8_t avr_retry_count = 0;
 
 
 
@@ -614,14 +617,11 @@ PROCESS_THREAD(sample_process, ev, data){
 #ifdef SENSE_ON
     ms1_sense_on();
 #endif /*SENSE_ON */
+  
+  DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)  {
-
-
-    printf("uart 1 int enabled %d\n",  UC1IE & UCA1RXIE);
-  printf("Uart 1 int status %d\n", UC1IFG & UCA1RXIFG);
     etimer_set(&sample_timer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&sample_timer));
-  
     ms1_sense_on();
     sample.time = get_time();
 
@@ -719,7 +719,7 @@ PROCESS_THREAD(sample_process, ev, data){
 }
 
 /*---------------------------------------------------------------------------*/
-static handle_connection(struct psock *p){
+int handle_connection(struct psock *p){
   static uint8_t status_code[4];
   static char content_length[8];
 
@@ -850,3 +850,4 @@ PROCESS_THREAD(debug_process, ev, data)
 #endif
   PROCESS_END();
 }
+
