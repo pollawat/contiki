@@ -93,14 +93,23 @@
 #ifdef DEBUG
     #define DPRINT(...) printf(__VA_ARGS__)
     #define AVRDEFBUG
+    #define INTDEBUG
 #else
     #define DPRINT(...)
 #endif
-#define AVRDEFBUG
- #ifdef AVRDEFBUG
-  #define AVRDPRINT(...) printf(__VA_ARGS__)
- #else
-    #define AVRDPRINT(...)
+//#define AVRDEFBUG
+#ifdef AVRDEFBUG
+ #define AVRDPRINT(...) printf(__VA_ARGS__)
+#else
+  #define AVRDPRINT(...)
+#endif
+
+//#define INTDEBUG
+
+#ifdef INTDEBUG
+  #define IPRINTF(...) printf(__VA_ARGS__)
+#else
+  #define IPRINTF(...)
  #endif
 
 #define LIVE_CONNECTION_TIMEOUT 300
@@ -117,8 +126,9 @@ PROCESS(web_sense_process, "Sense Web Demo");
 PROCESS(web_process, "Web Server Process");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
+PROCESS(debug_process, "Testing interupt status Z1 Feshie");
 
-AUTOSTART_PROCESSES(&web_sense_process);
+AUTOSTART_PROCESSES(&web_sense_process,&debug_process);
 
 /*---------------------------------------------------------------------------*/
 // CONFIG CODE 
@@ -665,15 +675,20 @@ PROCESS_THREAD(sample_process, ev, data)
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
   event_sensor.configure(SENSORS_ACTIVE,1);
-  uart1_init(0);
-  printf("Configured rain");
+  printf("Configured rain\n");
   printf("uart1-dir %d\n",UART1_RX_PORT(DIR));
   printf("uart1-sel %d\n", UART1_RX_PORT(SEL));
+  printf("uart 1 int enabled %d\n",  UC1IE & UCA1RXIE);
+  printf("Uart 1 int status %d\n", UC1IFG & UCA1RXIFG);
 #ifdef SENSE_ON
     ms1_sense_on();
-#endif
+#endif /*SENSE_ON */
   while(1)
   {
+
+
+    printf("uart 1 int enabled %d\n",  UC1IE & UCA1RXIE);
+  printf("Uart 1 int status %d\n", UC1IFG & UCA1RXIFG);
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
     ms1_sense_on();
@@ -859,5 +874,34 @@ PROCESS_THREAD(post_process, ev, data)
     }
     PSOCK_CLOSE(&ps);
   }
+  PROCESS_END();
+}
+
+
+
+static struct etimer int_debug_timer;
+
+PROCESS_THREAD(debug_process, ev, data)
+{
+
+  PROCESS_BEGIN();
+  printf("Interupt debug process started\n");
+#ifdef INTDEBUG
+  while(1) {
+  etimer_set(&int_debug_timer, CLOCK_SECOND);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&int_debug_timer));
+    printf("IFG1:%d\n", IFG1);
+    printf("TACTL IE:%d, IFG:%d\n", TACTL & TAIE, TACTL & TAIFG);
+    printf("TACCTL0 IE:%d IFG:%d \n", TACCTL0 & CCIE, TACCTL0 & CCIFG);
+    printf("TBCTL IE:%d, IFG:%d\n", TBCTL & TBIE, TBCTL & TBIFG);
+    printf("TBCCTL0 IE:%d IFG:%d \n", TBCCTL0 & CCIE, TBCCTL0 & CCIFG);
+    printf("TBIV:%d \n", TBIV);
+    printf("CACATL1 IE:%d, IFG:%d\n", CACTL1 & CAIE, CACTL1 & CAIFG);
+    printf("UCA0CTL1 RXEIE:%d RXBRKIE:%d\n", UCA0CTL1 & UCRXEIE, UCA0CTL1 & UCBRKIE);
+    printf("IE2 TXIE:%d RXIE %d\n ", IE2 & UCA0TXIE, IE2 & UCA0RXIE);
+
+  }
+
+#endif
   PROCESS_END();
 }
