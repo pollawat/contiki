@@ -34,20 +34,19 @@
  * \file
  *         Battery and Temperature IPv6 Demo for Zolertia Z1
  * \author
- *         Niclas Finne    <nfi@sics.se>
- *         Joakim Eriksson <joakime@sics.se>
- *         Joel Hoglund    <joel@sics.se>
- *         Enric M. Calvo  <ecalvo@zolertia.com>
+ *          Dan Playle      <djap1g12@soton.ac.uk>
+ *          Philip Basford  <pjb@ecs.soton.ac.uk>
+ *          Graeme Bragg    <gmb1g08@ecs.soton.ac.uk>
+ *          Tyler Ward      <tw16g08@ecs.soton.ac.uk>
  */
 
 #include "contiki.h"
 #include "httpd-simple.h"
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
-#include "dev/battery-sensor.h"
 
 #ifndef CC11xx_CC1120
-#include "dev/cc2420.h"
+    #include "dev/cc2420.h"
 #endif
 
 #include "dev/leds.h"
@@ -85,7 +84,6 @@
 //AVR stuff
 #include "dev/protobuf-handler.h"
 
-#define MAX_POST_SIZE 30
 
 //#define DEBUG 1
  #include "platform-conf.h"
@@ -97,6 +95,7 @@
 #else
     #define DPRINT(...)
 #endif
+ 
 //#define AVRDEFBUG
 #ifdef AVRDEFBUG
  #define AVRDPRINT(...) printf(__VA_ARGS__)
@@ -112,8 +111,6 @@
   #define IPRINTF(...)
  #endif
 
-#define LIVE_CONNECTION_TIMEOUT 300
-#define CONNECTION_RETRIES 3
 
  #define SENSE_ON
 
@@ -122,34 +119,56 @@ float floor(float x){
   else        return (float) ((int)x-1);
 }
 
-PROCESS(web_sense_process, "Sense Web Demo");
 PROCESS(web_process, "Web Server Process");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
 PROCESS(debug_process, "Testing interupt status Z1 Feshie");
 
-AUTOSTART_PROCESSES(&web_sense_process,&debug_process);
+AUTOSTART_PROCESSES(&web_process, &sample_process, &post_process, &debug_process);
 
 /*---------------------------------------------------------------------------*/
-// CONFIG CODE 
 
+
+static uint8_t data[256] = {0};
+static uint16_t data_length = 0;
+
+/*---------------------------------------------------------------------------*/
+// CONFIG VARIABLES
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
-
-#define SAMPLE_CONFIG 1
-#define COMMS_CONFIG 2
-
 #if SensorConfig_size > PostConfig_size
     static char cfg_buf[SensorConfig_size + 4];
 #else
     static char cfg_buf[POSTConfig_size + 4];
 #endif
 
+/*---------------------------------------------------------------------------*/
+// WEBSERVER VARIABLES
+static struct psock ps;
+
+static struct etimer post_timer;
+static struct etimer post_timeout_timer;
+
+static int http_status = 0;
+
+static uint8_t attempting = 0;
+static char psock_buffer[120];
+
+static struct psock web_ps;
+static const uint8_t web_buf[128];
+static char *url;
+
+/*---------------------------------------------------------------------------*/
+// CONFIG CODE 
+
+
+
 /*
+ * Write the config from cfg_buf to a file
+ * The filename is determined by the uint8_t passed in
  * Returns 0 upon success, 1 on failure
  */
-uint8_t set_config(uint8_t config)
-{
+uint8_t set_config(uint8_t config){
   memset(cfg_buf, 0, sizeof(cfg_buf));
   static pb_ostream_t ostream;
   ostream = pb_ostream_from_buffer(cfg_buf, sizeof(cfg_buf));
@@ -173,12 +192,11 @@ uint8_t set_config(uint8_t config)
     return 1;
   }
 }
-
+/*---------------------------------------------------------------------------*/
 /*
  * Returns 0 upon success, 1 upon failure
  */
-static uint8_t get_config(uint8_t config)
-{
+static uint8_t get_config(uint8_t config){
   memset(cfg_buf, 0, sizeof(cfg_buf));
   static int read;
   if(config == SAMPLE_CONFIG) {
@@ -214,21 +232,16 @@ static uint8_t get_config(uint8_t config)
 
 /*---------------------------------------------------------------------------*/
 
-static uint8_t data[256] = {0};
-static uint16_t data_length = 0;
 
-static void load_file(char *filename)
-{
+
+static void load_file(char *filename){
   static int fd;
   fd = cfs_open(filename, CFS_READ);
-  if(fd >= 0)
-  {
+  if(fd >= 0)  {
     data_length = cfs_read(fd, data, sizeof(data));
     cfs_close(fd);
     DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
-  }
-  else
-  {
+  }else{
     DPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
   }
 }
@@ -245,8 +258,7 @@ static void load_file(char *filename)
  *
  *   Returns "djap1g11"
  */
-char* get_url_param(char* url, char* key)
-{
+char* get_url_param(char* url, char* key){
   static char str[100];
   strcpy(str, url);
   static char* pch;
@@ -264,54 +276,10 @@ char* get_url_param(char* url, char* key)
   }
   return NULL;
 }
-
-static struct psock ps;
-
-static struct etimer timer;
-static struct etimer timeout_timer;
-
-static int http_status = 0;
-
-static uint8_t attempting = 0;
-static char psock_buffer[120];
-
-static struct psock web_ps;
-static const uint8_t web_buf[128];
-static char *url;
-
-static int handle_connection(struct psock *p)
-{
-  static uint8_t status_code[4];
-  static char content_length[8];
-
-  itoa(data_length, content_length, 10);
-
-  PSOCK_BEGIN(p);
-
-  PSOCK_SEND_STR(p, "POST / HTTP/1.0\r\n");
-  PSOCK_SEND_STR(p, "Content-Length: ");
-  PSOCK_SEND_STR(p, content_length);
-  PSOCK_SEND_STR(p, "\r\n\r\n");
-  PSOCK_SEND(p, data, data_length);
-
-  while(1) {
-    PSOCK_READTO(p, '\n');
-    if(strncmp(psock_buffer, "HTTP/", 5) == 0)
-    { // Status line
-      memcpy(status_code, psock_buffer + 9, 3);
-      http_status = atoi(psock_buffer + 9);
-    }
-  }
-
-  PSOCK_END(p);
-}
-
-
-
+/*---------------------------------------------------------------------------*/
 
 static
-PT_THREAD(web_handle_connection(struct psock *p))
-{
+PT_THREAD(web_handle_connection(struct psock *p)){
 
   static uint8_t i;
   static char* param;
@@ -321,14 +289,12 @@ PT_THREAD(web_handle_connection(struct psock *p))
   PSOCK_BEGIN(p);
   PSOCK_READTO(p, '\n');
 
-  if(strncmp("GET ", web_buf, 4) == 0)
-  {
+  if(strncmp("GET ", web_buf, 4) == 0)  {
     url = web_buf + 4;
     strtok(url, " ");
     DPRINT("[WEBD] Got request for %s\n", url);
     static char num[8];
-    if(strncmp(url, "/clock", 6) == 0)
-    { // Serve clock form
+    if(strncmp(url, "/clock", 6) == 0)    { // Serve clock form
       static uint16_t y;
       static uint8_t mo, d, h, mi, se;
       static bool submitted;
@@ -358,9 +324,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       }
       PSOCK_SEND_STR(p, CLOCK_FORM);
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else if(strncmp(url, "/sample", 7) == 0)
-    {
+    } else if(strncmp(url, "/sample", 7) == 0) {
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, SENSOR_FORM_1);
@@ -399,16 +363,13 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, SENSOR_FORM_6);
       PSOCK_SEND_STR(p, BOTTOM);
       DPRINT("[WEBD] Closing connection.\n");
-    }
-    else if(strncmp(url, "/sensub", 7) == 0)
-    {
+    } else if(strncmp(url, "/sensub", 7) == 0) {
       param = get_url_param(url, "sample");
       sensor_config.interval = (param == NULL ? 900 : atol(param));
 
       param = get_url_param(url, "AVR");
       static char AVRs[32];
-      if(param != NULL)
-      {
+      if(param != NULL) {
         strcpy(AVRs, param);
         static char *pch;
         pch = strtok(AVRs, ".");
@@ -448,9 +409,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, "<h1>Success</h1>");
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else if(strncmp(url, "/comms", 6) == 0)
-    {
+    }else if(strncmp(url, "/comms", 6) == 0){
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, COMMS_FORM_1);
@@ -489,9 +448,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, COMMS_FORM_4);
 
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else if(strncmp(url, "/comsub", 7) == 0)
-    {
+    }else if(strncmp(url, "/comsub", 7) == 0){
       param = get_url_param(url, "interval");
       POST_config.interval = (param == NULL ? POST_INTERVAL : atol(param));
 
@@ -512,9 +469,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, "<h1>Success!</h1>");
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else
-    {
+    }else{
       DPRINT("Serving / \"INDEX\"\n");
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
@@ -526,22 +481,20 @@ PT_THREAD(web_handle_connection(struct psock *p))
   PSOCK_CLOSE(p);
   PSOCK_END(p);
 }
+/*---------------------------------------------------------------------------*/
 
-PROCESS_THREAD(web_process, ev, data)
-{
+
+PROCESS_THREAD(web_process, ev, data){
   PROCESS_BEGIN();
 
   tcp_listen(UIP_HTONS(80));
-  while(1)
-  {
+  while(1){
     DPRINT("[WEBD] Now listening for connections\n");
     PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
-    if(uip_connected())
-    {
+    if(uip_connected()) {
       DPRINT("[WEBD] Connected!\n");
       PSOCK_INIT(&web_ps, web_buf, sizeof(web_buf));
-      while(!(uip_aborted() || uip_closed() || uip_timedout()))
-      {
+      while(!(uip_aborted() || uip_closed() || uip_timedout())) {
         DPRINT("[WEBD] Waiting for TCP Event\n");
         PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
         DPRINT("[WEBD] Handle connection\n");
@@ -552,30 +505,13 @@ PROCESS_THREAD(web_process, ev, data)
   }
   PROCESS_END();
 }
-
-PROCESS_THREAD(web_sense_process, ev, data)
-{
-  static struct etimer timer;
-  PROCESS_BEGIN();
-  #ifndef CC11xx_CC1120
-  cc2420_set_txpower(31);
-  #endif
-
-  process_start(&web_process, NULL);
-  process_start(&sample_process, NULL);
-  process_start(&post_process, NULL);
-
-
-  PROCESS_END();
-}
 /*---------------------------------------------------------------------------*/
 
 /*
  * Returns the filename that is to be read for POSTing
  * Returns NULL if no files can be POSTed
  */
-static char* get_next_read_filename()
-{
+static char* get_next_read_filename(){
   static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
@@ -591,12 +527,11 @@ static char* get_next_read_filename()
   DPRINT("[NEXT] No file found. NULL\n");
   return NULL;
 }
-
+/*---------------------------------------------------------------------------*/
 /*
  * Returns the filename of the next file where it is safe to store `length` bytes of data
  */
-static char* get_next_write_filename(uint8_t length)
-{
+static char* get_next_write_filename(uint8_t length){
   static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
@@ -623,11 +558,9 @@ static char* get_next_write_filename(uint8_t length)
     if(max_num == -1) {
       filename[2] = '0';
       filename[3] = 0;
-    }
-    else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
+    } else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
-    }
-    else {
+    } else {
       itoa(max_num, filename + 2, 10);
     }
     return filename;
@@ -636,20 +569,18 @@ static char* get_next_write_filename(uint8_t length)
   return NULL;
 }
 
-static process_event_t protobuf_event;
-static struct ctimer avr_timeout_timer;
-
+/*---------------------------------------------------------------------------*/
 static void avr_timer_handler(void *p){
     process_post(&sample_process, protobuf_event, (process_data_t)NULL);
 }
 
 /*******************************************************************SAMPLE PROCESS ******************/
-PROCESS_THREAD(sample_process, ev, data)
-{
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(sample_process, ev, data){
   PROCESS_BEGIN();
 
-  if(get_config(SAMPLE_CONFIG) == 1)
-  { // Config file does not exist! Use default and set file
+  if(get_config(SAMPLE_CONFIG) == 1)  { 
+    // Config file does not exist! Use default and set file
     sensor_config.interval = SENSOR_INTERVAL;
     sensor_config.avrIDs_count = SENSOR_AVRIDS_COUNT;
     sensor_config.hasADC1 = SENSOR_HASADC1;
@@ -658,7 +589,7 @@ PROCESS_THREAD(sample_process, ev, data)
     set_config(SAMPLE_CONFIG);
   }
 
-  static struct etimer stimer;
+  static struct etimer sample_timer;
   static uint8_t pb_buf[64];
   static int fd;
 
@@ -683,14 +614,14 @@ PROCESS_THREAD(sample_process, ev, data)
 #ifdef SENSE_ON
     ms1_sense_on();
 #endif /*SENSE_ON */
-  while(1)
-  {
+  while(1)  {
 
 
     printf("uart 1 int enabled %d\n",  UC1IE & UCA1RXIE);
   printf("Uart 1 int status %d\n", UC1IFG & UCA1RXIFG);
-    etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
+    etimer_set(&sample_timer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&sample_timer));
+  
     ms1_sense_on();
     sample.time = get_time();
 
@@ -773,16 +704,13 @@ PROCESS_THREAD(sample_process, ev, data)
     DPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
 
     fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
-    if(fd >= 0)
-    {
+    if(fd >= 0)    {
       DPRINT("  [1/3] Writing to file...\n");
       cfs_write(fd, pb_buf, ostream.bytes_written);
       DPRINT("  [2/3] Closing file...\n");
       cfs_close(fd);
       DPRINT("  [3/3] Done\n");
-    }
-    else
-    {
+    } else {
       DPRINT("[SAMP] Failed to open file %s\n", filename);
     }
   }
@@ -790,8 +718,33 @@ PROCESS_THREAD(sample_process, ev, data)
   PROCESS_END();
 }
 
-PROCESS_THREAD(post_process, ev, data)
-{
+/*---------------------------------------------------------------------------*/
+static handle_connection(struct psock *p){
+  static uint8_t status_code[4];
+  static char content_length[8];
+
+  itoa(data_length, content_length, 10);
+
+  PSOCK_BEGIN(p);
+
+  PSOCK_SEND_STR(p, "POST / HTTP/1.0\r\n");
+  PSOCK_SEND_STR(p, "Content-Length: ");
+  PSOCK_SEND_STR(p, content_length);
+  PSOCK_SEND_STR(p, "\r\n\r\n");
+  PSOCK_SEND(p, data, data_length);
+
+  while(1) {
+    PSOCK_READTO(p, '\n');
+    if(strncmp(psock_buffer, "HTTP/", 5) == 0)    { // Status line
+      memcpy(status_code, psock_buffer + 9, 3);
+      http_status = atoi(psock_buffer + 9);
+    }
+  }
+
+  PSOCK_END(p);
+}
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(post_process, ev, data){
   PROCESS_BEGIN();
 
   static uint8_t retries;
@@ -800,8 +753,8 @@ PROCESS_THREAD(post_process, ev, data)
 
   static char* filename;
 
-  if(get_config(COMMS_CONFIG) == 1)
-  { // Config file does not exist! Use default and set file
+  if(get_config(COMMS_CONFIG) == 1){ 
+    // Config file does not exist! Use default and set file
     POST_config.interval = POST_INTERVAL;
     POST_config.ip_count = POST_IP_COUNT;
     POST_config.ip[0] = POST_IP0;
@@ -816,13 +769,11 @@ PROCESS_THREAD(post_process, ev, data)
     set_config(COMMS_CONFIG);
   }
 
-  while(1)
-  {
+  while(1) {
     retries = 0;
-    etimer_set(&timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-    while((filename = get_next_read_filename()) != NULL && retries < CONNECTION_RETRIES)
-    {
+    etimer_set(&post_timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&post_timer));
+    while((filename = get_next_read_filename()) != NULL && retries < CONNECTION_RETRIES)   {
       uip_ip6addr(&addr,
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
@@ -835,21 +786,17 @@ PROCESS_THREAD(post_process, ev, data)
       if(uip_aborted() || uip_timedout() || uip_closed()) {
         DPRINT("Could not establish connection\n");
         retries++;
-      }
-      else if(uip_connected()) {
+      } else if(uip_connected()) {
         DPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
-        etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+        etimer_set(&post_timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
         do {
-          if(etimer_expired(&timeout_timer))
-          {
+          if(etimer_expired(&post_timeout_timer)) {
             DPRINT("Connection took too long. TIMEOUT\n");
             PSOCK_CLOSE(&ps);
             retries++;
             break;
-          }
-          else if(data_length > 0)
-          {
+          } else if(data_length > 0){
             DPRINT("[POST] Handle Connection\n");
             handle_connection(&ps);
             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
@@ -857,15 +804,14 @@ PROCESS_THREAD(post_process, ev, data)
         } while(!(uip_closed() || uip_aborted() || uip_timedout()));
         DPRINT("\nConnection closed.\n");
         DPRINT("Status = %d\n", http_status);
-        if(http_status/100 == 2)
-        { // Status OK
+        if(http_status/100 == 2) { 
+            // Status OK
           data_length = 0;
           retries = 0;
           cfs_remove(filename);
           DPRINT("[POST] Removing file\n");
-        }
-        else
-        { // POST failed
+        } else { 
+            // POST failed
           data_length = 0;
           retries++;
           DPRINT("[POST] Failed, not removing file\n");
@@ -895,7 +841,6 @@ PROCESS_THREAD(debug_process, ev, data)
     printf("TACCTL0 IE:%d IFG:%d \n", TACCTL0 & CCIE, TACCTL0 & CCIFG);
     printf("TBCTL IE:%d, IFG:%d\n", TBCTL & TBIE, TBCTL & TBIFG);
     printf("TBCCTL0 IE:%d IFG:%d \n", TBCCTL0 & CCIE, TBCCTL0 & CCIFG);
-    printf("TBIV:%d \n", TBIV);
     printf("CACATL1 IE:%d, IFG:%d\n", CACTL1 & CAIE, CACTL1 & CAIFG);
     printf("UCA0CTL1 RXEIE:%d RXBRKIE:%d\n", UCA0CTL1 & UCRXEIE, UCA0CTL1 & UCBRKIE);
     printf("IE2 TXIE:%d RXIE %d\n ", IE2 & UCA0TXIE, IE2 & UCA0RXIE);
