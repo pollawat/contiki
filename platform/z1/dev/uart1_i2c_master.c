@@ -289,7 +289,7 @@ uart1_writeb(unsigned char c)
   RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
   UCA1TXBUF = c;
   while((UCA1STAT & UCBUSY)); //while send in progress
-  RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN)
+  RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);
 
   PRINTFDEBUG("char written to UCA1TXBUF\n");
 //#endif /* TX_WITH_INTERRUPT */
@@ -340,7 +340,7 @@ uart1_pin_init(void)
 void
 uart1_init(unsigned long ubr)
 {
-  uart1_pin_init();
+  
 
   UCA1CTL0 = 0x00;
   UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
@@ -359,14 +359,13 @@ uart1_init(unsigned long ubr)
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
 
-  PRINTFDEBUG(".");
+  PRINTFDEBUG("UART1 now inited\n");
 }
 
 
 /*----------------------------------------------------------------------------*/
 ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 {
-//  printf("ISR TX\n");
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
     PRINTFDEBUG("I2C TX int \n");
