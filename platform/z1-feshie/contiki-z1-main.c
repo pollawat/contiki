@@ -211,13 +211,14 @@ main(int argc, char **argv)
   msp430_cpu_init();
   clock_init();
   ms1_io_init(); 
- 
+  
   i2c_enable();
   
   
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
-  
+  uart1_pin_init();
+
   leds_init();
   leds_on(LEDS_RED);
 
@@ -225,15 +226,12 @@ main(int argc, char **argv)
 
   uart0_init(BAUD2UBR(115200)); /* Must come before first printf */
 #if WITH_UIP
-#ifndef NO_SLIP
-  slip_arch_init(BAUD2UBR(115200));
-#endif
+  #ifndef NO_SLIP
+    slip_arch_init(BAUD2UBR(115200));
+  #endif
 #endif /* WITH_UIP */
 
-  uart1_init('b'); /* It ignores the input to the func */
-  serial_timeout_init();
-  uart1_set_input(serial_timeout_input_byte);
-  protobuf_handler_set_writeb(uart1_writeb);
+
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
   
   xmem_init();
@@ -332,6 +330,10 @@ main(int argc, char **argv)
     PRINTF("Node id is not set.\n");
   }
 
+  //update reset counter
+  reset_sensor.configure(SENSORS_ACTIVE,1);           //update reset counter
+  printf("Reset Count %d \n",reset_sensor.value(0));  //print current reset count
+
 
 #if WITH_UIP6
   memcpy(&uip_lladdr.addr, node_mac, sizeof(uip_lladdr.addr));
@@ -402,9 +404,12 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+
   uart1_init('b'); /* It ignores the input to the func */
   uart1_set_input(serial_timeout_input_byte);
   serial_timeout_init();
+  protobuf_handler_set_writeb(uart1_writeb);
+
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
@@ -450,13 +455,13 @@ main(int argc, char **argv)
   energest_init();
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 
+
+
+
   print_processes(autostart_processes);
   autostart_start(autostart_processes);
 
-  //update reset counter
-  reset_sensor.configure(SENSORS_ACTIVE,1);           //update reet counter
-  printf("Reset Count %d \n",reset_sensor.value(0));  //print rurrent reset count
-
+  
 
   /*
    * This is the scheduler loop.
