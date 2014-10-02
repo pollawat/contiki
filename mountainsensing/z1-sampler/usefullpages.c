@@ -1,4 +1,4 @@
-/* This file contains usefull pages that cam be made avaliable from a webserver
+/* This file contains useful pages that can be made available from a web server
 
  * Routes, Prints the routes and neighbours the node has
  */
