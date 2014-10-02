@@ -43,4 +43,19 @@
 #undef WEBSERVER_CONF_CFS_CONNS
 #define WEBSERVER_CONF_CFS_CONNS 2
 
+
+/* **************************************************************************** */
+/* ------------------------------- POST Config -------------------------------- */
+/* **************************************************************************** */
+
+#define POST_CONFIG_INTERVAL 180
+#define POST_CONFIG_IP0 0x2a01
+#define POST_CONFIG_IP1 0x348
+#define POST_CONFIG_IP2 0x24b
+#define POST_CONFIG_IP3 0x2
+#define POST_CONFIG_IP4 0x0
+#define POST_CONFIG_IP5 0x0
+#define POST_CONFIG_IP6 0x0
+#define POST_CONFIG_IP7 0x1
+
 #endif /* __PROJECT_RPL_WEB_CONF_H__ */
