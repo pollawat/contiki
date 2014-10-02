@@ -108,7 +108,7 @@ i2c_receiveinit(uint8_t slave_address) {
   UCB1CTL1 &= ~UCSWRST;	                 // Clear SW reset, resume operation
   UCB1I2CIE = UCNACKIE;
 #if I2C_RX_WITH_INTERRUPT
-  UC1IE = UCB1RXIE;                      // Enable RX interrupt if desired
+  UC1IE |= UCB1RXIE;                      // Enable RX interrupt if desired
 #endif
 }
 
@@ -132,7 +132,7 @@ i2c_transmitinit(uint8_t slave_address) {
 
   UCB1CTL1 &= ~UCSWRST;                    // Clear SW reset, resume operation
   UCB1I2CIE = UCNACKIE;
-  UC1IE = UCB1TXIE;		           // Enable TX ready interrupt
+  UC1IE |= UCB1TXIE;		           // Enable TX ready interrupt
 }
 
 //------------------------------------------------------------------------------
@@ -381,7 +381,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
     }
   }
   // RX Part
-#if I2C_RX_WITH_INTERRUPT
+#if I2C_RX_WITH_INTERRUPT		//TODO: Is this right as we are in the TX interrupt?
   else if (UC1IFG & UCB1RXIFG){    // RX int. condition
     PRINTFDEBUG("USCIAB1TX: UCB1RXIFG\n");
     rx_buf_ptr[rx_byte_tot - rx_byte_ctr] = UCB1RXBUF;
