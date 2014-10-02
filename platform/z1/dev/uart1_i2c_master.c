@@ -151,8 +151,8 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
   rx_byte_ctr = byte_ctr;
   rx_buf_ptr  = rx_buf;
 
-  while ((UCB1CTL1 & UCTXSTT) || (UCB1STAT & UCNACKIFG))	// Slave acks address or not?
-    PRINTFDEBUG ("____ UCTXSTT not clear OR NACK received\n");
+  while ((UCB1CTL1 & UCTXSTT) || (UCB1STAT & UCNACKIFG));	// Slave acks address or not?
+    //PRINTFDEBUG ("____ UCTXSTT not clear OR NACK received\n");
 
 #if I2C_RX_WITH_INTERRUPT
   PRINTFDEBUG(" RX Interrupts: YES \n");
@@ -161,8 +161,8 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
   if(rx_byte_tot == 1){                 // See page 537 of slau144e.pdf
     dint();
     UCB1CTL1 |= UCTXSTT;		// I2C start condition
-    while(UCB1CTL1 & UCTXSTT)           // Waiting for Start bit to clear
-      PRINTFDEBUG ("____ STT clear wait\n");
+    while(UCB1CTL1 & UCTXSTT);           // Waiting for Start bit to clear
+  //    PRINTFDEBUG ("____ STT clear wait\n");
     UCB1CTL1 |= UCTXSTP;		// I2C stop condition
     eint();
   }
@@ -174,7 +174,7 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
 #else
   uint8_t n_received = 0;
 
-  PRINTFDEBUG(" RX Interrupts: NO \n");
+//  PRINTFDEBUG(" RX Interrupts: NO \n");
 
   UCB1CTL1 |= UCTXSTT;		// I2C start condition
 
@@ -262,7 +262,7 @@ uart1_set_input(int (*input)(unsigned char c))
 void
 uart1_writeb(unsigned char c)
 {
-  PRINTFDEBUG("UART1 writeb **\n");
+  //PRINTFDEBUG("UART1 writeb **\n");
   /* watchdog_periodic(); */
 //  #if TX_WITH_INTERRUPT
 //  printf("Uart1 write with interrupt\n");
@@ -283,7 +283,7 @@ uart1_writeb(unsigned char c)
 //  }
 
 //#else /* TX_WITH_INTERRUPT */
-  PRINTFDEBUG("UART1 tx without interrupt\n");
+  //PRINTFDEBUG("UART1 tx without interrupt\n");
   /* Loop until the transmission buffer is available. */
   while((UCA1STAT & UCBUSY));	//while send in progress
 
@@ -361,7 +361,7 @@ uart1_init(unsigned long ubr)
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
 
-  PRINTFDEBUG("UART1 now inited\n");
+  //PRINTFDEBUG("UART1 now inited\n");
 }
 
 
@@ -370,7 +370,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 {
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
-    PRINTFDEBUG("I2C TX int \n");
+    //PRINTFDEBUG("I2C TX int \n");
     if (tx_byte_ctr == 0) {
       UCB1CTL1 |= UCTXSTP;	   // I2C stop condition
       UC1IFG &= ~UCB1TXIFG;	   // Clear USCI_B1 TX int flag
@@ -410,7 +410,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
   printf("!");
-  PRINTFDEBUG("ISR\n");
+  //PRINTFDEBUG("ISR\n");
   uint8_t c;
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
@@ -424,7 +424,7 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
       c = UCA1RXBUF;
-      PRINTFDEBUG("%i\n", c);
+      //PRINTFDEBUG("%i\n", c);
       if(uart1_input_handler != NULL) {
         if(uart1_input_handler(c)) {
           LPM4_EXIT;
