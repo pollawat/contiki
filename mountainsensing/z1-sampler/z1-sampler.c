@@ -558,9 +558,13 @@ static char* get_next_write_filename(uint8_t length){
     if(max_num == -1) {
       filename[2] = '0';
       filename[3] = 0;
-    } else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
+    } else if(((uint16_t)file_size + (uint16_t)length) > MAX_POST_SIZE) {
+        /* If the current data in the file and the new data are less than
+            MAX_POST_SIZE then they can go in the same file
+        */
       itoa(max_num + 1, filename + 2, 10);
     } else {
+        /*Otherwise create a new file */
       itoa(max_num, filename + 2, 10);
     }
     return filename;
