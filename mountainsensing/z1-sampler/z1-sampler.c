@@ -674,6 +674,13 @@ PROCESS_THREAD(sample_process, ev, data){
                 ctimer_stop(&avr_timeout_timer);
                 protobuf_data_t *pbd;
                 pbd = data;
+                sample.has_AVR = 1;
+                sample.AVR.size = pbd->length;
+                uint8_t k;
+                for(k=0; k < pbd->length; k++){
+                  sample.AVR.bytes[k] = pbd->data[k];
+
+                }
 #ifdef AVRDEFBUG
                 printf("\tRecieved %d bytes\t", pbd->length);
                 uint8_t j;
@@ -693,6 +700,8 @@ PROCESS_THREAD(sample_process, ev, data){
 #ifndef SENSE_ON      
     ms1_sense_off();
 #endif
+      AVRDPRINT("protobuf has AVR reading %d\n", sample.has_AVR);
+      AVRDPRINT("Sizxe of protobuf data %d\n", sample.AVR.size);
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
