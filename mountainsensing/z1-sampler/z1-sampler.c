@@ -594,7 +594,7 @@ PROCESS_THREAD(sample_process, ev, data){
   }
 
   static struct etimer sample_timer;
-  static uint8_t pb_buf[64];
+  static uint8_t pb_buf[Sample_size];
   static int fd;
 
   static Sample sample;
