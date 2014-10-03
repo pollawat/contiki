@@ -112,6 +112,13 @@
  #endif
 
 
+#define POST_DEBUG
+#ifdef POST_DEBUG
+    #define PPRINT(...) printf(__VA_ARGS__)
+#else
+    #define PPRINT(...)
+#endif
+
  #define SENSE_ON
 
 float floor(float x){ 
@@ -788,43 +795,43 @@ PROCESS_THREAD(post_process, ev, data){
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
           POST_config.ip[6], POST_config.ip[7]);
-      DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
+      PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
       load_file(filename);
-      DPRINT("Connecting...\n");
+      PPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
       if(uip_aborted() || uip_timedout() || uip_closed()) {
-        DPRINT("Could not establish connection\n");
+        PPRINT("Could not establish connection\n");
         retries++;
       } else if(uip_connected()) {
-        DPRINT("Connected\n");
+        PPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
         etimer_set(&post_timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
         do {
           if(etimer_expired(&post_timeout_timer)) {
-            DPRINT("Connection took too long. TIMEOUT\n");
+            PPRINT("Connection took too long. TIMEOUT\n");
             PSOCK_CLOSE(&ps);
             retries++;
             break;
           } else if(data_length > 0){
-            DPRINT("[POST] Handle Connection\n");
+            PPRINT("[POST] Handle Connection\n");
             handle_connection(&ps);
             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
           }
         } while(!(uip_closed() || uip_aborted() || uip_timedout()));
-        DPRINT("\nConnection closed.\n");
-        DPRINT("Status = %d\n", http_status);
+        PPRINT("\nConnection closed.\n");
+        PPRINT("Status = %d\n", http_status);
         if(http_status/100 == 2) { 
             // Status OK
           data_length = 0;
           retries = 0;
           cfs_remove(filename);
-          DPRINT("[POST] Removing file\n");
+          PPRINT("[POST] Removing file\n");
         } else { 
             // POST failed
           data_length = 0;
           retries++;
-          DPRINT("[POST] Failed, not removing file\n");
+          PPRINT("[POST] Failed, not removing file\n");
         }
       }
     }
