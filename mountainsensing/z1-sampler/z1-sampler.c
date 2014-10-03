@@ -610,10 +610,7 @@ PROCESS_THREAD(sample_process, ev, data){
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
   event_sensor.configure(SENSORS_ACTIVE,1);
   printf("Configured rain\n");
-  printf("uart1-dir %d\n",UART1_RX_PORT(DIR));
-  printf("uart1-sel %d\n", UART1_RX_PORT(SEL));
-  printf("uart 1 int enabled %d\n",  UC1IE & UCA1RXIE);
-  printf("Uart 1 int status %d\n", UC1IFG & UCA1RXIFG);
+
 #ifdef SENSE_ON
     ms1_sense_on();
 #endif /*SENSE_ON */
@@ -831,8 +828,9 @@ PROCESS_THREAD(debug_process, ev, data)
 {
 
   PROCESS_BEGIN();
-  printf("Interupt debug process started\n");
+  
 #ifdef INTDEBUG
+  printf("Interupt debug process started\n");
   while(1) {
   etimer_set(&int_debug_timer, CLOCK_SECOND);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&int_debug_timer));
