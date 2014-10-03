@@ -122,7 +122,7 @@ float floor(float x){
 PROCESS(web_process, "Web Server Process");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
-PROCESS(debug_process, "Testing interupt status Z1 Feshie");
+PROCESS(debug_process, "Interupt Status printer");
 
 AUTOSTART_PROCESSES(&web_process, &sample_process, &post_process, &debug_process);
 
