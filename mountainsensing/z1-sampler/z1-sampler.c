@@ -542,11 +542,14 @@ static char* get_next_write_filename(uint8_t length){
   static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
-  static uint8_t file_num, i;
+  static  int16_t file_num;
+  static uint8_t i;
   static uint16_t file_size;
   static int16_t max_num;
+  static uint16_t next_filenum;
   file_num = 0;
   max_num = -1;
+  next_filenum = 0;
   file_size = 0;
 
   filename[0] = 'r';
@@ -555,9 +558,9 @@ static char* get_next_write_filename(uint8_t length){
   if(cfs_opendir(&dir, "/") == 0) {
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
-        i = atoi(dirent.name + 2);
-        if(i > max_num) {
-          max_num = i;
+        file_num = atoi(dirent.name + 2);
+        if(file_num > max_num) {
+          max_num = file_num;
           file_size = (uint16_t)dirent.size;
         }
       }
@@ -569,7 +572,8 @@ static char* get_next_write_filename(uint8_t length){
         /* If the current data in the file and the new data are less than
             MAX_POST_SIZE then they can go in the same file
         */
-      itoa(max_num + 1, filename + 2, 10);
+      next_filenum = max_num + 1;
+      itoa(next_filenum, filename + 2, 10);
     } else {
         /*Otherwise create a new file */
       itoa(max_num, filename + 2, 10);
