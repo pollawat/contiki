@@ -4,7 +4,6 @@
 #include "cfs/cfs.h"
 #include "cfs/cfs-coffee.h"
 #include "dev/reset-sensor.h"     // Include sensor driver
-#include "cake.h"
 
 PROCESS(example_coffee_process, "Node Reset");
 AUTOSTART_PROCESSES(&example_coffee_process);
@@ -55,7 +54,7 @@ PROCESS_THREAD(example_coffee_process, ev, data)
   reset_counter_reset();
   printf ("COUNT = %d\n", reset_sensor.value(0));
 
-  printf(cake);
+  printf("Node reset complete");
 
   PROCESS_END();
 }
