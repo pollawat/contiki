@@ -192,13 +192,13 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-			printf("CC1120");
+			printf("CC1120\n");
 			break;
 		case CC1120_PART_NUM_CC1121:
-			printf("CC1121");
+			printf("CC1121\n");
 			break;
 		case CC1120_PART_NUM_CC1125:
-			printf("CC1125");
+			printf("CC1125\n");
 			break;
 		default:	/* Not a supported chip or no chip present... */
 			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
@@ -209,7 +209,6 @@ cc1120_driver_init(void)
 			break;
 	}
 	
-	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
