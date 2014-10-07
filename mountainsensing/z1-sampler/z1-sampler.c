@@ -542,13 +542,12 @@ static char* get_next_write_filename(uint8_t length){
   static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
-  static  int16_t file_num;
-  static uint8_t i;
+  static  uint16_t file_num;
   static uint16_t file_size;
-  static int16_t max_num;
+  static uint16_t max_num;
   static uint16_t next_filenum;
   file_num = 0;
-  max_num = -1;
+  max_num = 0;
   next_filenum = 0;
   file_size = 0;
 
@@ -565,8 +564,8 @@ static char* get_next_write_filename(uint8_t length){
         }
       }
     }
-    if(max_num == -1) {
-      filename[2] = '0';
+    if(max_num == 0) {
+      filename[2] = '1';
       filename[3] = 0;
     } else if(((uint16_t)file_size + (uint16_t)length) > MAX_POST_SIZE) {
         /* If the current data in the file and the new data are less than
