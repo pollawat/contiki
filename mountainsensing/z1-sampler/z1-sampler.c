@@ -144,9 +144,9 @@ static uint16_t data_length = 0;
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
 #if SensorConfig_size > PostConfig_size
-    static char cfg_buf[SensorConfig_size + 4];
+    static uint8_t cfg_buf[SensorConfig_size + 4];
 #else
-    static char cfg_buf[POSTConfig_size + 4];
+    static uint8_t  cfg_buf[POSTConfig_size + 4];
 #endif
 
 /*---------------------------------------------------------------------------*/
@@ -158,7 +158,7 @@ static struct etimer post_timeout_timer;
 
 static int http_status = 0;
 
-static uint8_t attempting = 0;
+//static uint8_t attempting = 0;
 static char psock_buffer[120];
 
 static struct psock web_ps;
