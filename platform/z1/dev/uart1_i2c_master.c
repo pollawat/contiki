@@ -38,7 +38,6 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
-/*#define UART1_DEBUG*/
 
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
@@ -50,7 +49,7 @@
 
 #include "platform-conf.h"
 
-#define UART1_DEBUG
+//#define UART1_DEBUG
 #ifdef UART1_DEBUG
   #include <stdio.h>
   #define PRINTFDEBUG(...) printf(__VA_ARGS__)
@@ -409,7 +408,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
-  printf("!");
+  //printf("!");
   //PRINTFDEBUG("ISR\n");
   uint8_t c;
 #if I2C_RX_WITH_INTERRUPT
