@@ -844,9 +844,9 @@ PROCESS_THREAD(post_process, ev, data){
 }
 
 
-
-static struct etimer int_debug_timer;
-
+#ifdef INTDEBUG
+    static struct etimer int_debug_timer;
+#endif
 PROCESS_THREAD(debug_process, ev, data)
 {
 
