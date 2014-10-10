@@ -547,3 +547,17 @@ log_message(char *m1, char *m2)
 }
 #endif /* LOG_CONF_ENABLED */
 
+/*---------------------------------------------------------------------------*/
+/*-------------------------- SPI Flash CSn Control --------------------------*/
+/*---------------------------------------------------------------------------*/
+void SPI_FLASH_ENABLE(void) {
+	XMEM_SPI_CSN_PORT(OUT) &= ~BV(XMEM_SPI_CSN_PIN);
+}
+
+void SPI_FLASH_DISABLE(void) {  
+	XMEM_SPI_CSN_PORT(OUT) |=  BV(XMEM_SPI_CSN_PIN); 
+	if(cc1120_arch_interrupt_pending(0) && !cc1120_arch_spi_enabled()) { 
+		cc1120_interrupt_handler(); 
+	}
+}
+

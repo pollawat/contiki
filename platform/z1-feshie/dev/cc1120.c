@@ -688,7 +688,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
 	PRINTF("**** Radio Driver: Read ****\n");
 
-	uint8_t length, tmp, i, rxbytes = 0;
+	uint8_t length, i, rxbytes = 0;
 	rimeaddr_t dest;
 		
 	if(radio_pending & RX_FIFO_UNDER)
@@ -1646,117 +1646,114 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
-	//printf("I\n\r");
-	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
-		cc1120_arch_spi_disable();
-	}
-	
-	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	cc1120_arch_interrupt_acknowledge();
-	
-	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
-	{
-		return 0;
-	}
-	
-	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
-	
-	if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED)
-	{
-		/* Ignore as it should be an ACK. */
-		if(radio_pending & ACK_PENDING)
-		{
+	//printf("I\n\r");
+	/* Check if we have interrupted an SPI function, if so mark int pending. */
+	if(cc1120_arch_spi_enabled()) {
+		cc1120_arch_interrupt_pending(1);
+	} else {
+		uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
+		
+		
+		if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE) {
 			return 0;
+		}
+		
+		PRINTFINT("\t CC1120 Int. %d\n", marc_status);
+		
+		if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED) {
+			/* Ignore as it should be an ACK. */
+			if(radio_pending & ACK_PENDING)	{
+				return 0;
+			}	
+			
+			/* We have received a packet.  This is done first to make RX faster. */
+			//LEDS_ON(LEDS_RED);
+			packet_pending++;
+			
+			process_poll(&cc1120_process);
+			return 1;
 		}	
 		
-		/* We have received a packet.  This is done first to make RX faster. */
-		//LEDS_ON(LEDS_RED);
-		packet_pending++;
-		
-		process_poll(&cc1120_process);
-		return 1;
-	}	
-	
-	switch (marc_status){
-		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
-			/* RX terminated due to timeout.  Should not get here as there is  */	
-			printf("RX Timeout.\n\r");						
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
-			/* RX Terminated on CS or PQT. */
-			printf("RXT\n\r");
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
-			/* EWOR Sync lost. */	
-			printf("EWOR\n\r");							
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
-			/* Packet discarded due to being too long. Flush RX FIFO? */	
-			printf("LEN\n\r");
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
-			/* Packet discarded due to bad address - should not get here 
-			 * as address matching is not being used. Flush RX FIFO? */		
-			printf("DISC\n\r");				
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
-			/* Packet discarded due to bad CRC. Should not need to flush 
-			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
-			 printf("CRC\n\r");		
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
-			/* TX FIFO has overflowed. */
-			radio_pending |= TX_FIFO_ERROR;
-			printf("TOF\n\r");											
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
-			/* TX FIFO has underflowed. */
-			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
-			radio_pending |= TX_FIFO_ERROR;	
-			printf("TUF\n\r");				
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
-			/* RX FIFO has overflowed. */
-			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
-			cc1120_flush_rx();	
-			if(radio_on)
-			{	
-				cc1120_set_state(CC1120_STATE_RX);
-			}						
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
-			/* RX FIFO has underflowed. */
-			PRINTFRXERR("\t!!! RX FIFO Error: Underflow. !!!\n");
-			radio_pending |= RX_FIFO_UNDER;			
-			printf("RUF\n\r");						
-			break;	
-			
-		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
-			/* TX on CCA Failed due to busy channel. */									
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_TX_FINISHED:	
-			/* TX Finished. */
-			radio_pending |= TX_COMPLETE;
-			radio_pending &= ~(TX_ERROR);														
-			break;
-			
-		default:
-			break;
+		switch (marc_status){
+			case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
+				/* RX terminated due to timeout.  Should not get here as there is  */	
+				printf("RX Timeout.\n\r");						
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
+				/* RX Terminated on CS or PQT. */
+				printf("RXT\n\r");
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
+				/* EWOR Sync lost. */	
+				printf("EWOR\n\r");							
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
+				/* Packet discarded due to being too long. Flush RX FIFO? */	
+				printf("LEN\n\r");
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
+				/* Packet discarded due to bad address - should not get here 
+				 * as address matching is not being used. Flush RX FIFO? */		
+				printf("DISC\n\r");				
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
+				/* Packet discarded due to bad CRC. Should not need to flush 
+				 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
+				 printf("CRC\n\r");		
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
+				/* TX FIFO has overflowed. */
+				radio_pending |= TX_FIFO_ERROR;
+				printf("TOF\n\r");											
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
+				/* TX FIFO has underflowed. */
+				PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
+				radio_pending |= TX_FIFO_ERROR;	
+				printf("TUF\n\r");				
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
+				/* RX FIFO has overflowed. */
+				PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
+				cc1120_flush_rx();	
+				if(radio_on)
+				{	
+					cc1120_set_state(CC1120_STATE_RX);
+				}						
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_RX_UNDERFLOW:	
+				/* RX FIFO has underflowed. */
+				PRINTFRXERR("\t!!! RX FIFO Error: Underflow. !!!\n");
+				radio_pending |= RX_FIFO_UNDER;			
+				printf("RUF\n\r");						
+				break;	
+				
+			case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
+				/* TX on CCA Failed due to busy channel. */									
+				break;
+				
+			case CC1120_MARC_STATUS_OUT_TX_FINISHED:	
+				/* TX Finished. */
+				radio_pending |= TX_COMPLETE;
+				radio_pending &= ~(TX_ERROR);														
+				break;
+				
+			default:
+				break;
+		}
+		/* Acknowledge the interrupt. */
+		//cc1120_arch_interrupt_acknowledge();	
 	}
-	/* Acknowledge the interrupt. */
-	cc1120_arch_interrupt_acknowledge();	
 	return 1;
 }
 
@@ -1780,19 +1777,12 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		
 void processor(void)
 {			
-	uint8_t len, rxbytes = 0;	
+	uint8_t len;	
 	uint8_t buf[CC1120_MAX_PAYLOAD];
-	rimeaddr_t dest;
 			
 	PRINTFPROC("** Process Poll **\n");
 	LEDS_ON(LEDS_RED);
-	watchdog_periodic();	
-	
-	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
-		cc1120_arch_spi_disable();
-	}	
+	watchdog_periodic();				/* Pet the dog. */
 	
 	len = cc1120_driver_read_packet(buf, CC1120_MAX_PAYLOAD);
 	

@@ -41,6 +41,9 @@
 #include "cc1120-arch.h"
 #include "cc1120-const.h"
 
+#include "contiki.h"
+#include "contiki-conf.h"
+
 #include "dev/spi.h"
 #include "dev/leds.h"
 
@@ -50,7 +53,7 @@
 
 #define LEDS_ON(x) leds_on(x)
 
-static uint8_t enabled;
+static uint8_t enabled, int_pending;
 
 /* Busy Wait for time-outable waiting. */
 #define BUSYWAIT_UNTIL(cond, max_time)                                  \
@@ -135,7 +138,10 @@ cc1120_arch_reset(void)
 uint8_t
 cc1120_arch_spi_enabled(void)
 {
-	return enabled;
+	if(enabled | (!(XMEM_SPI_CSN_PORT(OUT) & BV(XMEM_SPI_CSN_PIN)))) {		
+		return 1;
+	}
+	return 0;	
 }
 
 void
@@ -190,6 +196,11 @@ cc1120_arch_spi_disable(void)
 		CC1120_SPI_CSN_PORT(OUT) |= BV(CC1120_SPI_CSN_PIN);
 		
 		enabled = 0;
+	}
+	
+	/* If there is a pending interrupt and the SPI is NOT enabled, process the interrupt. */
+	if(cc1120_arch_interrupt_pending(0) && !cc1120_arch_spi_enabled()) {
+		cc1120_interrupt_handler();
 	}
 }
 
@@ -296,11 +307,21 @@ cc1120_arch_interrupt_disable(void)
 	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
 }
 /*---------------------------------------------------------------------------*/
+uint8_t
+cc1120_arch_interrupt_pending(uint8_t rw)
+{
+	if(rw) {
+		int_pending = 1;
+	}
+	return int_pending;
+}
+
 void
 cc1120_arch_interrupt_acknowledge(void)
 {
 	/* Reset interrupt trigger */
 	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
+	int_pending = 0;
 }
 
 

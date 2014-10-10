@@ -177,8 +177,12 @@ typedef unsigned long off_t;
 #define FLASH_CS	4	/* P4.4 Output */
 #define FLASH_HOLD	7	/* P5.7 Output */
 
-#define SPI_FLASH_ENABLE()  ( P4OUT &= ~BV(FLASH_CS) )
-#define SPI_FLASH_DISABLE() ( P4OUT |=  BV(FLASH_CS) )
+#define XMEM_SPI_CSN_PORT(type)		P4##type
+#define XMEM_SPI_CSN_PIN			FLASH_CS
+
+/* Enable/disable flash access to the SPI bus (active low) prototypes. */
+void SPI_FLASH_ENABLE(void);
+void SPI_FLASH_DISABLE(void);
 
 #define SPI_FLASH_HOLD()		( P5OUT &= ~BV(FLASH_HOLD) )
 #define SPI_FLASH_UNHOLD()		( P5OUT |=  BV(FLASH_HOLD) )
