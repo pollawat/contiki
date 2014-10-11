@@ -1,9 +1,15 @@
 #!/bin/bash
 
+IPV6PREFIX="2a01:348:24b:2:c30c::"
 echo "--- Clock Config ---"
 
-echo "Enter Node Address"
-read node
+if [ "$#" -eq 0 ];then
+	echo "Enter Node Address"
+	read node
+else
+	node=$IPV6PREFIX$1
+fi
+echo setting RTC on $node
 
 year=`date +"%Y"`
 month=`date +"%m"`

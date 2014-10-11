@@ -2,13 +2,20 @@
 
 echo "--- Sample Config ---"
 
-echo "Enter Node Address"
-read node
+IPV6PREFIX="2a01:348:24b:2:c30c::"
+
+if [ "$#" -eq 0 ];then
+        echo "Enter Node Address"
+        read node
+else
+        node=$IPV6PREFIX$1
+fi
+echo setting sampling settings on $node
 
 echo "Enter Sample Interval (Seconds)"
 read interval
 
-echo "Enter `.` Seperated AVR IDs (Like 1.26.239)"
+echo "Enter . Seperated AVR IDs (Like 1.26.239)"
 read avrids
 
 echo "Does this node have a rain sensor? [y/N]"
