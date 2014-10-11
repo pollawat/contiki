@@ -750,19 +750,17 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	PRINTFRX("\tRead FIFO.\n");
 
 	
-
+	/* Enable CC1120 & set burst access. */
 	cc1120_arch_spi_enable();
 	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 	
 	for(i = 0; i < length; i++)
 	{
-		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
 		((uint8_t *)buf)[i] = cc1120_arch_spi_rw_byte(0);
+		
+		/* If this is the 13th byte, check if the packet is for us and ACK as required */
 		if((i == 13) && (((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ))
-		{
-			/* ACK handling. */
-			
-			
+		{			
 			/* Get the address in the correct order. */
 			if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
 			{
@@ -787,7 +785,6 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 			if(rimeaddr_cmp(&dest, &rimeaddr_node_addr))
 			{
 				PRINTFRX("\tSending ACK\n");
-				
 				cc1120_arch_spi_disable();
 				
 				rtimer_clock_t t0;                                                   
@@ -851,13 +848,20 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 						break;
 					}
 				}
-				
-				/* Re-load data into TX FIFO. */
+				/* Flush TX FIFO. */
 				cc1120_flush_tx();
-				//cc1120_write_txfifo(tx_buf, tx_len);
 				
+				/* Re-enable CC1120 & Burst access. */
 				cc1120_arch_spi_enable();
 				(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+
+#if CC1120_ADDR_FILTER
+			} else {
+				/* Packet is not for us, drop & ignore. */
+				RELEASE_SPI();
+				cc1120_flush_rx();
+				return 0;
+#endif			
 			}
 		}
 	}
@@ -1454,9 +1458,7 @@ cc1120_set_tx(void)
 
 	while(cur_state != CC1120_STATUS_TX)
 	{
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-		printf(",");
-#endif				
+		PRINTFTX(",");				
 		cur_state = cc1120_get_state();
 		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
 		{	
@@ -1647,7 +1649,6 @@ int
 cc1120_interrupt_handler(void)
 {
 	cc1120_arch_interrupt_acknowledge();
-	//printf("I\n\r");
 	/* Check if we have interrupted an SPI function, if so mark int pending. */
 	if(cc1120_arch_spi_enabled()) {
 		cc1120_arch_interrupt_pending(1);
@@ -1666,9 +1667,7 @@ cc1120_interrupt_handler(void)
 			if(radio_pending & ACK_PENDING)	{
 				return 0;
 			}	
-			
 			/* We have received a packet.  This is done first to make RX faster. */
-			//LEDS_ON(LEDS_RED);
 			packet_pending++;
 			
 			process_poll(&cc1120_process);
@@ -1801,10 +1800,8 @@ void processor(void)
 		
 		/* Set packet buffer length. */
 		packetbuf_set_datalen(len);		/* Set Packetbuffer length. */
-		
 		NETSTACK_RDC.input();
 	}
-		
 	LEDS_OFF(LEDS_RED);
 	if(locked)
 	{
