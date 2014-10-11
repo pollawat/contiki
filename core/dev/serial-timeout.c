@@ -102,8 +102,8 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
-  uint8_t buf[BUFSIZE];
-  uint8_t bytes;
+  static uint8_t buf[BUFSIZE];
+  static uint8_t bytes;
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
       if(rxbytes == 0){
