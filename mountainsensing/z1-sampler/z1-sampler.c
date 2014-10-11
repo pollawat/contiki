@@ -32,12 +32,15 @@
 
 /**
  * \file
- *         Battery and Temperature IPv6 Demo for Zolertia Z1
+ *         adapted from Battery and Temperature IPv6 Demo for Zolertia Z1
  * \author
  *         Niclas Finne    <nfi@sics.se>
  *         Joakim Eriksson <joakime@sics.se>
  *         Joel Hoglund    <joel@sics.se>
  *         Enric M. Calvo  <ecalvo@zolertia.com>
+ *
+ *	Danial Playle, Kirk Martinez and Philip Basford
+ *	University of Southampton
  */
 
 #include "contiki.h"
@@ -45,6 +48,7 @@
 #include "webserver-nogui.h"
 #include "dev/temperature-sensor.h"
 #include "dev/battery-sensor.h"
+#include "dev/reset-sensor.h"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -77,7 +81,7 @@
 #include "sampling-sensors.h"
 #include "ms1-io.h"
 
-#define MAX_POST_SIZE 30
+#define MAX_POST_SIZE 80
 
 #define DEBUG 0
 
@@ -95,8 +99,8 @@ float floor(float x){
   else        return (float) ((int)x-1);
 }
 
-PROCESS(web_sense_process, "Sense Web Demo");
-PROCESS(web_process, "Web Server Process");
+PROCESS(web_sense_process, "Feshie Sense");
+PROCESS(web_process, "Web Server");
 PROCESS(sample_process, "Sample Process");
 PROCESS(post_process, "POST Process");
 
@@ -298,7 +302,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
     url = web_buf + 4;
     strtok(url, " ");
     DPRINT("[WEBD] Got request for %s\n", url);
-    static char num[8];
+    static char num[16], tmpstr[80];
     if(strncmp(url, "/clock", 6) == 0)
     { // Serve clock form
       static uint16_t y;
@@ -326,7 +330,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       if(submitted) {
-        PSOCK_SEND_STR(p, "<h1>Success! Time set</h1>");
+        PSOCK_SEND_STR(p, "<h1>OK Time set</h1>");
       }
       PSOCK_SEND_STR(p, CLOCK_FORM);
       PSOCK_SEND_STR(p, BOTTOM);
@@ -337,15 +341,15 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, SENSOR_FORM_1);
       //Interval
-      ltoa(sensor_config.interval, num, 10);
-      PSOCK_SEND_STR(p, num);
+      ltoa(sensor_config.interval, tmpstr, 10);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, SENSOR_FORM_2);
       //AVR IDs
       DPRINT("[WEBD] Producing AVR IDs from config\n");
       for(i = 0; i < sensor_config.avrIDs_count; i++) {
         DPRINT(".");
-        itoa(sensor_config.avrIDs[i], num, 10);
-        PSOCK_SEND_STR(p, num);
+        itoa(sensor_config.avrIDs[i], tmpstr, 10);
+        PSOCK_SEND_STR(p, tmpstr);
         if(i != sensor_config.avrIDs_count - 1) {
           PSOCK_SEND_STR(p, ".");
         }
@@ -419,46 +423,50 @@ PT_THREAD(web_handle_connection(struct psock *p))
       DPRINT("[WEBD] Stored Data\n");
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
-      PSOCK_SEND_STR(p, "<h1>Success</h1>");
+      PSOCK_SEND_STR(p, "<h1>OK</h1>");
       PSOCK_SEND_STR(p, BOTTOM);
     }
+	/* Sets communications parameters
+	* should put a lot of text into a string and send rather than 
+	* like this
+	*/
     else if(strncmp(url, "/comms", 6) == 0)
     {
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, COMMS_FORM_1);
       // Interval
-      ltoa(POST_config.interval, num, 10);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.interval, tmpstr, 10);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2A);
-      ltoa(POST_config.ip[0], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[0], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2B);
-      ltoa(POST_config.ip[1], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[1], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2C);
-      ltoa(POST_config.ip[2], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[2], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2D);
-      ltoa(POST_config.ip[3], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[3], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2E);
-      ltoa(POST_config.ip[4], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[4], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2F);
-      ltoa(POST_config.ip[5], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[5], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2G);
-      ltoa(POST_config.ip[6], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[6], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_2H);
-      ltoa(POST_config.ip[7], num, 16);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.ip[7], tmpstr, 16);
+      PSOCK_SEND_STR(p, tmpstr);
 
       PSOCK_SEND_STR(p, COMMS_FORM_3);
 
-      ltoa(POST_config.port, num, 10);
-      PSOCK_SEND_STR(p, num);
+      ltoa(POST_config.port, tmpstr, 10);
+      PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, COMMS_FORM_4);
 
       PSOCK_SEND_STR(p, BOTTOM);
@@ -482,10 +490,52 @@ PT_THREAD(web_handle_connection(struct psock *p))
       set_config(COMMS_CONFIG);
 
       PSOCK_SEND_STR(p, HTTP_RES);
-      PSOCK_SEND_STR(p, TOP);
-      PSOCK_SEND_STR(p, "<h1>Success!</h1>");
-      PSOCK_SEND_STR(p, BOTTOM);
+	strcpy(tmpstr,TOP);
+      strcat(tmpstr, "<h1>OK</h1>");
+      strcat(tmpstr, BOTTOM);
+      PSOCK_SEND_STR(p, tmpstr);
+      //PSOCK_SEND_STR(p, TOP);
+      //PSOCK_SEND_STR(p, "<h1>OK</h1>");
+      //PSOCK_SEND_STR(p, BOTTOM);
     }
+	/* debug GET for the node settings
+	* gives sampleinterval adc1 adc2 rain
+	*/
+    else if(strncmp(url, "/settings", 9) == 0)
+    {
+      PSOCK_SEND_STR(p, HTTP_RES);
+      PSOCK_SEND_STR(p, TOP);
+	// get time
+	ltoa(get_time(), tmpstr, 10);
+	strcat(tmpstr, " ");
+      // sample Interval
+      ltoa(sensor_config.interval, num, 10);
+      //PSOCK_SEND_STR(p, tmpstr);
+      //PSOCK_SEND_STR(p, "s ");
+	strcat(tmpstr, num);
+	strcat(tmpstr, "s ");
+      // POST Interval
+      ltoa(POST_config.interval, num, 10);
+      //PSOCK_SEND_STR(p, tmpstr);
+      //PSOCK_SEND_STR(p, "P ");
+	strcat(tmpstr, num);
+	strcat(tmpstr, "P ");
+      if(  sensor_config.hasADC1 == 1)
+	      strcat(tmpstr, "A1 ");
+	      //PSOCK_SEND_STR(p, "A1 ");
+      if(  sensor_config.hasADC1 == 1)
+	      strcat(tmpstr, "A2 ");
+	      //PSOCK_SEND_STR(p, "A2 ");
+      if(  sensor_config.hasRain == 1)
+	      strcat(tmpstr, "R ");
+	      //PSOCK_SEND_STR(p, "R ");
+	ltoa(reset_sensor.value(0), num, 10);
+	strcat(tmpstr, num);
+      PSOCK_SEND_STR(p, tmpstr);
+	/* reset read needs checking!
+	*/
+      PSOCK_SEND_STR(p, BOTTOM);
+	}
     else
     {
       DPRINT("Serving / \"INDEX\"\n");
@@ -597,9 +647,11 @@ static char* get_next_write_filename(uint8_t length)
       filename[2] = '0';
       filename[3] = 0;
     }
+/* stop multiple PBs being saved
     else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
     }
+*/
     else {
       itoa(max_num, filename + 2, 10);
     }
@@ -743,8 +795,8 @@ PROCESS_THREAD(post_process, ev, data)
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
           POST_config.ip[6], POST_config.ip[7]);
       DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
-      tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
       load_file(filename);
+      tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
       DPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
       if(uip_aborted() || uip_timedout() || uip_closed()) {

@@ -8,7 +8,7 @@
 #include "platform-conf.h"
 
 #include "ms1-io.h"
-#define MS1_IO_DEBUG
+//#define MS1_IO_DEBUG
 #ifdef MS1_IO_DEBUG
   #include <stdio.h>
   #define PRINTF(...) printf(__VA_ARGS__)
