@@ -301,7 +301,7 @@ void
 uart1_writearray(unsigned char* c,int length)
 {
   RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
-  int i=0;			//create counter variable
+  static int i=0;			//create counter variable
 	for(i=0;i<length;i++)		//for every character in array
 	{
 		watchdog_periodic();
