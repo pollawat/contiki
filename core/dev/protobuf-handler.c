@@ -10,7 +10,7 @@
 #include "dev/pb_encode.h"
 #include "dev/protocol-buffers/buffer.h"
 
-//#define PROTOBUF_HANDLER_DEBUG
+#define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -47,6 +47,9 @@ void protobuf_process_message(uint8_t *buf, uint8_t bytes){
     uint8_t i = 0;
     if(bytes == 0){
       PRINTF("Spurious interrupt, ignoring\n");
+      return;
+    }else if(bytes < 4){
+      PRINTF("TOO small for valid protocol buffer\n");
       return;
     }
 
