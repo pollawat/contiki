@@ -34,13 +34,12 @@
  * \file
  *         adapted from Battery and Temperature IPv6 Demo for Zolertia Z1
  * \author
- *         Niclas Finne    <nfi@sics.se>
- *         Joakim Eriksson <joakime@sics.se>
- *         Joel Hoglund    <joel@sics.se>
- *         Enric M. Calvo  <ecalvo@zolertia.com>
- *
- *	Danial Playle, Kirk Martinez and Philip Basford
- *	University of Southampton
+ *          Dan Playle      <djap1g12@soton.ac.uk>
+ *          Philip Basford  <pjb@ecs.soton.ac.uk>
+ *          Graeme Bragg    <gmb1g08@ecs.soton.ac.uk>
+ *          Tyler Ward      <tw16g08@ecs.soton.ac.uk>
+ *          Kirk Martinez   <km@ecs.soton.ac.uk>
+
  */
 
 #include "contiki.h"
@@ -309,6 +308,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       static uint8_t mo, d, h, mi, se;
       static bool submitted;
       static const char* ZERO = "0";
+      static uint8_t clock_ret;
       DPRINT("[WEBD] Serving /clock\n");
       submitted = 0;
       if(get_url_param(url, "submit") != NULL) {
@@ -325,12 +325,16 @@ PT_THREAD(web_handle_connection(struct psock *p))
         mi = atoi(param == NULL ? ZERO : param);
         param = get_url_param(url, "s");
         se = atoi(param == NULL? ZERO : param);
-        set_time(y, mo, d, h, mi, se);
+        clock_ret = set_time(y, mo, d, h, mi, se);
       }
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       if(submitted) {
-        PSOCK_SEND_STR(p, "<h1>OK Time set</h1>");
+        if(clock_ret == 0){
+          PSOCK_SEND_STR(p, "<h1>Success! Time set</h1>");
+        }else{
+          PSOCK_SEND_STR(p, "<h1>Warning, set time returned non-zero status</h1>");
+        }
       }
       PSOCK_SEND_STR(p, CLOCK_FORM);
       PSOCK_SEND_STR(p, BOTTOM);

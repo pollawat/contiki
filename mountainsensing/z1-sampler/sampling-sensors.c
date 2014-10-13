@@ -93,7 +93,7 @@ uint32_t get_time(void)
   return time;
 }
 
-void set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
+uint8_t set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
 {
   static tm t;
 
@@ -104,5 +104,5 @@ void set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t 
   t.tm_min = mi;
   t.tm_sec = s;
 
-  ds3231_set_time(&t);
+  return (uint8_t)ds3231_set_time(&t);
 }
