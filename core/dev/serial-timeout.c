@@ -37,7 +37,7 @@
 #include "contiki.h"
 #include "contiki-conf.h"
 
-#define SERIAL_TIMEOUT_DEBUG
+//#define SERIAL_TIMEOUT_DEBUG
 
 #ifdef SERIAL_TIMEOUT_DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -59,7 +59,7 @@
 
 
 static uint8_t rxbuf_data[BUFSIZE];
-volatile static rtimer_clock_t r0;
+volatile static rtimer_clock_t ser_timer;
 volatile static uint8_t rxbytes;
 
 PROCESS(serial_timeout_process, "Serial timeout driver");
@@ -70,19 +70,19 @@ process_event_t serial_timeout_event_message;
 int
 serial_timeout_input_byte(unsigned char c)
 {
-  r0 = RTIMER_NOW(); /*Reset the timeout timer */
+  ser_timer = RTIMER_NOW(); /*Reset the timeout timer */
 //  PRINTF("Byte recieved...");
   if(rxbytes ==0){
     /*This was the first in a potential batch */
 //    PRINTF("first\n");
     rxbuf_data[rxbytes++] = c; /* Store byte in buffer */
-    process_poll(&serial_timeout_process); /* Start process */
   }else{ /*We're still in the timeout period from another byte */
 //    PRINTF("not first\n");
     if(rxbytes >= BUFSIZE){
       /* Overflow */
 //      PRINTF("OVERFLOW\n");
       //TODO handle this
+      return 0;
     }else{
 //      PRINTF("Storing rxbytes in %i\n", rxbytes);
       rxbuf_data[rxbytes++] = c;
@@ -91,21 +91,28 @@ serial_timeout_input_byte(unsigned char c)
   }
 
   /* Wake up consumer process */
-  process_poll(&serial_timeout_process);
-  return 1;
+  if(rxbytes > 0){
+      process_poll(&serial_timeout_process);
+      return 1;
+  }
+  return 2;
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
-  uint8_t buf[BUFSIZE];
-  uint8_t bytes;
+  static uint8_t buf[BUFSIZE];
+  static uint8_t bytes;
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
-    
+      if(rxbytes == 0){
+        /* Stops spurios polls that seem to come in for no known reason */
+        PRINTF("Rx bytes = 0\n");
+        continue;
+      }
 
-    while (RTIMER_CLOCK_LT(RTIMER_NOW(), (r0 + SERIAL_TIMEOUT_VALUE)));
+    while (RTIMER_CLOCK_LT(RTIMER_NOW(), (ser_timer + SERIAL_TIMEOUT_VALUE)));
     if (rxbytes > BUFSIZE){
       PRINTF("Serial recieve overflow");
     }else{

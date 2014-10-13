@@ -38,7 +38,6 @@
  *         Marcus Lundén, SICS <mlunden@sics.se>
  */
 
-/*#define UART1_DEBUG*/
 
 #include "uart1_i2c_master.h"
 #include "isr_compat.h"
@@ -50,12 +49,14 @@
 
 #include "platform-conf.h"
 
+//#define UART1_DEBUG
 #ifdef UART1_DEBUG
   #include <stdio.h>
   #define PRINTFDEBUG(...) printf(__VA_ARGS__)
 #else
   #define PRINTFDEBUG(...)
 #endif
+
 signed   char tx_byte_ctr, rx_byte_ctr;
 unsigned char rx_buf[2];
 unsigned char* tx_buf_ptr;
@@ -106,7 +107,7 @@ i2c_receiveinit(uint8_t slave_address) {
   UCB1CTL1 &= ~UCSWRST;	                 // Clear SW reset, resume operation
   UCB1I2CIE = UCNACKIE;
 #if I2C_RX_WITH_INTERRUPT
-  UC1IE = UCB1RXIE;                      // Enable RX interrupt if desired
+  UC1IE |= UCB1RXIE;                      // Enable RX interrupt if desired
 #endif
 }
 
@@ -130,7 +131,7 @@ i2c_transmitinit(uint8_t slave_address) {
 
   UCB1CTL1 &= ~UCSWRST;                    // Clear SW reset, resume operation
   UCB1I2CIE = UCNACKIE;
-  UC1IE = UCB1TXIE;		           // Enable TX ready interrupt
+  UC1IE |= UCB1TXIE;		           // Enable TX ready interrupt
 }
 
 //------------------------------------------------------------------------------
@@ -149,8 +150,8 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
   rx_byte_ctr = byte_ctr;
   rx_buf_ptr  = rx_buf;
 
-  while ((UCB1CTL1 & UCTXSTT) || (UCB1STAT & UCNACKIFG))	// Slave acks address or not?
-    PRINTFDEBUG ("____ UCTXSTT not clear OR NACK received\n");
+  while ((UCB1CTL1 & UCTXSTT) || (UCB1STAT & UCNACKIFG));	// Slave acks address or not?
+    //PRINTFDEBUG ("____ UCTXSTT not clear OR NACK received\n");
 
 #if I2C_RX_WITH_INTERRUPT
   PRINTFDEBUG(" RX Interrupts: YES \n");
@@ -159,8 +160,8 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
   if(rx_byte_tot == 1){                 // See page 537 of slau144e.pdf
     dint();
     UCB1CTL1 |= UCTXSTT;		// I2C start condition
-    while(UCB1CTL1 & UCTXSTT)           // Waiting for Start bit to clear
-      PRINTFDEBUG ("____ STT clear wait\n");
+    while(UCB1CTL1 & UCTXSTT);           // Waiting for Start bit to clear
+  //    PRINTFDEBUG ("____ STT clear wait\n");
     UCB1CTL1 |= UCTXSTP;		// I2C stop condition
     eint();
   }
@@ -172,7 +173,7 @@ i2c_receive_n(uint8_t byte_ctr, uint8_t *rx_buf) {
 #else
   uint8_t n_received = 0;
 
-  PRINTFDEBUG(" RX Interrupts: NO \n");
+//  PRINTFDEBUG(" RX Interrupts: NO \n");
 
   UCB1CTL1 |= UCTXSTT;		// I2C start condition
 
@@ -260,7 +261,7 @@ uart1_set_input(int (*input)(unsigned char c))
 void
 uart1_writeb(unsigned char c)
 {
-  PRINTFDEBUG("UART1 writeb **\n");
+  //PRINTFDEBUG("UART1 writeb **\n");
   /* watchdog_periodic(); */
 //  #if TX_WITH_INTERRUPT
 //  printf("Uart1 write with interrupt\n");
@@ -281,33 +282,33 @@ uart1_writeb(unsigned char c)
 //  }
 
 //#else /* TX_WITH_INTERRUPT */
-  PRINTFDEBUG("UART1 tx without interrupt\n");
+  //PRINTFDEBUG("UART1 tx without interrupt\n");
   /* Loop until the transmission buffer is available. */
   while((UCA1STAT & UCBUSY));	//while send in progress
 
   /* Transmit the data. */
+  RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
   UCA1TXBUF = c;
-//  UCA1TXBUF = 0x23;
+  while((UCA1STAT & UCBUSY)); //while send in progress
+  RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);
+
   PRINTFDEBUG("char written to UCA1TXBUF\n");
 //#endif /* TX_WITH_INTERRUPT */
 }
 
-//4s485 txen is port 2.3
-#define RS485TXEN_SET() RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN)
-#define RS485TXEN_CLEAR() RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN)
 
 void
 uart1_writearray(unsigned char* c,int length)
 {
-	RS485TXEN_SET();		//set tx enable pin for rs485
-	int i=0;			//create counter variable
+  RS485_TXEN_PORT(OUT) |= BV(RS485_TXEN_PIN);
+  static int i=0;			//create counter variable
 	for(i=0;i<length;i++)		//for every character in array
 	{
 		watchdog_periodic();
 		uart1_writeb(c[i]);	//write byte
 	}
 	while((UCA1STAT & UCBUSY));	//while send in progress
-	RS485TXEN_CLEAR();		//clear tx enable pin 
+	 RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);		//clear tx enable pin 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -340,7 +341,7 @@ uart1_pin_init(void)
 void
 uart1_init(unsigned long ubr)
 {
-  uart1_pin_init();
+  
 
   UCA1CTL0 = 0x00;
   UCA1CTL1 |= UCSSEL_3;                     /* CLK = SMCLK */
@@ -359,17 +360,16 @@ uart1_init(unsigned long ubr)
   UCA1CTL1 &= ~UCSWRST;                   /* Initialize USCI state machine  **before** enabling interrupts */
   UC1IE |= UCA1RXIE;
 
-  PRINTFDEBUG(".");
+  //PRINTFDEBUG("UART1 now inited\n");
 }
 
 
 /*----------------------------------------------------------------------------*/
 ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 {
-//  printf("ISR TX\n");
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
-    PRINTFDEBUG("I2C TX int \n");
+    //PRINTFDEBUG("I2C TX int \n");
     if (tx_byte_ctr == 0) {
       UCB1CTL1 |= UCTXSTP;	   // I2C stop condition
       UC1IFG &= ~UCB1TXIFG;	   // Clear USCI_B1 TX int flag
@@ -380,7 +380,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
     }
   }
   // RX Part
-#if I2C_RX_WITH_INTERRUPT
+#if I2C_RX_WITH_INTERRUPT		//TODO: Is this right as we are in the TX interrupt?
   else if (UC1IFG & UCB1RXIFG){    // RX int. condition
     PRINTFDEBUG("USCIAB1TX: UCB1RXIFG\n");
     rx_buf_ptr[rx_byte_tot - rx_byte_ctr] = UCB1RXBUF;
@@ -398,7 +398,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   PRINTFDEBUG("USCIAB1TX: UCA1TXIFG\n");
     if(ringbuf_elements(&txbuf) == 0) {
       serial_transmitting = 0;
-      RS485TXEN_CLEAR();		//clear tx enable pin 
+     RS485_TXEN_PORT(OUT) &= ~BV(RS485_TXEN_PIN);
     } else {
       UCA0TXBUF = ringbuf_get(&txbuf);
     }
@@ -408,6 +408,8 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
 
 ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
 {
+  //printf("!");
+  //PRINTFDEBUG("ISR\n");
   uint8_t c;
 #if I2C_RX_WITH_INTERRUPT
   if(UCB1STAT & UCNACKIFG) {
@@ -421,7 +423,7 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
       c = UCA1RXBUF;   /* Clear error flags by forcing a dummy read. */
     } else {
       c = UCA1RXBUF;
-      PRINTFDEBUG("%i\n", c);
+      //PRINTFDEBUG("%i\n", c);
       if(uart1_input_handler != NULL) {
         if(uart1_input_handler(c)) {
           LPM4_EXIT;
@@ -429,4 +431,5 @@ ISR(USCIAB1RX, uart1_i2c_rx_interrupt)
       }
     }
   }
+  watchdog_periodic();
 }

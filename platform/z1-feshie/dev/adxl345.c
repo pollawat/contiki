@@ -49,6 +49,12 @@
 #include "i2cmaster.h"
 #include "isr_compat.h"
 
+ #ifdef ADXLDEBUG
+  #define PRINTFDEBUG(...) printf(__VA_ARGS)
+ #else
+  #define PRINTFDEBUG(...)
+ #endif
+
 /* Callback pointers when interrupt occurs */
 void (*accm_int1_cb)(uint8_t reg);
 void (*accm_int2_cb)(uint8_t reg);
