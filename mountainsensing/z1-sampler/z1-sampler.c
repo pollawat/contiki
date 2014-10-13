@@ -69,8 +69,8 @@
 #include "contiki-net.h"
 
 // Protobuf
-#include "pb_decode.h"
-#include "pb_encode.h"
+#include "dev/pb_decode.h"
+#include "dev/pb_encode.h"
 
 // Config
 #include "settings.pb.h"
@@ -627,7 +627,7 @@ static char* get_next_write_filename(uint8_t length)
   static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
-  static uint8_t file_num, i;
+  static uint16_t file_num;
   static uint16_t file_size;
   static int16_t max_num;
   file_num = 0;
@@ -640,9 +640,9 @@ static char* get_next_write_filename(uint8_t length)
   if(cfs_opendir(&dir, "/") == 0) {
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
-        i = atoi(dirent.name + 2);
-        if(i > max_num) {
-          max_num = i;
+        file_num = atoi(dirent.name + 2);
+        if(file_num > max_num) {
+          max_num = file_num;
           file_size = (uint16_t)dirent.size;
         }
       }
@@ -729,7 +729,7 @@ PROCESS_THREAD(sample_process, ev, data)
       sample.rain = get_sensor_rain();
     }
     if(sensor_config.avrIDs_count > 0) {
-      sample.AVR.size = get_sensor_AVR(sensor_config.avrIDs, sensor_config.avrIDs_count, sample.AVR.bytes);
+        //TO PUT IN HERE
     }
     ms1_sense_off();
     static pb_ostream_t ostream;
