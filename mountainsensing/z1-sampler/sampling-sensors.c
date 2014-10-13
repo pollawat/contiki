@@ -8,6 +8,7 @@
 #include "dev/batv-sensor.h" // Batt
 #include "adxl345.h" 		// Accel
 #include "dev/event-sensor.h"	//event sensor (rain)
+#include "sampling-sensors.h"
 
 #define ADC_ACTIVATE_DELAY 10 //delay in ms
 
