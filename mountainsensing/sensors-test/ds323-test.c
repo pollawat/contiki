@@ -14,8 +14,9 @@ static struct etimer et;
 static uint32_t
 get_time(void)
 {
-  uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
-  time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
+  uint32_t time;
+  time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
+  time |= (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
   return(time);
 }
 
@@ -40,7 +41,7 @@ PROCESS_THREAD (temp_process, ev, data)
  
         sign = 1;
  
-	printf ("RTC = %lu\n", get_time());
+	printf ("RTC = %lu\n", ds3231_get_epoch_seconds());
       }
   }
   PROCESS_END ();

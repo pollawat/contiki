@@ -88,9 +88,7 @@ int16_t get_sensor_acc_z(void)
 
 uint32_t get_time(void)
 {
-  uint32_t time = (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_MSB) << 16;
-  time += (uint32_t)ds3231_sensor.value(DS3231_SENSOR_GET_EPOCH_SECONDS_LSB);
-  return time;
+  return ds3231_get_epoch_seconds();
 }
 
 uint8_t set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
