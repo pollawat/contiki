@@ -201,7 +201,7 @@ cc1120_driver_init(void)
 			printf("CC1125");
 			break;
 		default:	/* Not a supported chip or no chip present... */
-			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
+			printf("*** ERROR: No valid radio (%02x detected) ***\n", part);
 			while(1)	/* Spin ad infinitum as we cannot continue. */
 			{
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -842,7 +842,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 						{
 							/* We have actually transmitted everything in the FIFO. */
 							radio_pending |= TX_COMPLETE;
-							PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
+							PRINTFTXERR("!!! TX ERROR: TX timeout reached but ACK sent !!!\n");
 						}
 						else
 						{
