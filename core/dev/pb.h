@@ -218,7 +218,7 @@ struct _pb_field_t {
     /* Field definitions for submessage
      * OR default value for all other non-array, non-callback types
      * If null, then field will zeroed. */
-    const void *ptr;
+    const void(*ptr)();
 } pb_packed;
 PB_PACKED_STRUCT_END
 
