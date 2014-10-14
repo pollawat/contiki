@@ -30,7 +30,7 @@
  *
  */
 #include "dev/serial-timeout.h"
-#include "dev/protobuf-handler.h"
+//#include "dev/protobuf-handler.h"
 #include <string.h> /* for memcpy() */
 #include <stdio.h>
 #include "lib/ringbuf.h"
@@ -130,7 +130,8 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
       rxbytes = 0;
       memset(rxbuf_data, 0, BUFSIZE); /*Reset buffer*/ 
       if (bytes != 0){
-        protobuf_process_message(buf, bytes);    
+        printf("CALLING PROTOBUG\n");
+        //protobuf_process_message(buf, bytes);    
       }
     }
   }
