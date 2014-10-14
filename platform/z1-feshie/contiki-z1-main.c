@@ -41,6 +41,7 @@
 #include "dev/leds.h"
 #include "dev/serial-line.h"
 #include "dev/serial-timeout.h"
+#include "dev/protobuf-handler.h"
 #ifndef NO_SLIP
 	#include "dev/slip.h"
 #endif
@@ -213,6 +214,7 @@ main(int argc, char **argv)
   i2c_enable();
   
   uart1_set_input(serial_timeout_input_byte);
+  protobuf_init();
   serial_timeout_init();
   
 
