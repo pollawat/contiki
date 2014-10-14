@@ -1,6 +1,5 @@
 #ifndef SAMPLING_SENSORS_H
 #define SAMPLING_SENSORS_H
-	uint16_t get_sensor_AVR(uint8_t AVR_count, uint8_t *avrIDs, uint8_t *data);
 	uint16_t get_sensor_rain(void);
 	uint16_t get_sensor_ADC1(void);
 	uint16_t get_sensor_ADC2(void);
