@@ -624,12 +624,12 @@ static char* get_next_read_filename()
  */
 static char* get_next_write_filename(uint8_t length)
 {
-  static char filename[8];
-  static struct cfs_dirent dirent;
-  static struct cfs_dir dir;
-  static uint8_t file_num, i;
-  static uint16_t file_size;
-  static int16_t max_num;
+  char filename[8];
+  struct cfs_dirent dirent;
+  struct cfs_dir dir;
+  uint16_t file_num;
+  uint16_t file_size;
+  int16_t max_num;
   file_num = 0;
   max_num = -1;
   file_size = 0;
@@ -640,9 +640,9 @@ static char* get_next_write_filename(uint8_t length)
   if(cfs_opendir(&dir, "/") == 0) {
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
-        i = atoi(dirent.name + 2);
-        if(i > max_num) {
-          max_num = i;
+        file_num = atoi(dirent.name + 2);
+        if(file_num > max_num) {
+          max_num = file_num;
           file_size = (uint16_t)dirent.size;
         }
       }
@@ -650,19 +650,23 @@ static char* get_next_write_filename(uint8_t length)
     if(max_num == -1) {
       filename[2] = '0';
       filename[3] = 0;
+    }else{
+      itoa(max_num + 1, filename + 2, 10);
     }
+
 /* stop multiple PBs being saved
     else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
     }
-*/
     else {
       itoa(max_num, filename + 2, 10);
     }
+*/
     return filename;
+  }else{
+    DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
+    return NULL;
   }
-  DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
-  return NULL;
 }
 
 PROCESS_THREAD(sample_process, ev, data)
