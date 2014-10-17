@@ -43,6 +43,7 @@
 #include <string.h>
 #include <contiki.h>
 #include "ds3231-sensor.h"
+#include "i2cmaster.h"
 
 
 //#define DEBUG

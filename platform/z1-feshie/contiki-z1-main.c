@@ -305,10 +305,10 @@ main(int argc, char **argv)
 
   {
     uint8_t longaddr[8];
-    uint16_t shortaddr;
+    //uint16_t shortaddr;
     
-    shortaddr = (rimeaddr_node_addr.u8[0] << 8) +
-      rimeaddr_node_addr.u8[1];
+   //shortaddr = (rimeaddr_node_addr.u8[0] << 8) +
+    //  rimeaddr_node_addr.u8[1];
     memset(longaddr, 0, sizeof(longaddr));
     rimeaddr_copy((rimeaddr_t *)&longaddr, &rimeaddr_node_addr);
     printf("MAC %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",

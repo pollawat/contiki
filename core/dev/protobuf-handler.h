@@ -6,7 +6,7 @@
 
 #define PROTBUF_MASTER_ADDR 0x00
 
-#define PROTBUF_MAX_MESSAGE_LENGTH 512
+#define PROTBUF_MAX_MESSAGE_LENGTH 128
 #define PROTOBUF_RETRIES 3
 
 void protobuf_process_message(uint8_t *buf, uint8_t bytes);

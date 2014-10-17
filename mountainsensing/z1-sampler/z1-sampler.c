@@ -93,6 +93,9 @@
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
+#define SAMPLE_CONFIG 1
+#define COMMS_CONFIG 2
+
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
   else        return (float) ((int)x-1);
@@ -111,8 +114,21 @@ AUTOSTART_PROCESSES(&web_sense_process);
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
 
-#define SAMPLE_CONFIG 1
-#define COMMS_CONFIG 2
+static uint8_t data[256] = {0};
+static uint16_t data_length = 0;
+
+static struct psock ps;
+
+static struct etimer timer;
+static struct etimer timeout_timer;
+
+static int http_status = 0;
+
+static uint8_t psock_buffer[120];
+
+static struct psock web_ps;
+static uint8_t web_buf[128];
+static char *url;
 
 #if SensorConfig_size > PostConfig_size
     static char cfg_buf[SensorConfig_size + 4];
@@ -121,6 +137,7 @@ static POSTConfig POST_config;
 #endif
 
 /*
+ * Sets the Sampler configuration (writes it to flash).
  * Returns 0 upon success, 1 on failure
  */
 uint8_t set_config(uint8_t config)
@@ -128,7 +145,7 @@ uint8_t set_config(uint8_t config)
   memset(cfg_buf, 0, sizeof(cfg_buf));
   static pb_ostream_t ostream;
   ostream = pb_ostream_from_buffer(cfg_buf, sizeof(cfg_buf));
-  static int write;
+  int write;
   if(config == SAMPLE_CONFIG) {
     pb_encode_delimited(&ostream, SensorConfig_fields, &sensor_config);
     cfs_remove("sampleconfig");
@@ -150,12 +167,13 @@ uint8_t set_config(uint8_t config)
 }
 
 /*
+ * Get the Sampler config (reads it from flash).
  * Returns 0 upon success, 1 upon failure
  */
 static uint8_t get_config(uint8_t config)
 {
   memset(cfg_buf, 0, sizeof(cfg_buf));
-  static int read;
+  int read;
   if(config == SAMPLE_CONFIG) {
     DPRINT("[RCFG] Opening `sampleconfig`\n");
     read = cfs_open("sampleconfig", CFS_READ);
@@ -189,9 +207,6 @@ static uint8_t get_config(uint8_t config)
 
 /*---------------------------------------------------------------------------*/
 
-static uint8_t data[256] = {0};
-static uint16_t data_length = 0;
-
 static void load_file(char *filename)
 {
   static int fd;
@@ -222,13 +237,15 @@ static void load_file(char *filename)
  */
 char* get_url_param(char* url, char* key)
 {
-  static char str[100];
+  char str[100];
+  char* pch;
+  uint8_t len;
+  char* val;
+  
   strcpy(str, url);
-  static char* pch;
-  static uint8_t len;
   len = strlen(key);
-  static char* val;
   pch = strtok(str, "?&");
+  
   while(pch != NULL) {
     if(strncmp(pch, key, len) == 0) {
       // If the token is key-value pair desired
@@ -240,24 +257,10 @@ char* get_url_param(char* url, char* key)
   return NULL;
 }
 
-static struct psock ps;
-
-static struct etimer timer;
-static struct etimer timeout_timer;
-
-static int http_status = 0;
-
-static uint8_t attempting = 0;
-static char psock_buffer[120];
-
-static struct psock web_ps;
-static const uint8_t web_buf[128];
-static char *url;
-
-static handle_connection(struct psock *p)
+static int
+handle_connection(struct psock *p)
 {
-  static uint8_t status_code[4];
-  static char content_length[8];
+  char content_length[8];
 
   itoa(data_length, content_length, 10);
 
@@ -273,7 +276,6 @@ static handle_connection(struct psock *p)
     PSOCK_READTO(p, '\n');
     if(strncmp(psock_buffer, "HTTP/", 5) == 0)
     { // Status line
-      memcpy(status_code, psock_buffer + 9, 3);
       http_status = atoi(psock_buffer + 9);
     }
   }
@@ -582,7 +584,7 @@ PROCESS_THREAD(web_process, ev, data)
 
 PROCESS_THREAD(web_sense_process, ev, data)
 {
-  static struct etimer timer;
+  //static struct etimer timer;
   PROCESS_BEGIN();
   #ifndef CC11xx_CC1120
   cc2420_set_txpower(31);
@@ -628,11 +630,11 @@ static char* get_next_write_filename(uint8_t length)
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
   static uint16_t file_num;
-  static uint16_t file_size;
+  //static uint16_t file_size;
   static int16_t max_num;
   file_num = 0;
   max_num = -1;
-  file_size = 0;
+  //file_size = 0;
 
   filename[0] = 'r';
   filename[1] = '_';
@@ -643,7 +645,7 @@ static char* get_next_write_filename(uint8_t length)
         file_num = atoi(dirent.name + 2);
         if(file_num > max_num) {
           max_num = file_num;
-          file_size = (uint16_t)dirent.size;
+          //file_size = (uint16_t)dirent.size;
         }
       }
     }
@@ -685,11 +687,7 @@ PROCESS_THREAD(sample_process, ev, data)
 
   static Sample sample;
 
-  static int i;
-
   static char* filename;
-
-
 
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)

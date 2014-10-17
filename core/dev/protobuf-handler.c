@@ -24,7 +24,7 @@ static uint8_t processed_data[PROTBUF_MAX_MESSAGE_LENGTH -4]; //doesn't have src
 static protobuf_data_t callback_data;
 
 
-uint16_t crc16_up(uint16_t crc, uint8_t a);
+static uint16_t crc16_up(uint16_t crc, uint8_t a);
 
 /*
  * The exact crc function used in the AVR & python
@@ -76,7 +76,7 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
 #ifdef PROTOBUF_HANDLER_DEBUG
   printf("Bytes recieved: %i\n", bytes);
   while (i < bytes){
-    printf("%i,", (int)buf[i++]);
+	printf("%i,", (int)buf[i++]);
   }
   printf("\n");
 #endif
@@ -86,7 +86,7 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
     }else if(buf[0] != PROTBUF_MASTER_ADDR){
         printf("not for me: ignoring");
     }else{
-        rec_crc = (buf[bytes - 1] << 8) | buf[bytes-2];
+        rec_crc = ((uint16_t)buf[bytes - 1] << 8) | buf[bytes-2];
         PRINTF("Recieved CRC: %d\n", rec_crc);
         for(i=0; i < bytes-2; i++){
             cal_crc = crc16_up(cal_crc, buf[i]);
@@ -95,7 +95,7 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
         if (rec_crc == cal_crc){
           PRINTF("CRCs match\n");
           processed_data_length = bytes -4;
-          memcpy(buf+2, (void *)processed_data, processed_data_length);
+          memcpy(buf+2, &processed_data, processed_data_length);
         //first 2 and last 2 bytes are not wanted for storage
 #ifdef PROTOBUF_HANDLER_DEBUG
           printf("Callback_data\n");

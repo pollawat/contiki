@@ -47,24 +47,24 @@
 
 
 #ifdef SERIAL_TIMEOUT_CONF_BUFSIZE
-#define BUFSIZE SERIAL_TIMEOUT_CONF_BUFSIZE
+#define SER_BUFSIZE SERIAL_TIMEOUT_CONF_BUFSIZE
 #else /* SERIAL_LINE_CONF_BUFSIZE */
-#define BUFSIZE 128
+#define SER_BUFSIZE 128
 #endif /* SERIAL_LINE_CONF_BUFSIZE */
 
-#if (BUFSIZE & (BUFSIZE - 1)) != 0
+#if (SER_BUFSIZE & (SER_BUFSIZE - 1)) != 0
 #error SERIAL_TIMEOUT_CONF_BUFSIZE must be a power of two (i.e., 1, 2, 4, 8, 16, 32, 64, ...).
 #error Change SERIAL_TIMEOUT_CONF_BUFSIZE in contiki-conf.h.
 #endif
 
 
-static uint8_t rxbuf_data[BUFSIZE];
-volatile static rtimer_clock_t ser_timer;
-volatile static uint8_t rxbytes;
+static uint8_t rxbuf_data[SER_BUFSIZE];
+static rtimer_clock_t ser_timer;
+static uint8_t rxbytes;
 
 PROCESS(serial_timeout_process, "Serial timeout driver");
 
-process_event_t serial_timeout_event_message;
+extern process_event_t serial_timeout_event_message;
 
 /*---------------------------------------------------------------------------*/
 int
@@ -78,7 +78,7 @@ serial_timeout_input_byte(unsigned char c)
     rxbuf_data[rxbytes++] = c; /* Store byte in buffer */
   }else{ /*We're still in the timeout period from another byte */
 //    PRINTF("not first\n");
-    if(rxbytes >= BUFSIZE){
+    if(rxbytes >= SER_BUFSIZE){
       /* Overflow */
 //      PRINTF("OVERFLOW\n");
       //TODO handle this
@@ -102,7 +102,7 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
 {
   PROCESS_BEGIN();
   printf("Serial timeout process started\n");
-  static uint8_t buf[BUFSIZE];
+  static uint8_t buf[SER_BUFSIZE];
   static uint8_t bytes;
   while (1){
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
@@ -113,14 +113,14 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
       }
 
     while (RTIMER_CLOCK_LT(RTIMER_NOW(), (ser_timer + SERIAL_TIMEOUT_VALUE)));
-    if (rxbytes > BUFSIZE){
+    if (rxbytes > SER_BUFSIZE){
       PRINTF("Serial recieve overflow");
     }else{
 #ifdef SERIAL_TIMEOUT_DEBUG
       printf("Timeout reached\n");
       printf("Recieved Bytes: %i\n", rxbytes);
       int i = 0;
-      while (i < BUFSIZE){
+      while (i < SER_BUFSIZE){
         printf("%i:", (int)rxbuf_data[i++]);
       }
       printf("\n");
@@ -128,10 +128,10 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
       memcpy( buf, rxbuf_data, rxbytes); 
       bytes = rxbytes;
       rxbytes = 0;
-      memset(rxbuf_data, 0, BUFSIZE); /*Reset buffer*/ 
+      memset(rxbuf_data, 0, SER_BUFSIZE); /*Reset buffer*/ 
       if (bytes != 0){
         printf("CALLING PROTOBUG\n");
-        //protobuf_process_message(buf, bytes);    
+        protobuf_process_message(buf, bytes);    
       }
     }
   }
@@ -142,7 +142,7 @@ void
 serial_timeout_init(void)
 {
   rxbytes = 0; /*Intially no bytes recieved */
-  memset(rxbuf_data, 0, BUFSIZE); /*Set buffer to 0 */ 
+  memset(rxbuf_data, 0, SER_BUFSIZE); /*Set buffer to 0 */ 
   process_start(&serial_timeout_process, NULL);
 }
 /*---------------------------------------------------------------------------*/

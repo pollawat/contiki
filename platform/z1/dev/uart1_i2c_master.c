@@ -84,6 +84,8 @@ static volatile uint8_t serial_transmitting;
 static struct ringbuf txbuf;
 static uint8_t txbuf_data[TXBUFSIZE];
 #endif /* TX_WITH_INTERRUPT */
+
+
 //------------------------------------------------------------------------------
 // void i2c_receiveinit(unsigned char slave_address, 
 //                              unsigned char prescale)
