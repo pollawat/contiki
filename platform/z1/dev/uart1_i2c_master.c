@@ -372,9 +372,9 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   // TX Part
   if (UC1IFG & UCB1TXIFG) {        // TX int. condition
     //PRINTFDEBUG("I2C TX int \n");
+    UC1IFG &= ~UCB1TXIFG;	   // Clear USCI_B1 TX int flag
     if (tx_byte_ctr == 0) {
       UCB1CTL1 |= UCTXSTP;	   // I2C stop condition
-      UC1IFG &= ~UCB1TXIFG;	   // Clear USCI_B1 TX int flag
     }
     else {
       UCB1TXBUF = tx_buf_ptr[tx_byte_tot - tx_byte_ctr];
@@ -384,6 +384,7 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
   // RX Part
 #if I2C_RX_WITH_INTERRUPT		//TODO: Is this right as we are in the TX interrupt?
   else if (UC1IFG & UCB1RXIFG){    // RX int. condition
+   UC1IFG &= ~UCB1RXIFG;        // Clear USCI_B1 RX int flag. XXX Just in case, check if necessary
     PRINTFDEBUG("USCIAB1TX: UCB1RXIFG\n");
     rx_buf_ptr[rx_byte_tot - rx_byte_ctr] = UCB1RXBUF;
     rx_byte_ctr--;
@@ -391,12 +392,12 @@ ISR(USCIAB1TX, uart1_i2c_tx_interrupt)
       // Only for 1-byte transmissions, STOP is handled in receive_n_int
       if (rx_byte_tot != 1) 
         UCB1CTL1 |= UCTXSTP;       // I2C stop condition
-        UC1IFG &= ~UCB1RXIFG;        // Clear USCI_B1 RX int flag. XXX Just in case, check if necessary
-    }
+           }
   }
 #endif
 #if TX_WITH_INTERRUPT
   else if(IFG2 & UCA1TXIFG) {
+	  IFG2 &= ~UCA1TXIFG
   PRINTFDEBUG("USCIAB1TX: UCA1TXIFG\n");
     if(ringbuf_elements(&txbuf) == 0) {
       serial_transmitting = 0;
