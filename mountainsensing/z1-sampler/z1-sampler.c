@@ -260,16 +260,16 @@ char* get_url_param(char* url, char* key)
 static int
 handle_connection(struct psock *p)
 {
-  char content_length[8];
+  char content_length[8], tmpstr_handle[50];
 
   itoa(data_length, content_length, 10);
+  strcpy(tmpstr_handle, "POST / HTTP/1.0\r\nContent-Length: ");
+  strcat(tmpstr_handle, content_length);
+  strcat(tmpstr_handle, "\r\n\r\n");
 
   PSOCK_BEGIN(p);
 
-  PSOCK_SEND_STR(p, "POST / HTTP/1.0\r\n");
-  PSOCK_SEND_STR(p, "Content-Length: ");
-  PSOCK_SEND_STR(p, content_length);
-  PSOCK_SEND_STR(p, "\r\n\r\n");
+  PSOCK_SEND_STR(p, tmpstr_handle);
   PSOCK_SEND(p, data, data_length);
 
   while(1) {
@@ -292,6 +292,13 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
   static uint8_t i;
   static char* param;
+  static char num[16], tmpstr[80];
+  static uint16_t y;
+  static uint8_t mo, d, h, mi, se;
+  static bool submitted;
+  static const char* ZERO = "0";
+  static uint8_t clock_ret;
+  static char AVRs[32];
 
   DPRINT("[WEBD] Reading HTTP request line...\n");
 
@@ -303,14 +310,9 @@ PT_THREAD(web_handle_connection(struct psock *p))
     url = web_buf + 4;
     strtok(url, " ");
     DPRINT("[WEBD] Got request for %s\n", url);
-    static char num[16], tmpstr[80];
+    
     if(strncmp(url, "/clock", 6) == 0)
     { // Serve clock form
-      static uint16_t y;
-      static uint8_t mo, d, h, mi, se;
-      static bool submitted;
-      static const char* ZERO = "0";
-      static uint8_t clock_ret;
       DPRINT("[WEBD] Serving /clock\n");
       submitted = 0;
       if(get_url_param(url, "submit") != NULL) {
@@ -389,7 +391,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
       sensor_config.interval = (param == NULL ? 900 : atol(param));
 
       param = get_url_param(url, "AVR");
-      static char AVRs[32];
       if(param != NULL)
       {
         strcpy(AVRs, param);
@@ -799,8 +800,10 @@ PROCESS_THREAD(post_process, ev, data)
       DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
       load_file(filename);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
+      printf("con, %d", retries);
       DPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+      printf("E");
       if(uip_aborted() || uip_timedout() || uip_closed()) {
         DPRINT("Could not establish connection\n");
         retries++;
@@ -809,6 +812,7 @@ PROCESS_THREAD(post_process, ev, data)
         DPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
         etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+        printf("?!");
         do {
           if(etimer_expired(&timeout_timer))
           {
