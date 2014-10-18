@@ -482,7 +482,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			break;
 		}
 		
-		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/2), RTIMER_NOW()))
+		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
 		{
 			/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
 			 * TX FIFO (all 128 bits) should be transmitted in 0.02 
