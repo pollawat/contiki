@@ -255,6 +255,7 @@ cc1120_arch_read_cca(void)
 }
 
 
+#ifdef CC1120_SINGLE_INTERRUPT
 /*---------------------------------------------------------------------------*/
 uint8_t
 cc1120_arch_read_gpio3(void)
@@ -268,12 +269,14 @@ cc1120_arch_read_gpio3(void)
 		return 0;
 	}
 }
+#endif
 
 /* -------------------------- Interrupt Functions -------------------------- */
 
 /* On the Z1, the interrupt is shared with the ADXL345 accelerometer.  
  * The interrupt routine is handled in adcl345.c. */
  
+#ifdef CC1120_SINGLE_INTERRUPT
 /*---------------------------------------------------------------------------*/
 void
 cc1120_arch_interrupt_enable(void)
@@ -296,6 +299,7 @@ cc1120_arch_interrupt_disable(void)
 	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
 }
 /*---------------------------------------------------------------------------*/
+
 void
 cc1120_arch_interrupt_acknowledge(void)
 {
@@ -303,4 +307,60 @@ cc1120_arch_interrupt_acknowledge(void)
 	CC1120_GDO0_PORT(IFG) &= ~BV(CC1120_GDO0_PIN);
 }
 
+#else
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_rx_interrupt_enable(void)
+{
+	/* Enable RX Interrupt. */
+}
+
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_rx_interrupt_disable(void)
+{
+	/* Disable TX Interrupt. */
+}
+
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_rx_interrupt_acknowledge(void)
+{
+	/* Reset RX interrupt trigger. */
+}
+
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_tx_interrupt_enable(void)
+{
+	/* Enable TX Interrupt. */
+}
+
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_tx_interrupt_disable(void)
+{
+	/* Disable TX Interrupt. */
+}
+
+/*---------------------------------------------------------------------------*/
+void
+cc1120_arch_tx_interrupt_acknowledge(void)
+{
+	/* Reset TX Interrupt trgger. */
+}
+#endif
+
+/*---------------------------------------------------------------------------*/
+
+/* ISRS: */
+
+/* 
+ * ISR(PORT1, port1_isr) is in adxl345.c.  Other implementations will need the ISR here. 
+ * 						This ISR is for the MCU wakeup in single-interrupt mode or the
+ * 						RX interrupt in dual-interrupt mode.
+ *  
+ * GPIO 3 Interrupt.	This ISR is not used in single interrupt mode and is used to the
+ * 						TX complete interrupt in dual-interrupt mode.
+ * */
 

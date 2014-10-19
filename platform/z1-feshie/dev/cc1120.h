@@ -45,9 +45,8 @@
 #define CC1120_BASE_FREQ	0x70C000
 #define CC1120_CHAN_MULTI	1024
 
-
 #else
-#error Unknown FHSS frequencies, please define CC1120_FHSS_ETSI_50 or CC1120_FHSS_FCC_50
+#error Unknown frequency band, please define CC1120_FHSS_ETSI_50 or CC1120_FHSS_FCC_50
 #endif
 
 extern const struct radio_driver cc11xx_driver;
@@ -64,7 +63,6 @@ int cc1120_driver_pending_packet(void);
 int cc1120_driver_on(void);
 int cc1120_driver_off(void);
 
-
 /* -------------------- CC1120 Support Functions --------------------------- */
 void cc1120_gpio_config(void);
 void cc1120_misc_config(void);
@@ -78,15 +76,16 @@ uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
 uint8_t cc1120_spi_single_read(uint16_t addr);
 uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
 
-
 /* --------------------- CC1120 State Functions ---------------------------- */
 uint8_t cc1120_set_state(uint8_t state);
 uint8_t cc1120_get_state(void);
 
-
-
 /* -------------------- CC1120 Interrupt Handler --------------------------- */
+#ifdef CC1120_SINGLE_INTERRUPT
 int cc1120_interrupt_handler(void);
-
-
-#endif /* CC11xx_H */
+#else
+int cc1120_rx_interrupt_handler(void);
+int cc1120_tx_interrupt_handler(void);
+#endif
+#endif 
+/* CC11xx_H */

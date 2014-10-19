@@ -58,14 +58,26 @@ void cc1120_arch_reset(void);
 void cc1120_arch_spi_enable(void);
 void cc1120_arch_spi_disable(void);
 uint8_t cc1120_arch_spi_enabled(void);
-uint8_t cc1120_arch_read_gpio3(void);
 
 uint8_t cc1120_arch_spi_rw_byte(uint8_t);
 uint8_t cc1120_arch_txfifo_load(uint8_t *packet, uint8_t packet_length);
 void cc1120_arch_rxfifo_read(uint8_t *packet, uint8_t packet_length);
+
+#ifdef CC1120_SINGLE_INTERRUPT
+uint8_t cc1120_arch_read_gpio3(void);
+
 void cc1120_arch_interrupt_enable(void);
 void cc1120_arch_interrupt_disable(void);
 void cc1120_arch_interrupt_acknowledge(void);
+#else
+void cc1120_arch_rx_interrupt_enable(void);
+void cc1120_arch_rx_interrupt_disable(void);
+void cc1120_arch_rx_interrupt_acknowledge(void);
+
+void cc1120_arch_tx_interrupt_enable(void);
+void cc1120_arch_tx_interrupt_disable(void);
+void cc1120_arch_tx_interrupt_acknowledge(void);
+#endif
 
 void cc1120_arch_pin_init(void);
 

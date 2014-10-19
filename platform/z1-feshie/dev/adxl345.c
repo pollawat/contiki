@@ -388,7 +388,7 @@ static struct timer suppressTimer1, suppressTimer2;
 ISR(PORT1, port1_isr)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
-  
+  printf(" R ");
   /* ADXL345_IFG.x goes high when interrupt occurs, use to check what interrupted */
   if ((ADXL345_IFG & ADXL345_INT1_PIN) && !(CC1120_GDO0_PORT(IFG) & BV(CC1120_GDO0_PIN))){
     /* Check if this should be suppressed or not */
@@ -408,7 +408,11 @@ ISR(PORT1, port1_isr)
     }
   } else {
     /* CC1120 interrupt */
+#ifdef CC1120_SINGLE_INTERRUPT    
     if(cc1120_interrupt_handler()) {
+#else
+	if(cc1120_rx_interrupt_handler()) {
+#endif	
       LPM4_EXIT;
     }
   }

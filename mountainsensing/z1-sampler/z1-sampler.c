@@ -800,10 +800,8 @@ PROCESS_THREAD(post_process, ev, data)
       DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
       load_file(filename);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
-      printf("con, %d", retries);
       DPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
-      printf("E");
       if(uip_aborted() || uip_timedout() || uip_closed()) {
         DPRINT("Could not establish connection\n");
         retries++;
@@ -812,7 +810,6 @@ PROCESS_THREAD(post_process, ev, data)
         DPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
         etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
-        printf("?!");
         do {
           if(etimer_expired(&timeout_timer))
           {
