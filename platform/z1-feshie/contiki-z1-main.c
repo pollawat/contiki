@@ -213,10 +213,6 @@ main(int argc, char **argv)
   ms1_io_init(); 
   i2c_enable();
   
-  uart1_set_input(serial_timeout_input_byte);
-  protobuf_init();
-  serial_timeout_init();
-  
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
@@ -232,9 +228,9 @@ main(int argc, char **argv)
 #endif
 #endif /* WITH_UIP */
 
+  uart1_pin_init(); 
   uart1_init('b'); /* It ignores the input to the func */
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
-  protobuf_handler_set_writeb(uart1_writeb);
   xmem_init();
   rtimer_init();
   /*
@@ -396,10 +392,19 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+
 #ifdef NO_SLIP
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+
+
+  uart1_set_input(serial_timeout_input_byte);
+  protobuf_init();
+  serial_timeout_init();
+  protobuf_handler_set_writeb(uart1_writeb);
+
+
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */
