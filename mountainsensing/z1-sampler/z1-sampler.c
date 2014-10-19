@@ -103,6 +103,8 @@
 #define SAMPLE_CONFIG 1
 #define COMMS_CONFIG 2
 
+#define SENSE_ON /*Do not turn sensor power off */
+
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
   else        return (float) ((int)x-1);
@@ -706,6 +708,11 @@ PROCESS_THREAD(sample_process, ev, data)
   static uint8_t avr_retry_count = 0;
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
+#ifdef SENSE_ON
+  ms1_sense_on();
+  printf("Sensor power permanently on\n");
+#endif
+
 
 SENSORS_ACTIVATE(event_sensor);
   DPRINT("[SAMP] Sampling sensors activated\n");
@@ -786,8 +793,9 @@ SENSORS_ACTIVATE(event_sensor);
             }
         }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
-
+#ifndef SENSE_ON
     ms1_sense_off();
+#endif
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
