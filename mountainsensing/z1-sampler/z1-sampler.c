@@ -39,7 +39,6 @@
  *          Graeme Bragg    <gmb1g08@ecs.soton.ac.uk>
  *          Tyler Ward      <tw16g08@ecs.soton.ac.uk>
  *          Kirk Martinez   <km@ecs.soton.ac.uk>
-
  */
 
 #include "contiki.h"
@@ -48,6 +47,7 @@
 #include "dev/temperature-sensor.h"
 #include "dev/battery-sensor.h"
 #include "dev/reset-sensor.h"
+#include "dev/event-sensor.h"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -695,6 +695,7 @@ PROCESS_THREAD(sample_process, ev, data)
 
 
 
+SENSORS_ACTIVATE(event_sensor);
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)
   {
