@@ -234,9 +234,8 @@ main(int argc, char **argv)
 
   uart1_init('b'); /* It ignores the input to the func */
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
-  
+  protobuf_handler_set_writeb(uart1_writeb);
   xmem_init();
-
   rtimer_init();
   /*
    * Hardware initialization done!

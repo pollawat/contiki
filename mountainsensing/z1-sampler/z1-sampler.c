@@ -48,6 +48,7 @@
 #include "dev/temperature-sensor.h"
 #include "dev/battery-sensor.h"
 #include "dev/reset-sensor.h"
+#include "dev/protobuf-handler.h"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -58,7 +59,7 @@
 
 #include "z1-sampler-config-defaults.h"
 #include "web_defines.h"
-
+#include "z1-sampler.h"
 // General
 #include "contiki.h"
 #include <stdio.h>
@@ -90,6 +91,12 @@
     #define DPRINT(...)
 #endif
 
+#define AVRDEFBUG
+#ifdef AVRDEFBUG
+    #define AVRDPRINT(...) printf(__VA_ARGS__)
+#else
+    #define AVRDPRINT(...)
+#endif
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
@@ -685,10 +692,16 @@ PROCESS_THREAD(sample_process, ev, data)
   static struct etimer stimer;
   static uint8_t pb_buf[64];
   static int fd;
-
+  static int i;
   static Sample sample;
 
   static char* filename;
+  static uint8_t avr_id;
+  static struct ctimer avr_timeout_timer;
+  static uint8_t avr_recieved = 0; 
+  static uint8_t avr_retry_count = 0;
+  protobuf_event = process_alloc_event();
+  protobuf_register_process_callback(&sample_process, protobuf_event) ;
 
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)
@@ -727,9 +740,48 @@ PROCESS_THREAD(sample_process, ev, data)
       sample.has_rain = sensor_config.hasRain;
       sample.rain = get_sensor_rain();
     }
-    if(sensor_config.avrIDs_count > 0) {
-        //TO PUT IN HERE
+    
+    AVRDPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
+    for(i=0; i < sensor_config.avrIDs_count; i++){
+        avr_id = sensor_config.avrIDs[i] & 0xFF; //only use 8bits
+        AVRDPRINT("[SAMP][AVR] using ID: %d\n", avr_id);
+        avr_recieved = 0;
+        avr_retry_count = 0;
+        data = NULL;
+        do{
+            protobuf_send_message(0x01, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
+            AVRDPRINT("Sent message %d\n", i);
+            i = i+1;
+            ctimer_set(&avr_timeout_timer, CLOCK_SECOND * AVR_TIMEOUT_SECONDS, avr_timer_handler, NULL);
+            PROCESS_YIELD_UNTIL(ev == protobuf_event);
+            if(data != NULL){
+                AVRDPRINT("\tavr data recieved on retry %d\n", avr_retry_count);
+                ctimer_stop(&avr_timeout_timer);
+                protobuf_data_t *pbd;
+                pbd = data;
+                sample.has_AVR = 1;
+                sample.AVR.size = pbd->length;
+                static uint8_t k;
+                for(k=0; k < pbd->length; k++){
+                    sample.AVR.bytes[k] = pbd->data[k];
+                }
+#ifdef AVRDEFBUG
+                printf("\tRecieved %d bytes\t", pbd->length);
+                static uint8_t j;
+                for(j=0; j<pbd->length;j++){
+                    printf("%d:", pbd->data[j]);
+                }
+                printf("\n");
+#endif
+//process data
+                avr_recieved = 1;
+            }else{
+                AVRDPRINT("AVR timedout\n");
+                avr_retry_count++;
+            }
+        }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
+
     ms1_sense_off();
     static pb_ostream_t ostream;
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
@@ -845,4 +897,9 @@ PROCESS_THREAD(post_process, ev, data)
     PSOCK_CLOSE(&ps);
   }
   PROCESS_END();
+}
+
+
+static void avr_timer_handler(void *p){
+process_post(&sample_process, protobuf_event, (process_data_t)NULL);
 }
