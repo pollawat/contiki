@@ -103,7 +103,7 @@
 #define SAMPLE_CONFIG 1
 #define COMMS_CONFIG 2
 
-#define SENSE_ON /*Do not turn sensor power off */
+//#define SENSE_ON /*Do not turn sensor power off */
 
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
