@@ -39,7 +39,6 @@
  *          Graeme Bragg    <gmb1g08@ecs.soton.ac.uk>
  *          Tyler Ward      <tw16g08@ecs.soton.ac.uk>
  *          Kirk Martinez   <km@ecs.soton.ac.uk>
-
  */
 
 #include "contiki.h"
@@ -49,6 +48,7 @@
 #include "dev/battery-sensor.h"
 #include "dev/reset-sensor.h"
 #include "dev/protobuf-handler.h"
+#include "dev/event-sensor.h"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -636,12 +636,12 @@ static char* get_next_read_filename()
  */
 static char* get_next_write_filename(uint8_t length)
 {
-  static char filename[8];
-  static struct cfs_dirent dirent;
-  static struct cfs_dir dir;
-  static uint16_t file_num;
-  //static uint16_t file_size;
-  static int16_t max_num;
+  char filename[8];
+  struct cfs_dirent dirent;
+  struct cfs_dir dir;
+  uint16_t file_num;
+  uint16_t file_size;
+  int16_t max_num;
   file_num = 0;
   max_num = -1;
   //file_size = 0;
@@ -662,19 +662,23 @@ static char* get_next_write_filename(uint8_t length)
     if(max_num == -1) {
       filename[2] = '0';
       filename[3] = 0;
+    }else{
+      itoa(max_num + 1, filename + 2, 10);
     }
+
 /* stop multiple PBs being saved
     else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
       itoa(max_num + 1, filename + 2, 10);
     }
-*/
     else {
       itoa(max_num, filename + 2, 10);
     }
+*/
     return filename;
+  }else{
+    DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
+    return NULL;
   }
-  DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
-  return NULL;
 }
 
 PROCESS_THREAD(sample_process, ev, data)
@@ -712,6 +716,7 @@ PROCESS_THREAD(sample_process, ev, data)
 #endif
 
 
+SENSORS_ACTIVATE(event_sensor);
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)
   {
