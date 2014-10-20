@@ -725,7 +725,7 @@ PROCESS_THREAD(sample_process, ev, data)
 
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
-
+  printf("Sample interval set to: %d\n",sensor_config.interval); 
 
 #ifdef SENSE_ON
   ms1_sense_on();
@@ -870,7 +870,7 @@ PROCESS_THREAD(post_process, ev, data)
     POST_config.port = POST_PORT;
     set_config(COMMS_CONFIG);
   }
-
+  printf("Post interval set to: %d\n", POST_config.interval);
   while(1)
   {
     retries = 0;
