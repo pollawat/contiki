@@ -103,7 +103,7 @@
 #define SAMPLE_CONFIG 1
 #define COMMS_CONFIG 2
 
-#define SENSE_ON /*Do not turn sensor power off */
+//#define SENSE_ON /*Do not turn sensor power off */
 
 float floor(float x){ 
   if(x>=0.0f) return (float) ((int)x);
@@ -731,18 +731,20 @@ PROCESS_THREAD(sample_process, ev, data)
   }
 
   static struct etimer stimer;
-  static uint8_t pb_buf[64];
+  static uint8_t pb_buf[Sample_size];
   static int fd;
-  static int i;
   static Sample sample;
-
+  static int i;
   static char* filename;
   static uint8_t avr_id;
   static struct ctimer avr_timeout_timer;
-  static uint8_t avr_recieved = 0; 
+  static uint8_t avr_recieved = 0;
   static uint8_t avr_retry_count = 0;
+
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
+
+
 #ifdef SENSE_ON
   ms1_sense_on();
   printf("Sensor power permanently on\n");
@@ -826,6 +828,7 @@ SENSORS_ACTIVATE(event_sensor);
                 AVRDPRINT("AVR timedout\n");
                 avr_retry_count++;
             }
+            AVRDPRINT("avr_recieved = %d\n", avr_recieved);
         }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
 #ifndef SENSE_ON
@@ -840,16 +843,16 @@ SENSORS_ACTIVATE(event_sensor);
       continue;
     }
 
-    DPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
+    AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
 
     fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
     if(fd >= 0)
     {
-      DPRINT("  [1/3] Writing to file...\n");
+      AVRDPRINT("  [1/3] Writing to file...\n");
       cfs_write(fd, pb_buf, ostream.bytes_written);
-      DPRINT("  [2/3] Closing file...\n");
+      AVRDPRINT("  [2/3] Closing file...\n");
       cfs_close(fd);
-      DPRINT("  [3/3] Done\n");
+      AVRDPRINT("  [3/3] Done\n");
     }
     else
     {

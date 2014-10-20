@@ -95,7 +95,8 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
         if (rec_crc == cal_crc){
           PRINTF("CRCs match\n");
           processed_data_length = bytes -4;
-          memcpy(buf+2, &processed_data, processed_data_length);
+          PRINTF("Raw data: %d processed data: %d\n", bytes, processed_data_length);
+          memcpy(&processed_data, buf+2, processed_data_length);
         //first 2 and last 2 bytes are not wanted for storage
 #ifdef PROTOBUF_HANDLER_DEBUG
           printf("Callback_data\n");
@@ -109,6 +110,8 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
           if(callback_process != NULL){
             process_post(callback_process, callback_event, &callback_data);
             PRINTF("Process posted\n");
+          }else{
+            printf("No callback registered\n");
           }
         }else{
           printf("CRCs do not match: Ignoring\n");
