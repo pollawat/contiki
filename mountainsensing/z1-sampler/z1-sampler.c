@@ -232,6 +232,36 @@ static void load_file(char *filename)
   }
 }
 
+/* returns the number of files and disk used on Flash
+*/
+int flash_du(int *filec, int *bytes)
+{
+struct cfs_dir dir;
+struct cfs_dirent dirent;
+int dirp;
+static int count = 0;
+static int used = 0;
+
+if(cfs_opendir(&dir, "/") == 0) {
+   while(cfs_readdir(&dir, &dirent) != -1) {
+	count++;
+	used += (long)dirent.size;
+   }
+   *bytes = used;
+   *filec = count;
+   //cfs_closedir(&dir);
+   return(0);
+ }
+else {
+    return(-1);
+ }
+
+//cfs_closedir(&dirp);
+*bytes = used;
+*filec = count;
+return(0);
+}
+
 /*---------------------------------------------------------------------------*/
 // 
 
@@ -510,13 +540,27 @@ PT_THREAD(web_handle_connection(struct psock *p))
       strcat(tmpstr, "<h1>OK</h1>");
       strcat(tmpstr, BOTTOM);
       PSOCK_SEND_STR(p, tmpstr);
-      //PSOCK_SEND_STR(p, TOP);
-      //PSOCK_SEND_STR(p, "<h1>OK</h1>");
-      //PSOCK_SEND_STR(p, BOTTOM);
     }
-	/* debug GET for the node settings
-	* gives sampleinterval adc1 adc2 rain
-	*/
+
+    /* debug call to see flash disk usage */
+    else if(strncmp(url, "/du", 3) == 0)
+    {
+	static int filecount, bytesused;
+	if( flash_du(&filecount, &bytesused) == -1){
+		PSOCK_SEND_STR(p, "failed\n");
+		return(-1);
+		}
+
+	//sprintf(tmpstr, "%d files %d bytes\n",filecount,bytesused);	
+	sprintf(tmpstr, "%s\n%d files %d bytes\n",TEXT_RES,filecount,bytesused);	
+	//PSOCK_SEND_STR(p, TEXT_RES);
+	PSOCK_SEND_STR(p, tmpstr);
+	//PSOCK_SEND_STR(p, BOTTOM);
+    }
+
+    /* debug GET for the node settings
+    * gives sampleinterval adc1 adc2 rain
+    */
     else if(strncmp(url, "/settings", 9) == 0)
     {
       PSOCK_SEND_STR(p, HTTP_RES);
@@ -526,30 +570,21 @@ PT_THREAD(web_handle_connection(struct psock *p))
 	strcat(tmpstr, " ");
       // sample Interval
       ltoa(sensor_config.interval, num, 10);
-      //PSOCK_SEND_STR(p, tmpstr);
-      //PSOCK_SEND_STR(p, "s ");
 	strcat(tmpstr, num);
 	strcat(tmpstr, "s ");
       // POST Interval
       ltoa(POST_config.interval, num, 10);
-      //PSOCK_SEND_STR(p, tmpstr);
-      //PSOCK_SEND_STR(p, "P ");
 	strcat(tmpstr, num);
 	strcat(tmpstr, "P ");
-      if(  sensor_config.hasADC1 == 1)
+      if( sensor_config.hasADC1 == 1)
 	      strcat(tmpstr, "A1 ");
-	      //PSOCK_SEND_STR(p, "A1 ");
-      if(  sensor_config.hasADC1 == 1)
+      if( sensor_config.hasADC1 == 1)
 	      strcat(tmpstr, "A2 ");
-	      //PSOCK_SEND_STR(p, "A2 ");
-      if(  sensor_config.hasRain == 1)
+      if( sensor_config.hasRain == 1)
 	      strcat(tmpstr, "R ");
-	      //PSOCK_SEND_STR(p, "R ");
 	ltoa(reset_sensor.value(0), num, 10);
 	strcat(tmpstr, num);
       PSOCK_SEND_STR(p, tmpstr);
-	/* reset read needs checking!
-	*/
       PSOCK_SEND_STR(p, BOTTOM);
 	}
     else
@@ -640,7 +675,7 @@ static char* get_next_write_filename(uint8_t length)
   struct cfs_dirent dirent;
   struct cfs_dir dir;
   uint16_t file_num;
-  uint16_t file_size;
+  //uint16_t file_size;
   int16_t max_num;
   file_num = 0;
   max_num = -1;
