@@ -1,5 +1,5 @@
 
-all: z1-sampler
+all: z1-sampler filename-test
 TARGET = z1-feshie
 
 CONTIKI=../../
@@ -12,7 +12,7 @@ SMALL=1
 APPS += webserver webbrowser
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
-CONTIKI_SOURCEFILES +=  pb_decode.c pb_encode.c settings.pb.c readings.pb.c sampling-sensors.c 
+CONTIKI_SOURCEFILES +=  pb_decode.c pb_encode.c settings.pb.c readings.pb.c sampling-sensors.c  filenames.c
 PROJECTDIRS += ../../examples/ipv6/rpl-border-router
 PROJECT_SOURCEFILES += httpd-simple.c
 
