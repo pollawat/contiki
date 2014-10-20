@@ -49,7 +49,7 @@
 
 #include "platform-conf.h"
 
-#define UART1_DEBUG
+//#define UART1_DEBUG
 #ifdef UART1_DEBUG
   #include <stdio.h>
   #define PRINTF(...) printf(__VA_ARGS__)
