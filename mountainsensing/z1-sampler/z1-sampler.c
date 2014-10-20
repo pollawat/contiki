@@ -97,6 +97,16 @@
 #else
     #define AVRDPRINT(...)
 #endif
+
+#define FILEDEBUG
+#ifdef FILEDEBUG
+    #define FILEDEBUG(...) printf(__VA_ARGS__)
+#else
+    #define FILEDEBUG(...)
+#endif
+
+
+
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
@@ -636,6 +646,7 @@ static char* get_next_read_filename()
  */
 static char* get_next_write_filename(uint8_t length)
 {
+  FILEDEBUG("get_next_write_filename\n");
   char filename[8];
   struct cfs_dirent dirent;
   struct cfs_dir dir;
@@ -650,19 +661,24 @@ static char* get_next_write_filename(uint8_t length)
   filename[1] = '_';
 
   if(cfs_opendir(&dir, "/") == 0) {
+    FILEDEBUG("\tOpened folder\n");
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
         file_num = atoi(dirent.name + 2);
         if(file_num > max_num) {
           max_num = file_num;
           //file_size = (uint16_t)dirent.size;
+          FILEDEBUG("Filename %d found\n", file_num);
         }
+        FILEDEBUG("\tMax: %d Filenum: %d\n", max_num, file_num);
       }
     }
     if(max_num == -1) {
+      FILEDEBUG("\tNo previous files found\n");
       filename[2] = '0';
       filename[3] = 0;
     }else{
+      FILEDEBUG("\t Previous file %d\n", max_num);
       itoa(max_num + 1, filename + 2, 10);
     }
 
@@ -674,6 +690,7 @@ static char* get_next_write_filename(uint8_t length)
       itoa(max_num, filename + 2, 10);
     }
 */
+    FILEDEBUG("Returning %s\n", filename);
     return filename;
   }else{
     DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
