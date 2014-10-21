@@ -192,13 +192,13 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-			printf("CC1120");
+			printf("CC1120\n");
 			break;
 		case CC1120_PART_NUM_CC1121:
-			printf("CC1121");
+			printf("CC1121\n");
 			break;
 		case CC1120_PART_NUM_CC1125:
-			printf("CC1125");
+			printf("CC1125\n");
 			break;
 		default:	/* Not a supported chip or no chip present... */
 			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
@@ -208,8 +208,6 @@ cc1120_driver_init(void)
 			}
 			break;
 	}
-	
-	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -1070,7 +1068,7 @@ cc1120_misc_config(void)
 	cc1120_spi_single_write(CC1120_ADDR_AGC_GAIN_ADJUST, (CC1120_RSSI_OFFSET));	/* Set the RSSI Offset. This is a two's compliment number. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, (CC1120_CS_THRESHOLD));   	/* Set Carrier Sense Threshold. This is a two's compliment number. */
 	
-	cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
+	//cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
 
 
 #if RDC_CONF_HARDWARE_CSMA	
