@@ -234,18 +234,17 @@ static void load_file(char *filename)
 
 /* returns the number of files and disk used on Flash
 */
-int flash_du(int *filec, int *bytes)
+int flash_du(int *filec, uint32_t *bytes)
 {
 struct cfs_dir dir;
 struct cfs_dirent dirent;
-int dirp;
 static int count = 0;
-static int used = 0;
+static uint32_t used = 0;
 
 if(cfs_opendir(&dir, "/") == 0) {
    while(cfs_readdir(&dir, &dirent) != -1) {
 	count++;
-	used += (long)dirent.size;
+	used += dirent.size;
    }
    *bytes = used;
    *filec = count;
@@ -344,7 +343,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
   PSOCK_BEGIN(p);
   PSOCK_READTO(p, '\n');
 
-  if(strncmp("GET ", web_buf, 4) == 0)
+  if(strncmp("GET ", (char*)web_buf, 4) == 0)
   {
     url = web_buf + 4;
     strtok(url, " ");
@@ -542,23 +541,54 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, tmpstr);
     }
 
-    /* debug call to see flash disk usage */
+    /******** debug call to see flash disk usage */
     else if(strncmp(url, "/du", 3) == 0)
     {
-	static int filecount, bytesused;
+	static uint32_t bytesused;
+	static int filecount;
 	if( flash_du(&filecount, &bytesused) == -1){
 		PSOCK_SEND_STR(p, "failed\n");
 		return(-1);
 		}
 
-	//sprintf(tmpstr, "%d files %d bytes\n",filecount,bytesused);	
-	sprintf(tmpstr, "%s\n%d files %d bytes\n",TEXT_RES,filecount,bytesused);	
-	//PSOCK_SEND_STR(p, TEXT_RES);
+	sprintf(tmpstr, "%s\n%d files %ld bytes\n",TEXT_RES,filecount,bytesused);	
 	PSOCK_SEND_STR(p, tmpstr);
-	//PSOCK_SEND_STR(p, BOTTOM);
+    }
+    /******** debug call to list all files on flash = SLOW! */
+    else if(strncmp(url, "/ls", 3) == 0)
+    {
+	struct cfs_dir dir;
+	struct cfs_dirent dirent;
+	//char bigtmpstr[1024];
+
+	PSOCK_SEND_STR(p, TEXT_RES);
+	PSOCK_SEND_STR(p, "printing on serial\r\n");
+	if(cfs_opendir(&dir, "/") == 0) {
+	    while(cfs_readdir(&dir, &dirent) != -1) {
+		printf("%s %ld\n", dirent.name, (long)dirent.size);
+		/*
+		if((strlen(bigtmpstr) + strlen(tmpstr) ) > 1023){
+			strcat(bigtmpstr, tmpstr);
+			}
+		*/
+	    }
+	//PSOCK_SEND_STR(p, bigtmpstr);
+	//cfs_closedir(&dir);
+	}
+	/* nicer version which may make spi clashes
+	PSOCK_SEND_STR(p, TEXT_RES);
+	if(cfs_opendir(&dir, "/") == 0) {
+	    while(cfs_readdir(&dir, &dirent) != -1) {
+		sprintf(tmpstr,"%s %ld\n", dirent.name, (long)dirent.size);
+		PSOCK_SEND_STR(p, tmpstr);
+	    }
+	//cfs_closedir(&dir);
+	}
+	*/
     }
 
-    /* debug GET for the node settings
+
+    /******** debug GET for the node settings
     * gives sampleinterval adc1 adc2 rain
     */
     else if(strncmp(url, "/settings", 9) == 0)
