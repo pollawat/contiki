@@ -192,22 +192,24 @@ cc1120_driver_init(void)
 	switch(part)
 	{
 		case CC1120_PART_NUM_CC1120:
-			printf("CC1120\n");
+			printf("CC1120");
 			break;
 		case CC1120_PART_NUM_CC1121:
-			printf("CC1121\n");
+			printf("CC1121");
 			break;
 		case CC1120_PART_NUM_CC1125:
-			printf("CC1125\n");
+			printf("CC1125");
 			break;
 		default:	/* Not a supported chip or no chip present... */
-			printf("*** ERROR: No Radio ***\n");
+			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
 			while(1)	/* Spin ad infinitum as we cannot continue. */
 			{
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
 			}
 			break;
 	}
+	
+	printf(" Detected & OK\n"); 
 	
 	// TODO: Cover sync-word errata somewhere?
 	
@@ -481,12 +483,8 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	t0 = RTIMER_NOW();
 	
 	/* Block till TX is complete. */	
-	
-#ifdef CC1120_DUAL_IO
-	while(cc1120_arch_read_gpio3()) {
-#else
-	while(!(radio_pending & TX_COMPLETE)) {
-#endif
+	while(!(radio_pending & TX_COMPLETE))
+	{
 		/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		PRINTFTX(".");
@@ -529,12 +527,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	RELEASE_SPI();
 	radio_pending &= ~(TRANSMITTING);
 	t0 = RTIMER_NOW();
-
-#ifdef CC1120_DUAL_IO
-	if(cc1120_read_txbytes() > 0) {
-#else
-	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0)) {
-#endif			
+		
+	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0))
+	{	
 		PRINTFTXERR("\tTX NOT OK %d, %d.\n",(radio_pending & TX_COMPLETE), cc1120_read_txbytes() );	
 		cc1120_flush_tx();		/* Flush TX FIFO. */
 		cc1120_flush_rx();		/* Flush RX FIFO. */
@@ -820,11 +815,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				t0 = RTIMER_NOW(); 
 				
 				/* Block till TX is complete. */	
-#ifdef CC1120_DUAL_IO
-				while(cc1120_arch_read_gpio3()) {
-#else
-				while(!(radio_pending & TX_COMPLETE)) {
-#endif
+				while(!(radio_pending & TX_COMPLETE))
+				{
 					/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 					watchdog_periodic();	/* Feed the dog to stop reboots. */
 					PRINTFRX(".");
@@ -1064,7 +1056,7 @@ cc1120_gpio_config(void)
 #endif
 
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, CC1120_GPIO3_FUNC);
-	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO_MARC_2PIN_STATUS0);
+
 }
 
 void
@@ -1078,7 +1070,7 @@ cc1120_misc_config(void)
 	cc1120_spi_single_write(CC1120_ADDR_AGC_GAIN_ADJUST, (CC1120_RSSI_OFFSET));	/* Set the RSSI Offset. This is a two's compliment number. */
 	cc1120_spi_single_write(CC1120_ADDR_AGC_CS_THR, (CC1120_CS_THRESHOLD));   	/* Set Carrier Sense Threshold. This is a two's compliment number. */
 	
-	//cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
+	cc1120_spi_single_write(CC1120_ADDR_SYNC_CFG0, 0x0B);       /* Set the correct sync word length.  SmartRF sets 32-bits instead of 16-bits for 802.15.4G. */
 
 
 #if RDC_CONF_HARDWARE_CSMA	
@@ -1691,34 +1683,34 @@ cc1120_interrupt_handler(void)
 	switch (marc_status){
 		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
 			/* RX terminated due to timeout.  Should not get here as there is  */	
-			//printf("RX Timeout.\n\r");						
+			printf("RX Timeout.\n\r");						
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
 			/* RX Terminated on CS or PQT. */
-			//printf("RXT\n\r");
+			printf("RXT\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
 			/* EWOR Sync lost. */	
-			//printf("EWOR\n\r");							
+			printf("EWOR\n\r");							
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
 			/* Packet discarded due to being too long. Flush RX FIFO? */	
-			//printf("LEN\n\r");
+			printf("LEN\n\r");
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
 			/* Packet discarded due to bad address - should not get here 
 			 * as address matching is not being used. Flush RX FIFO? */		
-			//printf("DISC\n\r");				
+			printf("DISC\n\r");				
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
 			/* Packet discarded due to bad CRC. Should not need to flush 
 			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
-			 //printf("CRC\n\r");		
+			 printf("CRC\n\r");		
 			break;
 			
 		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
@@ -1778,11 +1770,11 @@ PROCESS_THREAD(cc1120_process, ev, data)
 	PROCESS_POLLHANDLER(processor());	
 	
 	PROCESS_BEGIN();
-	printf("cc1120: started\n");
+	printf("cc1120_process: started\n");
 	
 	PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_EXIT);
 	
-	printf("cc1120: terminated\n");
+	printf("cc1120_process: terminated\n");
 	PROCESS_END();
 }
 
