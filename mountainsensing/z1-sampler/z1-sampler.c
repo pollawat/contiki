@@ -83,9 +83,9 @@
 
 #define MAX_POST_SIZE 80
 
-#define DEBUG 0
+//#define DEBUG 
 
-#if DEBUG == 1
+#ifdef DEBUG 
     #define DPRINT(...) printf(__VA_ARGS__)
 #else
     #define DPRINT(...)
