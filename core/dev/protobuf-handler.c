@@ -69,7 +69,7 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
       PRINTF("Spurious interrupt, ignoring\n");
       return;
     }else if(bytes < 4){
-      PRINTF("TOO small for valid protocol buffer\n");
+      PRINTF("TOO small for valid protocol buffer: %d\n", bytes);
       return;
     }
 
@@ -169,12 +169,12 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     //ready to send    
 
     if(writebyte != NULL){
-	PRINTF("Writing to serial port\n");
+/*	PRINTF("Writing to serial port\n");
         for(i=0; i < buf_length; i++){
             writebyte(buf[i]);
 	    PRINTF("\t%d\n", buf[i]);
         }
-	PRINTF("Finsihed\n");
+	PRINTF("Finsihed\n"); */
     }else{
 	printf("No writebyte specified\n");
     }

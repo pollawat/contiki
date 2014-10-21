@@ -83,9 +83,9 @@
 
 #define MAX_POST_SIZE 80
 
-#define DEBUG 0
+//#define DEBUG 
 
-#if DEBUG == 1
+#ifdef DEBUG 
     #define DPRINT(...) printf(__VA_ARGS__)
 #else
     #define DPRINT(...)
@@ -97,6 +97,16 @@
 #else
     #define AVRDPRINT(...)
 #endif
+
+//#define FILEDEBUG
+#ifdef FILEDEBUG
+    #define FILEDEBUG(...) printf(__VA_ARGS__)
+#else
+    #define FILEDEBUG(...)
+#endif
+
+
+
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
@@ -701,33 +711,39 @@ static char* get_next_read_filename()
  */
 static char* get_next_write_filename(uint8_t length)
 {
+  FILEDEBUG("get_next_write_filename\n");
   char filename[8];
   struct cfs_dirent dirent;
   struct cfs_dir dir;
   uint16_t file_num;
   //uint16_t file_size;
-  int16_t max_num;
+  uint16_t max_num;
   file_num = 0;
-  max_num = -1;
+  max_num = 0;
   //file_size = 0;
 
   filename[0] = 'r';
   filename[1] = '_';
 
   if(cfs_opendir(&dir, "/") == 0) {
+    FILEDEBUG("\tOpened folder\n");
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
         file_num = atoi(dirent.name + 2);
         if(file_num > max_num) {
           max_num = file_num;
           //file_size = (uint16_t)dirent.size;
+          FILEDEBUG("Filename %d found\n", file_num);
         }
+        FILEDEBUG("\tMax: %d Filenum: %d\n", max_num, file_num);
       }
     }
-    if(max_num == -1) {
-      filename[2] = '0';
+    if(max_num == 0) {
+      FILEDEBUG("\tNo previous files found\n");
+      filename[2] = '1';
       filename[3] = 0;
     }else{
+      FILEDEBUG("\t Previous file %d\n", max_num);
       itoa(max_num + 1, filename + 2, 10);
     }
 
@@ -739,6 +755,7 @@ static char* get_next_write_filename(uint8_t length)
       itoa(max_num, filename + 2, 10);
     }
 */
+    FILEDEBUG("Returning %s\n", filename);
     return filename;
   }else{
     DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
@@ -773,7 +790,7 @@ PROCESS_THREAD(sample_process, ev, data)
 
   protobuf_event = process_alloc_event();
   protobuf_register_process_callback(&sample_process, protobuf_event) ;
-
+  printf("Sample interval set to: %d\n",sensor_config.interval); 
 
 #ifdef SENSE_ON
   ms1_sense_on();
@@ -918,7 +935,7 @@ PROCESS_THREAD(post_process, ev, data)
     POST_config.port = POST_PORT;
     set_config(COMMS_CONFIG);
   }
-
+  printf("Post interval set to: %d\n", POST_config.interval);
   while(1)
   {
     retries = 0;
