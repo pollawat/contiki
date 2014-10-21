@@ -69,7 +69,7 @@ protobuf_process_message(uint8_t *buf, uint8_t bytes)
       PRINTF("Spurious interrupt, ignoring\n");
       return;
     }else if(bytes < 4){
-      PRINTF("TOO small for valid protocol buffer\n");
+      PRINTF("TOO small for valid protocol buffer: %d\n", bytes);
       return;
     }
 
