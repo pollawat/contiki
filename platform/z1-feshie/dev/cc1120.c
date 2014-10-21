@@ -247,6 +247,8 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 		return RADIO_TX_ERR;
 	}
 	
+	LOCK_SPI();
+	
 	/* Make sure that the TX FIFO is empty as we only want a single packet in it. */
 	cc1120_flush_tx();
 			
@@ -279,6 +281,8 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 		cc1120_set_state(CC1120_STATE_RX);
 	}
 	
+	RELEASE_SPI();
+	
 	return RADIO_TX_OK;
 }
 
@@ -302,6 +306,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	radio_pending &= ~(TX_COMPLETE);
 	
 	LEDS_ON(LEDS_GREEN);
+	LOCK_SPI();
 	
 	if(ack_tx == 1)	{
 		/* Wrong data in the FIFO. Re-write the FIFO. */
@@ -402,7 +407,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			LEDS_OFF(LEDS_GREEN);	
 
 			cc1120_flush_tx();		
-			//RELEASE_SPI();	
+				
 			
 			PRINTFTXERR("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
 			RIMESTATS_ADD(contentiondrop);
@@ -421,9 +426,9 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			PRINTFTXERR("!!! TX ERROR: FIFO Error. !!!\n");	
 			LEDS_OFF(LEDS_GREEN);		/* Turn off LED if it is being used. */
 			
-			//RELEASE_SPI();
 			lbt_success = 0;
 			cc1120_tx_on_restore();
+			
 			return RADIO_TX_ERR;
 		}
 		cur_state = cc1120_get_state();
@@ -586,15 +591,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				
 				if(transmit_len == 3) {
 					/* It is an ACK. */
-					LOCK_SPI();
-
 					cc1120_arch_spi_enable();
 					cc1120_arch_rxfifo_read(ack_buf, transmit_len);
 					cc1120_arch_spi_disable();
 					
 					ack_seq = ack_buf[2];	
 				
-					RELEASE_SPI();
 				}
 			}
 			
@@ -644,6 +646,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	rimeaddr_t dest;
 	rtimer_clock_t t0;
 
+	LOCK_SPI();
+
 #ifdef CC1120_SINGLE_INTERRUPT	
 	#ifdef CC1120_DUAL_IO
 	if(cc1120_get_state() == CC1120_STATUS_RX_FIFO_ERROR) {
@@ -655,7 +659,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 #endif
 		/* FIFO underflow */
 		cc1120_flush_rx();
-		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");		
+		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");	
+		RELEASE_SPI();	
 		return 0;		
 	}
 	
@@ -665,8 +670,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		/* not enough data. */
 		cc1120_flush_rx();
 		RIMESTATS_ADD(tooshort);
-		
 		PRINTFRXERR("\tERROR: Packet too short\n");
+		RELEASE_SPI();
 		return 0;
 	}
 	
@@ -678,25 +683,27 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		cc1120_flush_rx();
 		RIMESTATS_ADD(badsynch);
 		PRINTFRXERR("\tERROR: not enough data in FIFO. Length = %d, rxbytes = %d\n", length, rxbytes);
+		RELEASE_SPI();
 		return 0;
 	} else if(length > CC1120_MAX_PAYLOAD) {
 		/* Packet too long, out of Sync? */
 		cc1120_flush_rx();
 		RIMESTATS_ADD(badsynch);
 		PRINTFRXERR("\tERROR: Packet longer than FIFO or bad sync\n");
+		RELEASE_SPI();
 		return 0;
 	} else if((length) > buf_len) {
 		/* Packet is too long. */
 		cc1120_flush_rx();
 		RIMESTATS_ADD(toolong);
 		PRINTFRXERR("\tERROR: Packet too long for buffer\n");	
+		RELEASE_SPI();
 		return 0;
 	}
 	
 	PRINTFRX("\tPacket received.\n"); 
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
 
-	LOCK_SPI();
 	cc1120_arch_spi_enable();
 	cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 	
@@ -710,14 +717,6 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				for(j = 0; j < 8; j++) {
 					dest.u8[7 - j] = ((uint8_t *)buf)[5 + j];
 				}
-				/*dest.u8[7] = ((uint8_t *)buf)[5];
-				dest.u8[6] = ((uint8_t *)buf)[6];
-				dest.u8[5] = ((uint8_t *)buf)[7];
-				dest.u8[4] = ((uint8_t *)buf)[8];
-				dest.u8[3] = ((uint8_t *)buf)[9];
-				dest.u8[2] = ((uint8_t *)buf)[10];
-				dest.u8[1] = ((uint8_t *)buf)[11];
-				dest.u8[0] = ((uint8_t *)buf)[12];*/
 			} else if((((uint8_t *)buf)[1] & 0x08) == 0x08) {
 				/* Short address. */
 				dest.u8[1] = ((uint8_t *)buf)[5];
@@ -801,7 +800,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		}
 	}
 	cc1120_arch_spi_disable();
-	RELEASE_SPI();
+	
 		
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);					/* Read 8-bit RSSI from end of packet. */
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;	/* Read LQI from end of packet. */
@@ -818,11 +817,13 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		/* FIFO underflow */
 		cc1120_flush_rx();
 		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
+		RELEASE_SPI();
 		return 0;		
 	}
 	
 	cc1120_flush_rx();	/* Make sure that the RX FIFO is empty. */
-	
+	RELEASE_SPI();
+		
 	RIMESTATS_ADD(llrx);
 	PRINTFRX("\tRX OK - %d byte packet.\n", length);
 	
@@ -971,7 +972,7 @@ cc1120_gpio_config(void)
 #ifdef CC1120_GPIO2_FUNC
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO2_FUNC);
 #endif
-	//cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO_RXFIFO_THR);
+	cc1120_spi_single_write(CC1120_ADDR_IOCFG2, CC1120_GPIO_RXFIFO_THR);
 	
 	cc1120_spi_single_write(CC1120_ADDR_IOCFG3, CC1120_GPIO3_FUNC);
 
@@ -1179,6 +1180,7 @@ cc1120_tx_on_restore(void)
 		cc1120_arch_tx_interrupt_disable();
 #endif				
 	}
+	RELEASE_SPI();
 }
 
 

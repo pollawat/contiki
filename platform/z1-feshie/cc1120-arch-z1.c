@@ -198,6 +198,7 @@ uint8_t
 cc1120_arch_spi_rw_byte(uint8_t val)
 {
 	SPI_WAITFORTx_BEFORE();
+	SPI_RXBUF;		/* Flush the SPI RX Buffer. */
 	SPI_TXBUF = val;
 	//SPI_WAITFOREOTx(); /* Causes SPI hanging when used with burst read/write. */
 	SPI_WAITFOREORx();
