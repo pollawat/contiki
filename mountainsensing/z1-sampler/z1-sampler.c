@@ -687,9 +687,9 @@ static char* get_next_write_filename(uint8_t length)
   struct cfs_dir dir;
   uint16_t file_num;
   //uint16_t file_size;
-  int16_t max_num;
+  uint16_t max_num;
   file_num = 0;
-  max_num = -1;
+  max_num = 0;
   //file_size = 0;
 
   filename[0] = 'r';
@@ -708,9 +708,9 @@ static char* get_next_write_filename(uint8_t length)
         FILEDEBUG("\tMax: %d Filenum: %d\n", max_num, file_num);
       }
     }
-    if(max_num == -1) {
+    if(max_num == 0) {
       FILEDEBUG("\tNo previous files found\n");
-      filename[2] = '0';
+      filename[2] = '1';
       filename[3] = 0;
     }else{
       FILEDEBUG("\t Previous file %d\n", max_num);
