@@ -91,7 +91,7 @@
     #define DPRINT(...)
 #endif
 
-#define AVRDEFBUG
+//#define AVRDEFBUG
 #ifdef AVRDEFBUG
     #define AVRDPRINT(...) printf(__VA_ARGS__)
 #else
