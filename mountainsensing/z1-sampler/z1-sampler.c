@@ -98,7 +98,7 @@
     #define AVRDPRINT(...)
 #endif
 
-#define FILEDEBUG
+//#define FILEDEBUG
 #ifdef FILEDEBUG
     #define FILEDEBUG(...) printf(__VA_ARGS__)
 #else
