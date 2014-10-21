@@ -618,7 +618,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
 	strcat(tmpstr, "P ");
       if( sensor_config.hasADC1 == 1)
 	      strcat(tmpstr, "A1 ");
-      if( sensor_config.hasADC1 == 1)
+      if( sensor_config.hasADC2 == 1)
 	      strcat(tmpstr, "A2 ");
       if( sensor_config.hasRain == 1)
 	      strcat(tmpstr, "R ");
