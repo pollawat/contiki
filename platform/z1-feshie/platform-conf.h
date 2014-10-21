@@ -169,6 +169,8 @@ typedef unsigned long off_t;
 #define UART1_TX_PORT(type) P3##type		/* UART1 TX Pin. */
 #define UART1_TX_PIN 6
 
+#define Z1_SAMPLER_AVR_DISABLE 				/* Disable the AVR/RS485 code. */
+
 
 
 /* **************************************************************************** */
