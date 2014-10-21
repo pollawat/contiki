@@ -81,9 +81,11 @@
 #include "sampling-sensors.h"
 #include "ms1-io.h"
 
+#include "filenames.h"
+
 #define MAX_POST_SIZE 80
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG == 1
     #define DPRINT(...) printf(__VA_ARGS__)
@@ -230,15 +232,13 @@ static void load_file(char *filename)
 {
   static int fd;
   fd = cfs_open(filename, CFS_READ);
-  if(fd >= 0)
-  {
+  if(fd >= 0){
     data_length = cfs_read(fd, data, sizeof(data));
     cfs_close(fd);
     DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
-  }
-  else
-  {
+  }else{
     DPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
+    DPRINT("[LOAD] Filedescriptor = %d \n", fd);
   }
 }
 
@@ -609,7 +609,7 @@ PROCESS_THREAD(web_sense_process, ev, data)
   #ifndef CC11xx_CC1120
   cc2420_set_txpower(31);
   #endif
-
+  filenames_init();
   process_start(&web_process, NULL);
   process_start(&sample_process, NULL);
   process_start(&post_process, NULL);
@@ -618,85 +618,6 @@ PROCESS_THREAD(web_sense_process, ev, data)
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
-
-/*
- * Returns the filename that is to be read for POSTing
- * Returns NULL if no files can be POSTed
- */
-static char* get_next_read_filename()
-{
-  static char filename[8];
-  static struct cfs_dirent dirent;
-  static struct cfs_dir dir;
-
-  if(cfs_opendir(&dir, "/") == 0) {
-    while(cfs_readdir(&dir, &dirent) != -1) {
-      if(strncmp(dirent.name, "r_", 2) == 0) {
-        strcpy(filename, dirent.name);
-        return filename;
-      }
-    }
-  }
-  DPRINT("[NEXT] No file found. NULL\n");
-  return NULL;
-}
-
-/*
- * Returns the filename of the next file where it is safe to store `length` bytes of data
- */
-static char* get_next_write_filename(uint8_t length)
-{
-  FILEDEBUG("get_next_write_filename\n");
-  char filename[8];
-  struct cfs_dirent dirent;
-  struct cfs_dir dir;
-  uint16_t file_num;
-  uint16_t file_size;
-  int16_t max_num;
-  file_num = 0;
-  max_num = -1;
-  //file_size = 0;
-
-  filename[0] = 'r';
-  filename[1] = '_';
-
-  if(cfs_opendir(&dir, "/") == 0) {
-    FILEDEBUG("\tOpened folder\n");
-    while(cfs_readdir(&dir, &dirent) != -1) {
-      if(strncmp(dirent.name, "r_", 2) == 0) {
-        file_num = atoi(dirent.name + 2);
-        if(file_num > max_num) {
-          max_num = file_num;
-          //file_size = (uint16_t)dirent.size;
-          FILEDEBUG("Filename %d found\n", file_num);
-        }
-        FILEDEBUG("\tMax: %d Filenum: %d\n", max_num, file_num);
-      }
-    }
-    if(max_num == -1) {
-      FILEDEBUG("\tNo previous files found\n");
-      filename[2] = '0';
-      filename[3] = 0;
-    }else{
-      FILEDEBUG("\t Previous file %d\n", max_num);
-      itoa(max_num + 1, filename + 2, 10);
-    }
-
-/* stop multiple PBs being saved
-    else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
-      itoa(max_num + 1, filename + 2, 10);
-    }
-    else {
-      itoa(max_num, filename + 2, 10);
-    }
-*/
-    FILEDEBUG("Returning %s\n", filename);
-    return filename;
-  }else{
-    DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
-    return NULL;
-  }
-}
 
 PROCESS_THREAD(sample_process, ev, data)
 {
@@ -717,7 +638,7 @@ PROCESS_THREAD(sample_process, ev, data)
   static int fd;
   static Sample sample;
   static int i;
-  static char* filename;
+  static char filename [FILENAME_LENGTH];
   static uint8_t avr_id;
   static struct ctimer avr_timeout_timer;
   static uint8_t avr_recieved = 0;
@@ -733,7 +654,7 @@ PROCESS_THREAD(sample_process, ev, data)
 #endif
 
 
-SENSORS_ACTIVATE(event_sensor);
+  SENSORS_ACTIVATE(event_sensor);
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)
   {
@@ -820,21 +741,22 @@ SENSORS_ACTIVATE(event_sensor);
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
-    filename = get_next_write_filename(ostream.bytes_written);
-    if(filename == NULL) {
+    filenames_next_write(filename);
+    if(filename == 0) {
       continue;
     }
 
     AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
 
     fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
+    DPRINT("File Descrptor = %d\n", fd);
     if(fd >= 0)
     {
-      AVRDPRINT("  [1/3] Writing to file...\n");
+      DPRINT("  [1/3] Writing to file...\n");
       cfs_write(fd, pb_buf, ostream.bytes_written);
-      AVRDPRINT("  [2/3] Closing file...\n");
+      DPRINT("  [2/3] Closing file...\n");
       cfs_close(fd);
-      AVRDPRINT("  [3/3] Done\n");
+      DPRINT("  [3/3] Done\n");
     }
     else
     {
@@ -853,7 +775,7 @@ PROCESS_THREAD(post_process, ev, data)
 
   static uip_ipaddr_t addr;
 
-  static char* filename;
+  static char filename[FILENAME_LENGTH];
 
   if(get_config(COMMS_CONFIG) == 1)
   { // Config file does not exist! Use default and set file
@@ -876,7 +798,7 @@ PROCESS_THREAD(post_process, ev, data)
     retries = 0;
     etimer_set(&timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-    while((filename = get_next_read_filename()) != NULL && retries < CONNECTION_RETRIES)
+    while((filenames_next_read(filename)) ==  1 && retries < CONNECTION_RETRIES)
     {
       uip_ip6addr(&addr,
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
@@ -917,6 +839,7 @@ PROCESS_THREAD(post_process, ev, data)
           data_length = 0;
           retries = 0;
           cfs_remove(filename);
+          filenames_delete(filename);
           DPRINT("[POST] Removing file\n");
         }
         else

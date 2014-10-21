@@ -48,28 +48,51 @@ filenames_init(void){
     }
 }
 
-char*
+/*
+ * Returns 0 for no files
+ * Returns 1 is files available
+ */
+uint8_t
 filenames_next_read(char* filename){
+    int fd, fd1;
+    if(number == 0){
+        //no files
+        return 0;
+    }
     filename[0] = FILENAME_PREFIX;
     itoa(number, filename + 1, 10);
     FPRINT("Next read filename = %s\n", filename);
-    return filename;
+    fd = cfs_open(filename, CFS_READ);
+    fd1 = fd;
+    cfs_close(fd);
+    if(fd1 < 0){
+        printf("File doesn't exist\n");
+        printf("Reinitialising\n");
+        filenames_init();
+        filenames_next_read(filename);
+    }
+    return 1;
 }
 
-char*
-filenames_next_write(char * filename){
+
+/*
+ * Something needs doing with this return status
+ */
+uint8_t
+filenames_next_write(char* filename){
     uint16_t next;
     next = ++number;
     filename[0] = FILENAME_PREFIX;
     itoa(next, filename +1, 10);
     FPRINT("Next write filename = %s\n", filename);
-    return filename;
+    return 1;
 }
 
 void
 filenames_delete(char* filename){
     char fname[FILENAME_LENGTH];
-    if (strcmp(filename,filenames_next_read(fname)) == 0){
+    filenames_next_read(fname);
+    if (strcmp(filename,fname) == 0){
 
         number--;
         FPRINT("Number decremented\n");
