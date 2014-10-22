@@ -88,7 +88,7 @@ int16_t get_sensor_acc_z(void)
 
 uint32_t get_time(void)
 {
-  return ds3231_get_epoch_seconds();
+  return 1; //ds3231_get_epoch_seconds();		/* Quick and dirty mod for carrier board. */
 }
 
 uint8_t set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
