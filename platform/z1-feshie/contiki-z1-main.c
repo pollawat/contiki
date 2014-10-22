@@ -229,7 +229,9 @@ main(int argc, char **argv)
 #endif /* WITH_UIP */
 
   uart1_pin_init(); 
+#ifndef Z1_SAMPLER_AVR_DISABLE
   uart1_init('b'); /* It ignores the input to the func */
+#endif
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
   xmem_init();
   rtimer_init();
@@ -398,12 +400,12 @@ main(int argc, char **argv)
   serial_line_init();
 #endif
 
-
+#ifndef Z1_SAMPLER_AVR_DISABLE
   uart1_set_input(serial_timeout_input_byte);
   protobuf_init();
   serial_timeout_init();
   protobuf_handler_set_writeb(uart1_writeb);
-
+#endif
 
 #if PROFILE_CONF_ON
   profile_init();

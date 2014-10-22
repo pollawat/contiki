@@ -49,6 +49,7 @@
 #include "dev/reset-sensor.h"
 #include "dev/protobuf-handler.h"
 #include "dev/event-sensor.h"
+#include "net/netstack.h"
 
 #ifndef CC11xx_CC1120
 #include "dev/cc2420.h"
@@ -766,7 +767,6 @@ static char* get_next_write_filename(uint8_t length)
 PROCESS_THREAD(sample_process, ev, data)
 {
   PROCESS_BEGIN();
-
   if(get_config(SAMPLE_CONFIG) == 1)
   { // Config file does not exist! Use default and set file
     sensor_config.interval = SENSOR_INTERVAL;
@@ -885,6 +885,7 @@ SENSORS_ACTIVATE(event_sensor);
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
+	NETSTACK_MAC.off(0); /* DESPERATE HACK!!??*/
     filename = get_next_write_filename(ostream.bytes_written);
     if(filename == NULL) {
       continue;
@@ -900,6 +901,7 @@ SENSORS_ACTIVATE(event_sensor);
       AVRDPRINT("  [2/3] Closing file...\n");
       cfs_close(fd);
       AVRDPRINT("  [3/3] Done\n");
+	NETSTACK_MAC.on(); /* DESPERATE HACK!!??*/
     }
     else
     {
