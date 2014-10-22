@@ -134,7 +134,7 @@ AUTOSTART_PROCESSES(&web_sense_process);
 static SensorConfig sensor_config;
 static POSTConfig POST_config;
 
-static uint8_t data[256] = {0};
+static uint8_t data2[256] = {0};
 static uint16_t data_length = 0;
 
 static struct psock ps;
@@ -233,7 +233,7 @@ static void load_file(char *filename)
   fd = cfs_open(filename, CFS_READ);
   if(fd >= 0)
   {
-    data_length = cfs_read(fd, data, sizeof(data));
+    data_length = cfs_read(fd, data2, sizeof(data2));
     cfs_close(fd);
     DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
   }
@@ -319,7 +319,7 @@ handle_connection(struct psock *p)
   PSOCK_BEGIN(p);
 
   PSOCK_SEND_STR(p, tmpstr_handle);
-  PSOCK_SEND(p, data, data_length);
+  PSOCK_SEND(p, data2, data_length);
 
   while(1) {
     PSOCK_READTO(p, '\n');
@@ -677,8 +677,8 @@ PROCESS_THREAD(web_sense_process, ev, data)
   #endif
 
   process_start(&web_process, NULL);
-  //process_start(&sample_process, NULL);
-  process_start(&post_process, NULL);
+  process_start(&sample_process, NULL);
+  //process_start(&post_process, NULL);
 
 
   PROCESS_END();
@@ -772,11 +772,12 @@ PROCESS_THREAD(sample_process, ev, data)
   static Sample sample;
   static int i;
   static char* filename;
-  static uint8_t avr_id;
+  static uint8_t avr_id, retries;
   static struct ctimer avr_timeout_timer;
   static uint8_t avr_recieved;
   static uint8_t avr_retry_count;
   static pb_ostream_t ostream;
+  static uip_ipaddr_t addr;
   
   PROCESS_BEGIN();
 
@@ -895,33 +896,57 @@ PROCESS_THREAD(sample_process, ev, data)
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
-	CC1120_LOCK_SPI();
-	
-    filename = get_next_write_filename(ostream.bytes_written);
-    if(filename == NULL) {
-	  CC1120_RELEASE_SPI();	
-      continue;
-    }
-
-    AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
-    printf(" F %d %s", ostream.bytes_written, filename);
-
-    fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
-    if(fd >= 0)
-    {
-      AVRDPRINT("  [1/3] Writing to file...\n");
-      cfs_write(fd, pb_buf, ostream.bytes_written);
-      AVRDPRINT("  [2/3] Closing file...\n");
-      cfs_close(fd);
-      AVRDPRINT("  [3/3] Done\n");
-    }
-    else
-    {
-      DPRINT("[SAMP] Failed to open file %s\n", filename);
-    }
-    CC1120_RELEASE_SPI();
+	uip_ip6addr(&addr,
+          POST_IP0, POST_IP1, POST_IP2, POST_IP3, 
+          POST_IP4, POST_IP5, POST_IP6, POST_IP7);
     
-    watchdog_periodic();
+    retries = 0;
+
+	while(retries < CONNECTION_RETRIES)
+    {
+		memcpy(data2, pb_buf, ostream.bytes_written);
+		data_length = ostream.bytes_written;
+		
+		tcp_connect(&addr, UIP_HTONS(POST_PORT), NULL);
+		DPRINT("Connecting...\n");
+		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+		
+		if(uip_aborted() || uip_timedout() || uip_closed()) {
+			DPRINT("Could not establish connection\n");
+			retries++;
+		} else if(uip_connected()) {
+			DPRINT("Connected\n");
+			PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
+			etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+			do {
+			  if(etimer_expired(&timeout_timer))
+			  {
+				DPRINT("Connection took too long. TIMEOUT\n");
+				PSOCK_CLOSE(&ps);
+				retries++;
+				break;
+			  }
+			  else if(data_length > 0)
+			  {
+				DPRINT("[POST] Handle Connection\n");
+				handle_connection(&ps);
+				PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+			  }
+			} while(!(uip_closed() || uip_aborted() || uip_timedout()));
+			DPRINT("\nConnection closed.\n");
+			DPRINT("Status = %d\n", http_status);
+			if(http_status/100 == 2)
+			{ // Status OK
+			  retries = CONNECTION_RETRIES + 1;
+			  DPRINT("[POST] Removing file\n");
+			}
+			else
+			{ // POST failed
+			  retries++;
+			  DPRINT("[POST] Failed, not removing file\n");
+			}
+		}
+	}
   }
 
   PROCESS_END();
@@ -931,7 +956,7 @@ PROCESS_THREAD(post_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  static uint8_t retries;
+  /*static uint8_t retries;
 
   static uip_ipaddr_t addr;
 
@@ -1010,7 +1035,7 @@ PROCESS_THREAD(post_process, ev, data)
       }
     }
     PSOCK_CLOSE(&ps);
-  }
+  }*/
   PROCESS_END();
 }
 

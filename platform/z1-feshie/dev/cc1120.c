@@ -1766,11 +1766,11 @@ PROCESS_THREAD(cc1120_process, ev, data)
 	PROCESS_POLLHANDLER(processor());	
 	
 	PROCESS_BEGIN();
-	printf("cc1120_process: started\n");
+	printf("cc1120 start\n");
 	
 	PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_EXIT);
 	
-	printf("cc1120_process: terminated\n");
+	printf("cc1120 end\n");
 	PROCESS_END();
 }
 
@@ -1813,10 +1813,10 @@ void processor(void)
 	}
 		
 	LEDS_OFF(LEDS_RED);
-	if(locked)
-	{
-		printf("Locked %u\n", locked); 
-	}
+//	if(locked)
+//	{
+//		printf("Locked %u\n", locked); 
+//	}
 	
 	if(radio_on)
 	{
