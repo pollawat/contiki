@@ -106,7 +106,6 @@
 #endif
 
 
-
 #define LIVE_CONNECTION_TIMEOUT 300
 #define CONNECTION_RETRIES 3
 
@@ -889,11 +888,12 @@ PROCESS_THREAD(sample_process, ev, data)
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
-	CC1120_LOCK_SPI();
-	
+    NETSTACK_MAC.off(0);	
+	  CC1120_LOCK_SPI();
     filename = get_next_write_filename(ostream.bytes_written);
     if(filename == NULL) {
-	  CC1120_RELEASE_SPI();	
+	    CC1120_RELEASE_SPI();	
+      NETSTACK_MAC.on();	
       continue;
     }
 
@@ -914,6 +914,7 @@ PROCESS_THREAD(sample_process, ev, data)
       DPRINT("[SAMP] Failed to open file %s\n", filename);
     }
     CC1120_RELEASE_SPI();
+    NETSTACK_MAC.on();	
     
     watchdog_periodic();
   }
