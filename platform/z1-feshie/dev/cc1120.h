@@ -78,6 +78,9 @@ uint8_t cc1120_spi_cmd_strobe(uint8_t strobe);
 uint8_t cc1120_spi_single_read(uint16_t addr);
 uint8_t cc1120_spi_single_write(uint16_t addr, uint8_t val);
 
+void CC1120_LOCK_SPI(void);
+void CC1120_RELEASE_SPI(void);
+
 
 /* --------------------- CC1120 State Functions ---------------------------- */
 uint8_t cc1120_set_state(uint8_t state);

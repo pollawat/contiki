@@ -129,8 +129,6 @@
 /* -------------------- Internal Function Definitions. -------------------- */
 static void on(void);
 static void off(void);
-static void LOCK_SPI(void);
-static void RELEASE_SPI(void);
 static void processor(void);
 
 /* ---------------------- CC1120 SPI Functions ----------------------------- */
@@ -201,7 +199,7 @@ cc1120_driver_init(void)
 			printf("CC1125\n");
 			break;
 		default:	/* Not a supported chip or no chip present... */
-			printf("*** ERROR: Unsupported radio or no radio (%02x detected) ***\n", part);
+			printf("*** ERROR: No Radio ***\n", part);
 			while(1)	/* Spin ad infinitum as we cannot continue. */
 			{
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -227,7 +225,7 @@ cc1120_driver_init(void)
 	/* Enable CC1120 interrupt. */
 	cc1120_arch_interrupt_enable();
 	
-	PRINTF("\tCC1120 Initialised and OFF\n");
+	PRINTF("\tCC1120 Init\n");
 	return 1;
 }
 
@@ -294,7 +292,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 
 		return RADIO_TX_ERR;
 	}
-	LOCK_SPI();
+	CC1120_LOCK_SPI();
 	radio_pending |= TRANSMITTING;
 	radio_pending &= ~(TX_COMPLETE);
 	
@@ -391,7 +389,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	
 	/* Block until in TX.  If timeout is reached, strobe IDLE and 
 	 * reset CCA to clear TX & flush FIFO. */
-	while(cur_state != CC1120_STATUS_TX)
+	while(!cc1120_arch_read_gpio3()) //cur_state != CC1120_STATUS_TX)
 	{
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		
@@ -410,7 +408,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			LEDS_OFF(LEDS_GREEN);	
 
 			cc1120_flush_tx();		
-			RELEASE_SPI();	
+			CC1120_RELEASE_SPI();	
 			
 			PRINTFTXERR("!!! TX ERROR: Collision before TX - Timeout reached. !!!\n");
 			RIMESTATS_ADD(contentiondrop);
@@ -433,7 +431,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			PRINTFTXERR("!!! TX ERROR: FIFO Error. !!!\n");	
 			LEDS_OFF(LEDS_GREEN);		/* Turn off LED if it is being used. */
 			
-			RELEASE_SPI();
+			CC1120_RELEASE_SPI();
 			lbt_success = 0;
 			if(radio_on)
 			{
@@ -464,7 +462,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			cc1120_flush_tx();
 		}
 
-		RELEASE_SPI();
+		CC1120_RELEASE_SPI();
 		LEDS_OFF(LEDS_GREEN);	/* Turn off LED if it is being used. */			
 		
 		if(radio_on)
@@ -481,7 +479,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	t0 = RTIMER_NOW();
 	
 	/* Block till TX is complete. */	
-	while(!(radio_pending & TX_COMPLETE))
+	while(cc1120_arch_read_gpio3())
 	{
 		/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -522,11 +520,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	PRINTFTX("\n");	
 	ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);			
 	LEDS_OFF(LEDS_GREEN);
-	RELEASE_SPI();
+	CC1120_RELEASE_SPI();
 	radio_pending &= ~(TRANSMITTING);
 	t0 = RTIMER_NOW();
 		
-	if((!(radio_pending & TX_COMPLETE)) || (cc1120_read_txbytes() > 0))
+	if(cc1120_read_txbytes() > 0)
 	{	
 		PRINTFTXERR("\tTX NOT OK %d, %d.\n",(radio_pending & TX_COMPLETE), cc1120_read_txbytes() );	
 		cc1120_flush_tx();		/* Flush TX FIFO. */
@@ -619,7 +617,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 				if(transmit_len == 3)
 				{
 					/* It is an ACK. */
-					LOCK_SPI();
+					CC1120_LOCK_SPI();
 
 					cc1120_arch_spi_enable();
 					cc1120_arch_rxfifo_read(ack_buf, transmit_len);
@@ -627,7 +625,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 					
 					ack_seq = ack_buf[2];	
 				
-					RELEASE_SPI();
+					CC1120_RELEASE_SPI();
 				}
 				
 			}
@@ -741,7 +739,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		return 0;
 	}
 	
-	LOCK_SPI();
+	CC1120_LOCK_SPI();
 	PRINTFRX("\tPacket received.\n"); 
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
 		
@@ -868,13 +866,13 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	if(radio_pending & RX_FIFO_UNDER)
 	{
 		/* FIFO underflow */
-		RELEASE_SPI();
+		CC1120_RELEASE_SPI();
 		cc1120_flush_rx();
 		PRINTFRXERR("\tERROR: RX FIFO underflow. Meant to have %d bytes\n", length);	
 		return 0;		
 	}
 	
-	RELEASE_SPI();
+	CC1120_RELEASE_SPI();
 	
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
@@ -1205,14 +1203,14 @@ off(void)
 	cc1120_set_state(CC1120_OFF_STATE);			/* Put radio into the off state defined in platform-conf.h. */
 }
 
-static void
-LOCK_SPI(void)
+void
+CC1120_LOCK_SPI(void)
 {
 	locked++;
 }
 
-static void 
-RELEASE_SPI(void)
+void 
+CC1120_RELEASE_SPI(void)
 {
 	locked--;
 	

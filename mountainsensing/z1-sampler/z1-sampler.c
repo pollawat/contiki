@@ -65,9 +65,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cfs/cfs.h"
+#include <watchdog.h>
 
 // Networking
 #include "contiki-net.h"
+#include "cc1120.h"
 
 // Protobuf
 #include "dev/pb_decode.h"
@@ -91,7 +93,6 @@
     #define DPRINT(...)
 #endif
 
-#define AVRDEFBUG
 #ifdef AVRDEFBUG
     #define AVRDPRINT(...) printf(__VA_ARGS__)
 #else
@@ -676,7 +677,7 @@ PROCESS_THREAD(web_sense_process, ev, data)
   #endif
 
   process_start(&web_process, NULL);
-  process_start(&sample_process, NULL);
+  //process_start(&sample_process, NULL);
   process_start(&post_process, NULL);
 
 
@@ -765,7 +766,25 @@ static char* get_next_write_filename(uint8_t length)
 
 PROCESS_THREAD(sample_process, ev, data)
 {
+  static struct etimer stimer;
+  static uint8_t pb_buf[Sample_size];
+  static int fd;
+  static Sample sample;
+  static int i;
+  static char* filename;
+  static uint8_t avr_id;
+  static struct ctimer avr_timeout_timer;
+  static uint8_t avr_recieved;
+  static uint8_t avr_retry_count;
+  static pb_ostream_t ostream;
+  
   PROCESS_BEGIN();
+
+  avr_recieved = 0;
+  avr_retry_count = 0;
+
+  protobuf_event = process_alloc_event();
+  protobuf_register_process_callback(&sample_process, protobuf_event) ;
 
   if(get_config(SAMPLE_CONFIG) == 1)
   { // Config file does not exist! Use default and set file
@@ -776,20 +795,7 @@ PROCESS_THREAD(sample_process, ev, data)
     sensor_config.hasRain = SENSOR_HASRAIN;
     set_config(SAMPLE_CONFIG);
   }
-
-  static struct etimer stimer;
-  static uint8_t pb_buf[Sample_size];
-  static int fd;
-  static Sample sample;
-  static int i;
-  static char* filename;
-  static uint8_t avr_id;
-  static struct ctimer avr_timeout_timer;
-  static uint8_t avr_recieved = 0;
-  static uint8_t avr_retry_count = 0;
-
-  protobuf_event = process_alloc_event();
-  protobuf_register_process_callback(&sample_process, protobuf_event) ;
+  
   printf("Sample interval set to: %d\n",sensor_config.interval); 
 
 #ifdef SENSE_ON
@@ -798,12 +804,14 @@ PROCESS_THREAD(sample_process, ev, data)
 #endif
 
 
-SENSORS_ACTIVATE(event_sensor);
+  SENSORS_ACTIVATE(event_sensor);
   DPRINT("[SAMP] Sampling sensors activated\n");
   while(1)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
+    printf(" S ");
+    watchdog_periodic();
     ms1_sense_on();
     sample.time = get_time();
 
@@ -837,14 +845,15 @@ SENSORS_ACTIVATE(event_sensor);
       sample.rain = get_sensor_rain();
     }
     
-    AVRDPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
+   AVRDPRINT("[SAMP][AVR] number: %d\n", sensor_config.avrIDs_count);
     for(i=0; i < sensor_config.avrIDs_count; i++){
         avr_id = sensor_config.avrIDs[i] & 0xFF; //only use 8bits
         AVRDPRINT("[SAMP][AVR] using ID: %d\n", avr_id);
         avr_recieved = 0;
         avr_retry_count = 0;
         data = NULL;
-        do{
+        watchdog_periodic();
+        do {
             protobuf_send_message(0x01, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
             AVRDPRINT("Sent message %d\n", i);
             i = i+1;
@@ -876,21 +885,26 @@ SENSORS_ACTIVATE(event_sensor);
                 avr_retry_count++;
             }
             AVRDPRINT("avr_recieved = %d\n", avr_recieved);
-        }while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
+            watchdog_periodic();
+        } while(avr_recieved ==0 && avr_retry_count < PROTOBUF_RETRIES);
     }
 #ifndef SENSE_ON
     ms1_sense_off();
 #endif
-    static pb_ostream_t ostream;
+
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
+	CC1120_LOCK_SPI();
+	
     filename = get_next_write_filename(ostream.bytes_written);
     if(filename == NULL) {
+	  CC1120_RELEASE_SPI();	
       continue;
     }
 
     AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
+    printf(" F %d %s", ostream.bytes_written, filename);
 
     fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
     if(fd >= 0)
@@ -905,6 +919,9 @@ SENSORS_ACTIVATE(event_sensor);
     {
       DPRINT("[SAMP] Failed to open file %s\n", filename);
     }
+    CC1120_RELEASE_SPI();
+    
+    watchdog_periodic();
   }
 
   PROCESS_END();
