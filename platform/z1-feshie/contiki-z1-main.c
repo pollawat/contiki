@@ -211,7 +211,7 @@ main(int argc, char **argv)
   msp430_cpu_init();
   clock_init();
   ms1_io_init(); 
-  i2c_enable();
+  //i2c_enable();
   
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
