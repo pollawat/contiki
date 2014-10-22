@@ -83,7 +83,6 @@
 #include "sampling-sensors.h"
 #include "ms1-io.h"
 
-#define MAX_POST_SIZE 80
 
 //#define DEBUG 
 
@@ -155,6 +154,11 @@ static char *url;
 #else
     static char cfg_buf[POSTConfig_size + 4];
 #endif
+
+static char write_filename[FILENAME_LENGTH];
+static char read_filename[FILENAME_LENGTH];
+
+
 
 /*
  * Sets the Sampler configuration (writes it to flash).
@@ -677,7 +681,7 @@ PROCESS_THREAD(web_sense_process, ev, data)
   #endif
 
   process_start(&web_process, NULL);
-  //process_start(&sample_process, NULL);
+  process_start(&sample_process, NULL);
   process_start(&post_process, NULL);
 
 
@@ -691,15 +695,14 @@ PROCESS_THREAD(web_sense_process, ev, data)
  */
 static char* get_next_read_filename()
 {
-  static char filename[8];
   static struct cfs_dirent dirent;
   static struct cfs_dir dir;
 
   if(cfs_opendir(&dir, "/") == 0) {
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
-        strcpy(filename, dirent.name);
-        return filename;
+        strcpy(read_filename, dirent.name);
+        return read_filename;
       }
     }
   }
@@ -713,7 +716,6 @@ static char* get_next_read_filename()
 static char* get_next_write_filename(uint8_t length)
 {
   FILEDEBUG("get_next_write_filename\n");
-  char filename[8];
   struct cfs_dirent dirent;
   struct cfs_dir dir;
   uint16_t file_num;
@@ -723,8 +725,8 @@ static char* get_next_write_filename(uint8_t length)
   max_num = 0;
   //file_size = 0;
 
-  filename[0] = 'r';
-  filename[1] = '_';
+  write_filename[0] = 'r';
+  write_filename[1] = '_';
 
   if(cfs_opendir(&dir, "/") == 0) {
     FILEDEBUG("\tOpened folder\n");
@@ -741,23 +743,15 @@ static char* get_next_write_filename(uint8_t length)
     }
     if(max_num == 0) {
       FILEDEBUG("\tNo previous files found\n");
-      filename[2] = '1';
-      filename[3] = 0;
+      write_filename[2] = '1';
+      write_filename[3] = 0;
     }else{
       FILEDEBUG("\t Previous file %d\n", max_num);
-      itoa(max_num + 1, filename + 2, 10);
+      itoa(max_num + 1, write_filename + 2, 10);
     }
 
-/* stop multiple PBs being saved
-    else if((uint16_t)file_size + (uint16_t)length > MAX_POST_SIZE) {
-      itoa(max_num + 1, filename + 2, 10);
-    }
-    else {
-      itoa(max_num, filename + 2, 10);
-    }
-*/
     FILEDEBUG("Returning %s\n", filename);
-    return filename;
+    return write_filename;
   }else{
     DPRINT("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
     return NULL;
