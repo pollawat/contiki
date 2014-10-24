@@ -70,6 +70,8 @@
 // Networking
 #include "contiki-net.h"
 #include "cc1120.h"
+#include "uip-ds6.h"
+#include "uip-debug.h"
 
 // Protobuf
 #include "dev/pb_decode.h"
@@ -778,6 +780,7 @@ PROCESS_THREAD(sample_process, ev, data)
   static uint8_t avr_retry_count;
   static pb_ostream_t ostream;
   static uip_ipaddr_t addr;
+  static uip_ds6_addr_t *n_addr;
   
   PROCESS_BEGIN();
 
@@ -811,7 +814,7 @@ PROCESS_THREAD(sample_process, ev, data)
   {
     etimer_set(&stimer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&stimer));
-    printf(" S ");
+     
     watchdog_periodic();
     ms1_sense_on();
     sample.time = get_time();
@@ -896,54 +899,73 @@ PROCESS_THREAD(sample_process, ev, data)
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
-	uip_ip6addr(&addr,
-          POST_IP0, POST_IP1, POST_IP2, POST_IP3, 
-          POST_IP4, POST_IP5, POST_IP6, POST_IP7);
-    
-    retries = 0;
 
-	while(retries < CONNECTION_RETRIES)
-    {
-		memcpy(data2, pb_buf, ostream.bytes_written);
-		data_length = ostream.bytes_written;
+
+	//post.
+	   
+    n_addr = uip_ds6_get_global(-1);
+	if(n_addr == NULL) {
+		/* We are not associated, don't post. */
+		printf("No Global Addr.\n ");
+	} else {
+		/* Post data. */
 		
-		tcp_connect(&addr, UIP_HTONS(POST_PORT), NULL);
-		DPRINT("Connecting...\n");
-		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+		/* TODO: Check for different configured post IP. */
+		/* Set Post IP as [ASSOCIATED PREFIX]::1 */
+		uip_ip6addr_u8(&addr,
+			  n_addr->ipaddr.u8[0], n_addr->ipaddr.u8[1], 
+			  n_addr->ipaddr.u8[2], n_addr->ipaddr.u8[3], 
+			  n_addr->ipaddr.u8[4], n_addr->ipaddr.u8[5], 
+			  n_addr->ipaddr.u8[6], n_addr->ipaddr.u8[7], 
+			  0, 0, 0, 0, 0, 0, 0, 1);
 		
-		if(uip_aborted() || uip_timedout() || uip_closed()) {
-			DPRINT("Could not establish connection\n");
-			retries++;
-		} else if(uip_connected()) {
-			DPRINT("Connected\n");
-			PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
-			etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
-			do {
-			  if(etimer_expired(&timeout_timer))
-			  {
-				DPRINT("Connection took too long. TIMEOUT\n");
-				PSOCK_CLOSE(&ps);
+		uip_debug_ipaddr_print(&addr);
+	
+		retries = 0;
+
+		while(retries < CONNECTION_RETRIES)
+		{
+			memcpy(data2, pb_buf, ostream.bytes_written);
+			data_length = ostream.bytes_written;
+			
+			tcp_connect(&addr, UIP_HTONS(POST_PORT), NULL);
+			DPRINT("Connecting...\n");
+			PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+			
+			if(uip_aborted() || uip_timedout() || uip_closed()) {
+				DPRINT("Could not establish connection\n");
 				retries++;
-				break;
-			  }
-			  else if(data_length > 0)
-			  {
-				DPRINT("[POST] Handle Connection\n");
-				handle_connection(&ps);
-				PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
-			  }
-			} while(!(uip_closed() || uip_aborted() || uip_timedout()));
-			DPRINT("\nConnection closed.\n");
-			DPRINT("Status = %d\n", http_status);
-			if(http_status/100 == 2)
-			{ // Status OK
-			  retries = CONNECTION_RETRIES + 1;
-			  DPRINT("[POST] Removing file\n");
-			}
-			else
-			{ // POST failed
-			  retries++;
-			  DPRINT("[POST] Failed, not removing file\n");
+			} else if(uip_connected()) {
+				DPRINT("Connected\n");
+				PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
+				etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+				do {
+				  if(etimer_expired(&timeout_timer))
+				  {
+					DPRINT("Connection took too long. TIMEOUT\n");
+					PSOCK_CLOSE(&ps);
+					retries++;
+					break;
+				  }
+				  else if(data_length > 0)
+				  {
+					DPRINT("[POST] Handle Connection\n");
+					handle_connection(&ps);
+					PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+				  }
+				} while(!(uip_closed() || uip_aborted() || uip_timedout()));
+				DPRINT("\nConnection closed.\n");
+				DPRINT("Status = %d\n", http_status);
+				if(http_status/100 == 2)
+				{ // Status OK
+				  retries = CONNECTION_RETRIES + 1;
+				  DPRINT("[POST] Removing file\n");
+				}
+				else
+				{ // POST failed
+				  retries++;
+				  DPRINT("[POST] Failed, not removing file\n");
+				}
 			}
 		}
 	}
