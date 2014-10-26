@@ -187,16 +187,21 @@ cc1120_driver_init(void)
 	/* Check CC1120 - we read the part number register as a test. */
 	uint8_t part = cc1120_spi_single_read(CC1120_ADDR_PARTNUMBER);
 	
-	switch(part)
-	{
+	switch(part) {
 		case CC1120_PART_NUM_CC1120:
-			printf("CC1120\n");
+			printf("CC1120");
 			break;
 		case CC1120_PART_NUM_CC1121:
-			printf("CC1121\n");
+			printf("CC1121");
 			break;
 		case CC1120_PART_NUM_CC1125:
-			printf("CC1125\n");
+			printf("CC1125");
+			break;
+		case CC1120_PART_NUM_CC1200:
+			printf("CC1200");
+			break;
+		case CC1120_PART_NUM_CC1201:
+			printf("CC1201");
 			break;
 		default:	/* Not a supported chip or no chip present... */
 			printf("*** ERROR: No Radio ***\n", part);
@@ -225,7 +230,7 @@ cc1120_driver_init(void)
 	/* Enable CC1120 interrupt. */
 	cc1120_arch_interrupt_enable();
 	
-	PRINTF("\tCC1120 Init\n");
+	PRINTF(" Init\n");
 	return 1;
 }
 
@@ -234,8 +239,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 {
 	PRINTFTX("**** Radio Driver: Prepare ****\n");
 
-	if(len > CC1120_MAX_PAYLOAD)
-	{
+	if(len > CC1120_MAX_PAYLOAD) {
 		/* Packet is too large - max packet size is 125 bytes. */
 		PRINTFTXERR("!!! PREPARE ERROR: Packet too large. !!!\n");
 		return RADIO_TX_ERR;
@@ -253,13 +257,10 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	tx_len = len;
 	RIMESTATS_ADD(lltx);
 	
-	if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) 
-	{
+	if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) {
 		broadcast = 1;
 		PRINTFTX("\tBroadcast\n");
-	}
-	else
-	{
+	} else {
 		broadcast = 0;
 		PRINTFTX("\tUnicast, Seqno = %d\n", tx_seq);
 	}
@@ -268,8 +269,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	lbt_success = 0;
 	
 	/* If radio is meant to be in RX, put it back in. */
-	if(radio_on)
-	{	
+	if(radio_on) {	
 		cc1120_set_state(CC1120_STATE_RX);
 	}
 	
@@ -285,8 +285,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	watchdog_periodic();	/* Feed the dog to stop reboots. */
 	
 	/* Check that the packet is not too large. */
-	if(transmit_len > CC1120_MAX_PAYLOAD)
-	{
+	if(transmit_len > CC1120_MAX_PAYLOAD) {
 		/* Packet is too large - max packet size is 125 bytes. */
 		PRINTFTX("!!! TX ERROR: Packet too large. !!!\n");
 
@@ -298,8 +297,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	
 	LEDS_ON(LEDS_GREEN);
 	
-	if(ack_tx == 1)
-	{
+	if(ack_tx == 1) {
 		/* Wrong data in the FIFO. Re-write the FIFO. */
 		cc1120_flush_tx();
 		cc1120_write_txfifo(tx_buf, tx_len);
@@ -308,8 +306,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	
 	/* check if this is a retransmission */
 	txbytes = cc1120_read_txbytes();
-	if(txbytes == 0)
-	{
+	if(txbytes == 0) {
 		PRINTFTX("\tRetransmit last packet.\n");
 
 		/* Retransmit last packet. */
@@ -321,8 +318,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		txbytes = cc1120_read_txbytes();
 	}
 	
-	if(txbytes != tx_len + 1)
-	{
+	if(txbytes != tx_len + 1) {
 		/* re-load the FIFO. */
 		cc1120_flush_tx();
 		cc1120_write_txfifo(tx_buf, tx_len);
@@ -334,29 +330,21 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	txlast = cc1120_spi_single_read(CC1120_ADDR_TXLAST);
 	
 	/* Set correct TXOFF mode. */
-	if(broadcast)
-	{
+	if(broadcast) {
 		/* Not expecting an ACK. */
 		cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);	/* Set TXOFF Mode to IDLE as we are not expecting ACK. */
-	}
-	else
-	{
+	} else {
 		/* Expecting an ACK. */
 		cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x30);	/* Set TXOFF Mode to RX as we are expecting ACK. */
 	}
 	
-	
 #if RDC_CONF_HARDWARE_CSMA
 	/* If we use LBT... */
-	
-
-	if(lbt_success == 0) 
-	{
+	if(lbt_success == 0) {
 		PRINTFTX("\tTransmitting with LBT.\n");
 		
 		/* Set RX if radio is not already in it. */
-		if(cc1120_get_state() != CC1120_STATUS_RX)
-		{   
+		if(cc1120_get_state() != CC1120_STATUS_RX) {   
 			PRINTFTX("\tEnter RX for CCA.\n");		
 			cc1120_set_state(CC1120_STATE_RX);
 		}
@@ -364,20 +352,16 @@ cc1120_driver_transmit(unsigned short transmit_len)
 		PRINTFTX("\tWait for valid RSSI.");
 		
 		/* Wait for RSSI to be valid. */
-		while(!(cc1120_spi_single_read(CC1120_ADDR_RSSI0) & (CC1120_RSSI_VALID)))
-		{
+		while(!(cc1120_spi_single_read(CC1120_ADDR_RSSI0) & (CC1120_RSSI_VALID))) {
 			PRINTFTX(".");
 			watchdog_periodic();	/* Feed the dog to stop reboots. */
 		}
 		PRINTFTX("\n");
 		PRINTFTX("\tTX: Enter TX\n");
-	}
-	else
-	{
+	} else {
 		/* Retransmitting last packet not using LBT. */
 		PRINTFTX("Retransmitting last  packet.\n");
-		if(cc1120_get_state() == CC1120_STATUS_RX)
-		{   
+		if(cc1120_get_state() == CC1120_STATUS_RX) {   
 			PRINTFTX("\tEnter IDLE.\n");		
 			cc1120_set_state(CC1120_STATE_IDLE);
 		}
@@ -389,12 +373,10 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	
 	/* Block until in TX.  If timeout is reached, strobe IDLE and 
 	 * reset CCA to clear TX & flush FIFO. */
-	while(!cc1120_arch_read_gpio3()) //cur_state != CC1120_STATUS_TX)
-	{
+	while(!cc1120_arch_read_gpio3()) {
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		
-		if(RTIMER_CLOCK_LT((t0 + CC1120_LBT_TIMEOUT), RTIMER_NOW()) )
-		{
+		if(RTIMER_CLOCK_LT((t0 + CC1120_LBT_TIMEOUT), RTIMER_NOW()) ) {
 			/* Timeout reached. */
 			cc1120_set_state(CC1120_STATE_IDLE);
 			
@@ -414,15 +396,12 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			RIMESTATS_ADD(contentiondrop);
 			lbt_success = 0;
 			
-			if(radio_on)
-			{
+			if(radio_on) {
 				on();
 			}
 			/* Return Collision. */
 			return RADIO_TX_COLLISION;
-		}
-		else if (radio_pending & TX_FIFO_ERROR)
-		{
+		} else if (radio_pending & TX_FIFO_ERROR) {
 			/* Set Energest and TX flag. */
 			ENERGEST_OFF(ENERGEST_TYPE_TRANSMIT);
 			radio_pending &= ~(TRANSMITTING);
@@ -433,8 +412,7 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			
 			CC1120_RELEASE_SPI();
 			lbt_success = 0;
-			if(radio_on)
-			{
+			if(radio_on) {
 				on();
 			}
 			return RADIO_TX_ERR;
@@ -450,23 +428,20 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	/* Enter TX. */
 	cur_state = cc1120_set_state(CC1120_STATE_TX);
 
-	if(cur_state != CC1120_STATUS_TX)
-	{
+	if(cur_state != CC1120_STATUS_TX) {
 		/* We didn't TX... */
 		radio_pending &= ~(TRANSMITTING);
 
 		PRINTFTXERR("!!! TX ERROR: did not enter TX. Current state = %02x !!!\n", cur_state);
 		
-		if(radio_pending & TX_FIFO_ERROR)
-		{
+		if(radio_pending & TX_FIFO_ERROR) {
 			cc1120_flush_tx();
 		}
 
 		CC1120_RELEASE_SPI();
 		LEDS_OFF(LEDS_GREEN);	/* Turn off LED if it is being used. */			
 		
-		if(radio_on)
-		{
+		if(radio_on) {
 			on();
 		}	
 		
@@ -479,21 +454,18 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	t0 = RTIMER_NOW();
 	
 	/* Block till TX is complete. */	
-	while(cc1120_arch_read_gpio3())
-	{
+	while(cc1120_arch_read_gpio3()) {
 		/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 		watchdog_periodic();	/* Feed the dog to stop reboots. */
 		PRINTFTX(".");
 		
-		if(radio_pending & TX_FIFO_ERROR)
-		{
+		if(radio_pending & TX_FIFO_ERROR) {
 			/* TX FIFO has underflowed during TX.  Need to flush TX FIFO. */
 			cc1120_flush_tx();
 			break;
 		}
 		
-		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
-		{
+		if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW())) {
 			/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
 			 * TX FIFO (all 128 bits) should be transmitted in 0.02 
 			 * seconds. Timeout set to 0.05 seconds to be sure.  If 
@@ -502,14 +474,11 @@ cc1120_driver_transmit(unsigned short transmit_len)
 			 * 
 			 * This timeout needs to be adjusted if lower data rates 
 			 * are used. */	 
-			if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
-			{
+			if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR)) {
 				/* We have actually transmitted everything in the FIFO. */
 				radio_pending |= TX_COMPLETE;
 				PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
-			}
-			else
-			{
+			} else {
 				cc1120_set_state(CC1120_STATE_IDLE);
 				PRINTFTXERR("!!! TX ERROR: TX timeout reached !!!\n");						
 			}
@@ -524,98 +493,74 @@ cc1120_driver_transmit(unsigned short transmit_len)
 	radio_pending &= ~(TRANSMITTING);
 	t0 = RTIMER_NOW();
 		
-	if(cc1120_read_txbytes() > 0)
-	{	
+	if(cc1120_read_txbytes() > 0) {	
 		PRINTFTXERR("\tTX NOT OK %d, %d.\n",(radio_pending & TX_COMPLETE), cc1120_read_txbytes() );	
 		cc1120_flush_tx();		/* Flush TX FIFO. */
 		cc1120_flush_rx();		/* Flush RX FIFO. */
-		
-		printf("txbytes = %d\n", cc1120_read_txbytes());
-		
 		radio_pending &= ~(TX_ERROR | ACK_PENDING);
-		
-		if(radio_on)
-		{
+		if(radio_on) {
 			on();
 		}
 		
 		return RADIO_TX_ERR;
-	}
-	else
-	{
+	} else {
 		PRINTFTX("\tTX OK.\n");
 		
 		radio_pending &= ~(TX_ERROR);
 		cur_state = cc1120_get_state();
 		marc_state = cc1120_spi_single_read(CC1120_ADDR_MARCSTATE) & 0x1F;	
 		
-		if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX))
-		{
+		if((marc_state == CC1120_MARC_STATE_MARC_STATE_TX_END) && (cur_state == CC1120_STATUS_TX)) {
 			cc1120_set_state(CC1120_STATE_IDLE);
-		}
-		else if(cur_state == CC1120_STATUS_TX)
-		{
+		} else if(cur_state == CC1120_STATUS_TX) {
 			/* Should never get here, just here for security. */
 			printf("!!!!! TX ERROR: Still in TX according to status byte. !!!\n");
 			cc1120_set_state(CC1120_STATE_IDLE);
 		}
 		
-		if(broadcast)
-		{
+		if(broadcast) {
 			/* We have TX'd broadcast successfully. We are not expecting 
 			 * an ACK so clear RXFIFO incase, wait for interpacket and return OK. */
 			PRINTFTX("\tBroadcast TX OK\n");
 			cc1120_flush_rx();	
 			radio_pending &= ~(ACK_PENDING);	/* NOT expecting and ACK. */	
 			cc1120_flush_tx();
-			while(RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CC1120_INTER_PACKET_INTERVAL))
-			{ 
+			while(RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CC1120_INTER_PACKET_INTERVAL)) { 
 					watchdog_periodic();
 			}
-			if(radio_on)
-			{
+			if(radio_on) {
 				on();
 			}
 			
 			return RADIO_TX_OK;	
-		}		
-		else 
-		{
+		} else {
 			/* We have successfully sent the packet but want an ACK. */
-			if(packet_pending)
-			{
+			if(packet_pending) {
 				/* There is a packet inthe FIFO that should not be there */
 				cc1120_flush_rx();
 			}
-			if(cc1120_get_state() != CC1120_STATUS_RX)
-			{
+			if(cc1120_get_state() != CC1120_STATUS_RX) {
 				/* Need to be in RX for the ACK. */
 				cc1120_set_state(CC1120_STATE_RX);
 			}
 			radio_pending |= ACK_PENDING;
-			if(tx_seq == 0)
-			{
+			if(tx_seq == 0) {
 				ack_buf[2] = 128;	/* Handle wrapping sequence numbers. */
-			}
-			else
-			{
+			} else {
 				ack_buf[2] = 0;
 			}
 			
 			/* Wait for the ACK. */
-			while((RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CC1120_INTER_PACKET_INTERVAL)))
-			{
+			while((RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CC1120_INTER_PACKET_INTERVAL))) {
 				/* Wait till timeout or ACK is received. */
 				watchdog_periodic();		/* Feed the dog to stop reboots. */
 			}
 			
-			if(cc1120_get_state() != CC1120_STATUS_RX || cc1120_read_rxbytes() > 0)
-			{
+			if(cc1120_get_state() != CC1120_STATUS_RX || cc1120_read_rxbytes() > 0) {
 				/* We have received something. */
 				transmit_len = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 				
-				if(transmit_len == 3)
-				{
+				if(transmit_len == 3) {
 					/* It is an ACK. */
 					CC1120_LOCK_SPI();
 
@@ -626,43 +571,34 @@ cc1120_driver_transmit(unsigned short transmit_len)
 					ack_seq = ack_buf[2];	
 				
 					CC1120_RELEASE_SPI();
-				}
-				
+				}	
 			}
 			
 			radio_pending &= ~(ACK_PENDING);
 			cc1120_flush_tx();
 			cc1120_flush_rx();	
-			
-			if(radio_on)
-			{
+			if(radio_on) {
 				on();
 			}
 	
-			if(ack_buf[2] == tx_seq)
-			{
+			if(ack_buf[2] == tx_seq) {
 				/* We have received the required ACK. */
 				PRINTFTX("\tACK Rec %d\n", ack_buf[2]);
 				return RADIO_TX_OK;
-			}
-			else
-			{
+			} else {
 				/* No ACK received. */
 				PRINTFTX("\tNo ACK received.\n");
 				return RADIO_TX_NOACK;
 			}
-			
 		}	
 		cc1120_flush_tx();
-		if(radio_on)
-		{
+		if(radio_on) {
 			on();
 		}
 		return RADIO_TX_OK;
 	}
 	cc1120_flush_tx();
-	if(radio_on)
-	{
+	if(radio_on) {
 		on();
 	}
 	return RADIO_TX_ERR;
@@ -672,8 +608,7 @@ int
 cc1120_driver_send_packet(const void *payload, unsigned short payload_len)
 {
 	PRINTFTX("**** Radio Driver: Send ****\n");
-	if(cc1120_driver_prepare(payload, payload_len) != RADIO_TX_OK)
-	{
+	if(cc1120_driver_prepare(payload, payload_len) != RADIO_TX_OK) {
 		return RADIO_TX_ERR;
 	}
 	
@@ -687,9 +622,9 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 
 	uint8_t length, tmp, i, rxbytes = 0;
 	rimeaddr_t dest;
+	rtimer_clock_t t0;   
 		
-	if(radio_pending & RX_FIFO_UNDER)
-	{
+	if(radio_pending & RX_FIFO_UNDER) {
 		/* FIFO underflow */
 		cc1120_flush_rx();
 		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");		
@@ -698,8 +633,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	rxbytes = cc1120_read_rxbytes();
 	
-	if(rxbytes < CC1120_MIN_PAYLOAD)
-	{
+	if(rxbytes < CC1120_MIN_PAYLOAD) {
 		/* not enough data. */
 		cc1120_flush_rx();
 		RIMESTATS_ADD(tooshort);
@@ -711,26 +645,21 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	/* Read length byte. */
 	length = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	
-	if((length + 2) > rxbytes)
-	{
+	if((length + 2) > rxbytes) {
 		/* Packet too long, out of Sync? */
 		cc1120_flush_rx();
 			
 		RIMESTATS_ADD(badsynch);
 		PRINTFRXERR("\tERROR: not enough data in FIFO. Length = %d, rxbytes = %d\n", length, rxbytes);
 		return 0;
-	}
-	else if(length > CC1120_MAX_PAYLOAD)
-	{
+	} else if(length > CC1120_MAX_PAYLOAD) {
 		/* Packet too long, out of Sync? */
 		cc1120_flush_rx();
 		
 		RIMESTATS_ADD(badsynch);
 		PRINTFRXERR("\tERROR: Packet longer than FIFO or bad sync\n");
 		return 0;
-	}
-	else if((length) > buf_len) 
-	{
+	} else if((length) > buf_len) {
 		/* Packet is too long. */
 		cc1120_flush_rx();
 		
@@ -746,23 +675,17 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	/* We have received a normal packet. Read the packet. */
 	PRINTFRX("\tRead FIFO.\n");
 
-	
-
 	cc1120_arch_spi_enable();
 	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 	
-	for(i = 0; i < length; i++)
-	{
-		//(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_STANDARD_BIT | CC1120_READ_BIT);
+	for(i = 0; i < length; i++) {
 		((uint8_t *)buf)[i] = cc1120_arch_spi_rw_byte(0);
-		if((i == 13) && (((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ))
-		{
+		
+		if((i == 13) && (((uint8_t *)buf)[0] & CC1120_802154_FCF_ACK_REQ)) {
 			/* ACK handling. */
-			
-			
+
 			/* Get the address in the correct order. */
-			if((((uint8_t *)buf)[1] & 0x0C) == 0x0C)
-			{
+			if((((uint8_t *)buf)[1] & 0x0C) == 0x0C) {
 				/* Long address. */
 				dest.u8[7] = ((uint8_t *)buf)[5];
 				dest.u8[6] = ((uint8_t *)buf)[6];
@@ -772,24 +695,17 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				dest.u8[2] = ((uint8_t *)buf)[10];
 				dest.u8[1] = ((uint8_t *)buf)[11];
 				dest.u8[0] = ((uint8_t *)buf)[12];
-			}
-			else if((((uint8_t *)buf)[1] & 0x08) == 0x08)
-			{
+			} else if((((uint8_t *)buf)[1] & 0x08) == 0x08) {
 				/* Short address. */
 				dest.u8[1] = ((uint8_t *)buf)[5];
 				dest.u8[0] = ((uint8_t *)buf)[6];
 			}
 			
 			/* Work out if we need to send an ACK. */
-			if(rimeaddr_cmp(&dest, &rimeaddr_node_addr))
-			{
+			if(rimeaddr_cmp(&dest, &rimeaddr_node_addr)) {
 				PRINTFRX("\tSending ACK\n");
 				
-				cc1120_arch_spi_disable();
-				
-				rtimer_clock_t t0;                                                   
-
-				/* Packet is for this node. */
+				cc1120_arch_spi_disable();                                                
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
 				
 				/* Populate ACK Frame buffer. */
@@ -798,8 +714,6 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				ack_buf[2] = ((uint8_t *)buf)[2];
 				
 				radio_pending &= ~(TX_COMPLETE);
-				
-				cc1120_spi_single_write(CC1120_ADDR_RFEND_CFG0, 0x00);	/* Set TXOFF Mode to IDLE as we are not expecting ACK. */
 				
 				/* Make sure that the TX FIFO is empty & write ACK to it. */
 				cc1120_flush_tx();
@@ -811,21 +725,18 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 				t0 = RTIMER_NOW(); 
 				
 				/* Block till TX is complete. */	
-				while(!(radio_pending & TX_COMPLETE))
-				{
+				while(!(radio_pending & TX_COMPLETE)) {
 					/* Wait for CC1120 interrupt handler to set TX_COMPLETE. */
 					watchdog_periodic();	/* Feed the dog to stop reboots. */
 					PRINTFRX(".");
 					
-					if(radio_pending & TX_FIFO_ERROR)
-					{
+					if(radio_pending & TX_FIFO_ERROR) {
 						/* TX FIFO has underflowed during ACK TX.  Need to flush TX FIFO. */
 						cc1120_flush_tx();
 						break;
 					}
 					
-					if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
-					{
+					if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW())) {
 						/* Timeout for TX. At 802.15.4 50kbps data rate, the entire 
 						 * TX FIFO (all 128 bits) should be transmitted in 0.02 
 						 * seconds. Timeout set to 0.05 seconds to be sure.  If 
@@ -834,26 +745,20 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 						 * 
 						 * This timeout needs to be adjusted if lower data rates 
 						 * are used. */	 
-						if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR))
-						{
+						if((cc1120_read_txbytes() == 0) && !(radio_pending & TX_FIFO_ERROR)) {
 							/* We have actually transmitted everything in the FIFO. */
 							radio_pending |= TX_COMPLETE;
 							PRINTFTXERR("!!! TX ERROR: TX timeout reached but packet sent !!!\n");
-						}
-						else
-						{
+						} else {
 							cc1120_set_state(CC1120_STATE_IDLE);
 							PRINTFTXERR("!!! TX ERROR: TX timeout reached !!!\n");						
 						}
 						break;
 					}
 				}
+				cc1120_flush_tx();			/* Make sure that the TX FIFO is empty. */
 				
-				/* Re-load data into TX FIFO. */
-				cc1120_flush_tx();
-				//cc1120_write_txfifo(tx_buf, tx_len);
-				
-				cc1120_arch_spi_enable();
+				cc1120_arch_spi_enable();	/* Re-enable burst access to read remaining data. */
 				(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 			}
 		}
@@ -863,8 +768,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	
 	PRINTFRX("\tPacketRead\n");
 	
-	if(radio_pending & RX_FIFO_UNDER)
-	{
+	if(radio_pending & RX_FIFO_UNDER) {
 		/* FIFO underflow */
 		CC1120_RELEASE_SPI();
 		cc1120_flush_rx();
@@ -877,8 +781,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);
 	rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;
 		
-	if(radio_pending & RX_FIFO_UNDER)
-	{
+	if(radio_pending & RX_FIFO_UNDER) {
 		/* FIFO underflow */
 		cc1120_flush_rx();
 		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
@@ -898,36 +801,28 @@ int
 cc1120_driver_channel_clear(void)
 {
 	PRINTF("**** Radio Driver: CCA ****\n");
-	if(locked)
-	{
+	if(locked) {
 		PRINTF("SPI Locked\n");
 		return 1;
-	}
-	else
-	{
+	} else {
 		uint8_t cca, cur_state;
 		rtimer_clock_t t0 = RTIMER_NOW();
 		uint8_t rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
 		
 		cur_state = cc1120_get_state();
 		
-		if(cur_state == CC1120_STATUS_TX)
-		{
+		if(cur_state == CC1120_STATUS_TX) {
 			/* Channel can't be clear in TX. */
 			PRINTF(" - NO, in TX. ****\n");
 			return 0;
-		}
-		if(cur_state != CC1120_STATUS_RX)
-		{
+		} if(cur_state != CC1120_STATUS_RX) {
 			/* Not in RX... */
 			return 1;
 		}
 		
 		/* Wait till the CARRIER_SENSE is valid. */
-		while(!(rssi0 & CC1120_CARRIER_SENSE_VALID))
-		{
-			if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW()))
-			{
+		while(!(rssi0 & CC1120_CARRIER_SENSE_VALID)) {
+			if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW())) {
 				printf("\t RSSI Timeout.\n");		
 				LEDS_OFF(LEDS_BLUE);
 				return 0;
@@ -936,14 +831,11 @@ cc1120_driver_channel_clear(void)
 			watchdog_periodic();
 		}
 		
-		if(rssi0 & CC1120_RSSI0_CARRIER_SENSE)
-		{
+		if(rssi0 & CC1120_RSSI0_CARRIER_SENSE) {
 			cca = 0;
 			PRINTF("\t Channel NOT clear.\n");
 			LEDS_OFF(LEDS_BLUE);	
-		}
-		else
-		{
+		} else {
 			cca = 1;
 			PRINTF("\t Channel clear.\n");
 			LEDS_ON(LEDS_BLUE);
@@ -957,29 +849,20 @@ cc1120_driver_receiving_packet(void)
 {
 	PRINTF("**** Radio Driver: Receiving Packet? ");
 	uint8_t pqt;
-	if(locked)
-	{
+	if(locked) {
 		PRINTF("SPI Locked\n");
 		return 0;
-	}
-	else
-	{
-		if((radio_pending & TRANSMITTING) || (cc1120_get_state() != CC1120_STATUS_RX))
-		{
+	} else {
+		if((radio_pending & TRANSMITTING) || (cc1120_get_state() != CC1120_STATUS_RX)) {
 			/* Can't be receiving in TX or with the radio Off. */
 			PRINTF(" - NO, in TX or Radio OFF. ****\n");
 			return 0;
-		}
-		else
-		{
+		} else {
 			pqt = cc1120_spi_single_read(CC1120_ADDR_MODEM_STATUS1);			/* Check PQT. */
-			if((pqt & CC1120_MODEM_STATUS1_SYNC_FOUND))// ((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) && (pqt & CC1120_MODEM_STATUS1_PQT_VALID)) || || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
-			{
+			if((pqt & CC1120_MODEM_STATUS1_SYNC_FOUND)) { // ((pqt & CC1120_MODEM_STATUS1_PQT_REACHED) && (pqt & CC1120_MODEM_STATUS1_PQT_VALID)) || || (cc1120_read_rxbytes() > 0)) //|| !(cc1120_arch_read_gpio3()))
 				PRINTF(" Yes. ****\n");
 				return 1;
-			}
-			else
-			{
+			} else {
 				/* Not receiving */
 				PRINTF(" - NO. ****\n");
 				return 0;
@@ -993,13 +876,10 @@ int
 cc1120_driver_pending_packet(void)
 {
 	PRINTFRX("**** Radio Driver: Pending Packet? ");
-	if((packet_pending > 0))
-	{
+	if((packet_pending > 0)) {
 		PRINTFRX(" yes ****\n");
 		return 1;		
-	}
-	else
-	{
+	} else {
 		PRINTFRX(" no ****\n");
 		return 0;
 	}
@@ -1012,8 +892,7 @@ cc1120_driver_on(void)
 	/* Set CC1120 into RX. */
 	// TODO: If we are in SLEEP before this, do we need to do a cal and reg restore?
 	
-	if(locked)
-	{
+	if(locked) {
 		lock_on = 1;
 		lock_off = 0;
 		return 1;
@@ -1028,8 +907,7 @@ cc1120_driver_off(void)
 {
 	PRINTF("**** Radio Driver: Off ****\n");
 
-	if(locked)
-	{
+	if(locked) {
 		/* Radio is locked, indicate that we want to turn off. */
 		lock_off = 1;
 		lock_on = 0;
@@ -1094,8 +972,7 @@ cc1120_set_channel(uint8_t channel)
 	
 	/* If we are an affected part version, carry out calibration as per CC112x/CC1175 errata. 
 	 * See http://www.ti.com/lit/er/swrz039b/swrz039b.pdf, page 3 for details.*/
-	if(cc1120_spi_single_read(CC1120_ADDR_PARTVERSION) == 0x21)
-	{
+	if(cc1120_spi_single_read(CC1120_ADDR_PARTVERSION) == 0x21) {
 		uint8_t original_fs_cal2, calResults_for_vcdac_start_high[3], calResults_for_vcdac_start_mid[3];
 		
 		/* Set VCO cap Array to 0. */
@@ -1123,21 +1000,16 @@ cc1120_set_channel(uint8_t channel)
 		calResults_for_vcdac_start_mid[1] = cc1120_spi_single_read(CC1120_ADDR_FS_VCO4);
 		calResults_for_vcdac_start_mid[2] = cc1120_spi_single_read(CC1120_ADDR_FS_CHP);
 		
-		if(calResults_for_vcdac_start_high[0] > calResults_for_vcdac_start_mid[0])
-		{
+		if(calResults_for_vcdac_start_high[0] > calResults_for_vcdac_start_mid[0]) {
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, calResults_for_vcdac_start_high[0]);
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_high[1]);
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_high[2]);
-		}
-		else
-		{
+		} else {
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO2, calResults_for_vcdac_start_mid[0]);
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_mid[1]);
 			cc1120_spi_single_write(CC1120_ADDR_FS_VCO4, calResults_for_vcdac_start_mid[2]);
 		}
-	}
-	else
-	{
+	} else {
 		/* Strobe CAL and wait for completion. */
 		cc1120_set_state(CC1120_STATE_CAL);
 		while(cc1120_get_state() == CC1120_STATUS_CALIBRATE);
@@ -1170,20 +1042,17 @@ cc1120_read_rxbytes(void)
 static void
 on(void)
 {
-	if((radio_pending & RX_FIFO_UNDER) || (radio_pending & RX_FIFO_OVER))
-	{
+	if((radio_pending & RX_FIFO_UNDER) || (radio_pending & RX_FIFO_OVER)) {
 		/* RX FIFO has previously overflowed or underflowed, flush. */
 		cc1120_flush_rx();
 	}
 	
-	if((packet_pending == 0) && (cc1120_read_rxbytes > 0))
-	{
+	if((packet_pending == 0) && (cc1120_read_rxbytes > 0)) {
 		/* Stray data in FIFO, flush. */
 		cc1120_flush_rx();
 	}
 	
-	if(!(radio_on && cc1120_get_state() == CC1120_STATUS_RX))
-	{
+	if(!(radio_on && cc1120_get_state() == CC1120_STATUS_RX)) {
 		radio_on = 1;
 		cc1120_set_state(CC1120_STATE_RX);		/* Put radio into RX. */
 		ENERGEST_ON(ENERGEST_TYPE_LISTEN);
@@ -1214,17 +1083,13 @@ CC1120_RELEASE_SPI(void)
 {
 	locked--;
 	
-	if(locked == 0) 
-	{
-		if(lock_on) 
-		{
-			on();
-			lock_on = 0;
-		}
-		if(lock_off) 
-		{
+	if(locked == 0) {
+		if(lock_off) {
 			off();
 			lock_off = 0;
+		} else if(lock_on) {
+			on();
+			lock_on = 0;
 		}
 	}
 }
@@ -1234,39 +1099,35 @@ CC1120_RELEASE_SPI(void)
 uint8_t
 cc1120_set_state(uint8_t state)
 {
-	uint8_t cur_state = cc1120_get_state();			/* Get the current state. */
+	uint8_t cur_state;
 	
 	/* Check for FIFO errors. */
-	if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
-	{
+	cur_state = cc1120_get_state();			/* Get the current state. */
+	if(cur_state == CC1120_STATUS_RX_FIFO_ERROR) {
 		/* If there is a RX FIFO Error, clear it. */
 		cc1120_flush_rx();
 		cur_state = cc1120_get_state();
 	}
 	
-	if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-	{
+	if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {
 		/* If there is a TX FIFO Error, clear it. */
 		cc1120_flush_tx();
 		cur_state = cc1120_get_state();
 	}
 	
 	/* Change state. */
-	switch(state)
-	{
+	switch(state) {
 		case CC1120_STATE_FSTXON:	/* Can only enter from IDLE, TX or RX. */
 								PRINTFSTATE("\t\tEntering FSTXON (%02x) from %02x\n", state, cur_state);
 															
 								if(!((cur_state == CC1120_STATUS_IDLE) 
 									|| (cur_state == CC1120_STATUS_TX)
-									|| (cur_state == CC1120_STATUS_FSTXON)))
-								{
+									|| (cur_state == CC1120_STATUS_FSTXON))) {
 									/* If we are not in IDLE or TX or FSTXON, get us to IDLE.
 									 * While we can enter FSTXON from RX, it may leave stuff stuck in the FIFO. */
 									cc1120_set_idle(cur_state);
 								}
-								if(!(cur_state == CC1120_STATUS_FSTXON))
-								{
+								if(!(cur_state == CC1120_STATUS_FSTXON)) {
 									cc1120_spi_cmd_strobe(CC1120_STROBE_SFSTXON);	/* Intentional Error to catch warnings. */
 									while(cc1120_get_state() != CC1120_STATUS_FSTXON);
 								}
@@ -1276,8 +1137,7 @@ cc1120_set_state(uint8_t state)
 								PRINTFSTATE("\t\tEntering XOFF (%02x) from %02x\n", state, cur_state);
 						
 								/* If we are not in IDLE, get us there. */
-								if(cur_state != CC1120_STATUS_IDLE)
-								{
+								if(cur_state != CC1120_STATUS_IDLE) {
 									cc1120_set_idle(cur_state);
 								}
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SXOFF);
@@ -1287,8 +1147,7 @@ cc1120_set_state(uint8_t state)
 								PRINTFSTATE("\t\tEntering CAL (%02x) from %02x \n", state, cur_state);
 
 								/* If we are not in IDLE, get us there. */
-								if(cur_state != CC1120_STATUS_IDLE)
-								{
+								if(cur_state != CC1120_STATUS_IDLE) {
 									cc1120_set_idle(cur_state);
 								}
 								cc1120_spi_cmd_strobe(CC1120_STROBE_SCAL);
@@ -1298,26 +1157,21 @@ cc1120_set_state(uint8_t state)
 		case CC1120_STATE_RX:		/* Can only enter from IDLE, FSTXON or TX. */
 								PRINTFSTATE("\t\tEntering RX (%02x) from %02x\n", state, cur_state);
 
-								if (cur_state == CC1120_STATUS_RX)
-								{
+								if (cur_state == CC1120_STATUS_RX) {
 									cc1120_set_idle(cur_state);
 									cc1120_flush_rx();
 									return cc1120_set_rx();
 								}								
 								else if((cur_state == CC1120_STATUS_IDLE) 
 									|| (cur_state == CC1120_STATUS_FSTXON)
-									|| (cur_state == CC1120_STATUS_TX))
-								{
+									|| (cur_state == CC1120_STATUS_TX)) {
 									/* Return RX state. */
 									return cc1120_set_rx();
-								}
-								else
-								{
+								} else {
 									/* We are in a state that will end up in IDLE, FSTXON or TX. Wait till we are there. */
 									while(!((cur_state == CC1120_STATUS_IDLE)
 										|| (cur_state == CC1120_STATUS_FSTXON)
-										|| (cur_state == CC1120_STATUS_TX)) )
-										{
+										|| (cur_state == CC1120_STATUS_TX)) ) {
 											cur_state = cc1120_get_state();
 										}
 									
@@ -1404,16 +1258,12 @@ cc1120_set_idle(uint8_t cur_state)
 	cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
 
 	/* Spin until we are in IDLE. */
-	while(cur_state != CC1120_STATUS_IDLE)
-	{
+	while(cur_state != CC1120_STATUS_IDLE) {
 		PRINTFSTATE(".");
 		clock_delay(10);
-		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-		{
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
-		}
-		else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
-		{		
+		} else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR) {		
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 		}
 		cur_state = cc1120_get_state();
@@ -1445,25 +1295,17 @@ cc1120_set_tx(void)
 	/* Enter TX. */
 	cc1120_spi_cmd_strobe(CC1120_STROBE_STX);
 	
-	cur_state = cc1120_get_state();
-	
 	/* If we are NOT in TX, Spin until we are in TX. */
-
-	while(cur_state != CC1120_STATUS_TX)
-	{
-#if CC1120DEBUG || DEBUG || CC1120TXDEBUG
-		printf(",");
-#endif				
+	cur_state = cc1120_get_state();
+	while(cur_state != CC1120_STATUS_TX) {	
 		cur_state = cc1120_get_state();
-		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-		{	
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {	
 			/* TX FIFO Error - flush TX. */	
 			return cc1120_flush_tx();
 		}
 		clock_delay(1);
 	}		
 
-	
 	// TODO: give this a timeout?
 
 	/* Return TX state. */
@@ -1476,18 +1318,15 @@ cc1120_flush_rx(void)
 	uint8_t cur_state = cc1120_get_state();
 	rtimer_clock_t t0 = RTIMER_NOW();
 	
-	if((cur_state != CC1120_STATUS_IDLE) && (cur_state != CC1120_STATUS_RX_FIFO_ERROR))
-	{
+	if((cur_state != CC1120_STATUS_IDLE) && (cur_state != CC1120_STATUS_RX_FIFO_ERROR)) {
 		/* If not in IDLE or TXERROR, get to IDLE. */
-		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-		{
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {
 			/* TX FIFO Error.  Flush TX FIFO. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
 		}
-		while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10)))
-		{
-			if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-			{
+		while((cur_state != CC1120_STATUS_IDLE) 
+				&& RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10))) {
+			if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {
 				/* TX FIFO Error.  Flush TX FIFO. */
 				cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
 			}
@@ -1518,18 +1357,15 @@ cc1120_flush_tx(void)
 	uint8_t cur_state = cc1120_get_state();
 	rtimer_clock_t t0 = RTIMER_NOW();
 	
-	if((cur_state != CC1120_STATUS_IDLE) && (cur_state != CC1120_STATUS_TX_FIFO_ERROR))
-	{
+	if((cur_state != CC1120_STATUS_IDLE) && (cur_state != CC1120_STATUS_TX_FIFO_ERROR)) {
 		/* If not in IDLE or TXERROR, get to IDLE. */
-		if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
-		{
+		if(cur_state == CC1120_STATUS_RX_FIFO_ERROR) {
 			/* RX FIFO Error.  Flush RX FIFO. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 		}
-		while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10)))
-		{
-			if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
-			{
+		while((cur_state != CC1120_STATUS_IDLE) 
+				&& RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 10))) {
+			if(cur_state == CC1120_STATUS_RX_FIFO_ERROR) {
 				/* RX FIFO Error.  Flush RX FIFO. */
 				cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
 			}
@@ -1545,20 +1381,15 @@ cc1120_flush_tx(void)
 	watchdog_periodic();
 	
 	/* Spin until we have flushed TX and are in IDLE. */
-	while((cur_state != CC1120_STATUS_IDLE) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 5)))
-	{
-		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR)
-		{
+	while((cur_state != CC1120_STATUS_IDLE) 
+			&& RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (RTIMER_SECOND / 5))) {
+		if(cur_state == CC1120_STATUS_TX_FIFO_ERROR) {
 			/* (Another) TX FIFO error, flush. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFTX);
-		}
-		else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR)
-		{
+		} else if(cur_state == CC1120_STATUS_RX_FIFO_ERROR) {
 			/* RX FIFO Error. Flush it. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SFRX);
-		}
-		else if (cur_state != CC1120_STATUS_IDLE)
-		{
+		} else if (cur_state != CC1120_STATUS_IDLE) {
 			/* Not in IDLE - re-strobe. */
 			cc1120_spi_cmd_strobe(CC1120_STROBE_SIDLE);
 		}
@@ -1613,13 +1444,10 @@ static uint8_t
 cc1120_spi_write_addr(uint16_t addr, uint8_t burst, uint8_t rw)
 {
 	uint8_t status;
-	if(addr & CC1120_EXTENDED_MEMORY_ACCESS_MASK)
-	{
+	if(addr & CC1120_EXTENDED_MEMORY_ACCESS_MASK) {
 		status = cc1120_arch_spi_rw_byte(CC1120_ADDR_EXTENDED_MEMORY_ACCESS | rw | burst); 
 		(void) cc1120_arch_spi_rw_byte(addr & CC1120_ADDRESS_MASK);
-	}
-	else
-	{
+	} else {
 		status = cc1120_arch_spi_rw_byte(addr | rw | burst);
 	}
 	
@@ -1645,31 +1473,26 @@ cc1120_interrupt_handler(void)
 {
 	//printf("I\n\r");
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
+	if(cc1120_arch_spi_enabled()) {
 		cc1120_arch_spi_disable();
 	}
 	
 	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	cc1120_arch_interrupt_acknowledge();
 	
-	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE)
-	{
+	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE) {
 		return 0;
 	}
 	
 	PRINTFINT("\t CC1120 Int. %d\n", marc_status);
 	
-	if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED)
-	{
+	if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED) {
 		/* Ignore as it should be an ACK. */
-		if(radio_pending & ACK_PENDING)
-		{
+		if(radio_pending & ACK_PENDING) {
 			return 0;
 		}	
 		
 		/* We have received a packet.  This is done first to make RX faster. */
-		//LEDS_ON(LEDS_RED);
 		packet_pending++;
 		
 		process_poll(&cc1120_process);
@@ -1677,51 +1500,6 @@ cc1120_interrupt_handler(void)
 	}	
 	
 	switch (marc_status){
-		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
-			/* RX terminated due to timeout.  Should not get here as there is  */	
-			printf("RX Timeout.\n\r");						
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
-			/* RX Terminated on CS or PQT. */
-			printf("RXT\n\r");
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
-			/* EWOR Sync lost. */	
-			printf("EWOR\n\r");							
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
-			/* Packet discarded due to being too long. Flush RX FIFO? */	
-			printf("LEN\n\r");
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
-			/* Packet discarded due to bad address - should not get here 
-			 * as address matching is not being used. Flush RX FIFO? */		
-			printf("DISC\n\r");				
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
-			/* Packet discarded due to bad CRC. Should not need to flush 
-			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
-			 printf("CRC\n\r");		
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
-			/* TX FIFO has overflowed. */
-			radio_pending |= TX_FIFO_ERROR;
-			printf("TOF\n\r");											
-			break;
-			
-		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
-			/* TX FIFO has underflowed. */
-			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
-			radio_pending |= TX_FIFO_ERROR;	
-			printf("TUF\n\r");				
-			break;
-			
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
@@ -1738,6 +1516,50 @@ cc1120_interrupt_handler(void)
 			radio_pending |= RX_FIFO_UNDER;			
 			printf("RUF\n\r");						
 			break;	
+				case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
+			/* RX terminated due to timeout.  Should not get here as there is  */	
+			//printf("RX Timeout.\n\r");						
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_TX_OVERFLOW:	
+			/* TX FIFO has overflowed. */
+			radio_pending |= TX_FIFO_ERROR;
+			printf("TOF\n\r");											
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_TX_UNDERFLOW:	
+			/* TX FIFO has underflowed. */
+			PRINTFTXERR("\t!!! TX FIFO Error: Underflow. !!!\n");
+			radio_pending |= TX_FIFO_ERROR;	
+			printf("TUF\n\r");				
+			break;
+				
+		case CC1120_MARC_STATUS_OUT_RX_TERMINATION:	
+			/* RX Terminated on CS or PQT. */
+			//printf("RXT\n\r");
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_EWOR_SYNC_LOST:	
+			/* EWOR Sync lost. */	
+			printf("EWOR\n\r");							
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_LEN:	
+			/* Packet discarded due to being too long. Flush RX FIFO? */	
+			//printf("LEN\n\r");
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_ADR:	
+			/* Packet discarded due to bad address - should not get here 
+			 * as address matching is not being used. Flush RX FIFO? */		
+			//printf("DISC\n\r");				
+			break;
+			
+		case CC1120_MARC_STATUS_OUT_PKT_DISCARD_CRC:	
+			/* Packet discarded due to bad CRC. Should not need to flush 
+			 * RX FIFO as CRC_AUTOFLUSH is set in FIFO_CFG*/	
+			 //printf("CRC\n\r");		
+			break;	
 			
 		case CC1120_MARC_STATUS_OUT_TX_ON_CCA_FAIL:	
 			/* TX on CCA Failed due to busy channel. */									
@@ -1751,9 +1573,7 @@ cc1120_interrupt_handler(void)
 			
 		default:
 			break;
-	}
-	/* Acknowledge the interrupt. */
-	cc1120_arch_interrupt_acknowledge();	
+	}	
 	return 1;
 }
 
@@ -1763,14 +1583,14 @@ cc1120_interrupt_handler(void)
 
 PROCESS_THREAD(cc1120_process, ev, data)
 {	
-	PROCESS_POLLHANDLER(processor());	
+	PROCESS_POLLHANDLER(processor());					/* Register the Pollhandler. */
 	
 	PROCESS_BEGIN();
-	printf("cc1120 start\n");
+	printf("CC1120 Driver Start\n");		
 	
-	PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_EXIT);
+	PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_EXIT);	/* Wait till the process is terminated. */
 	
-	printf("cc1120 end\n");
+	printf("CC1120 Driver End\n");
 	PROCESS_END();
 }
 
@@ -1786,15 +1606,13 @@ void processor(void)
 	watchdog_periodic();	
 	
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
-	if(cc1120_arch_spi_enabled())
-	{
+	if(cc1120_arch_spi_enabled()) {
 		cc1120_arch_spi_disable();
 	}	
 	
 	len = cc1120_driver_read_packet(buf, CC1120_MAX_PAYLOAD);
 	
-	if(len)
-	{
+	if(len) {
 		packetbuf_clear(); /* Clear the packetbuffer. */
 	
 		PRINTFPROC("\tPacket Length: %d\n", len);	
@@ -1813,19 +1631,7 @@ void processor(void)
 	}
 		
 	LEDS_OFF(LEDS_RED);
-//	if(locked)
-//	{
-//		printf("Locked %u\n", locked); 
-//	}
-	
-	if(radio_on)
-	{
+	if(radio_on) {
 		on();
 	}
-}
-
-void reader(void)
-{
-	
-	
 }
