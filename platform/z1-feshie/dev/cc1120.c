@@ -204,7 +204,7 @@ cc1120_driver_init(void)
 			printf("CC1201");
 			break;
 		default:	/* Not a supported chip or no chip present... */
-			printf("*** ERROR: No Radio ***\n", part);
+			printf("*** ERROR: No Radio ***\n");
 			while(1)	/* Spin ad infinitum as we cannot continue. */
 			{
 				watchdog_periodic();	/* Feed the dog to stop reboots. */
@@ -249,7 +249,7 @@ cc1120_driver_prepare(const void *payload, unsigned short len)
 	cc1120_flush_tx();
 			
 	/* Write to the FIFO. */
-	cc1120_write_txfifo(payload, len);
+	cc1120_write_txfifo((uint8_t *)payload, len);
 	ack_tx  = 0;
 	
 	/* Keep a local copy of the FIFO. */
@@ -620,7 +620,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 {
 	PRINTF("**** Radio Driver: Read ****\n");
 
-	uint8_t length, tmp, i, rxbytes = 0;
+	uint8_t length, i, rxbytes;
 	rimeaddr_t dest;
 	rtimer_clock_t t0;   
 		
@@ -676,7 +676,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 	PRINTFRX("\tRead FIFO.\n");
 
 	cc1120_arch_spi_enable();
-	(void) cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
+	cc1120_arch_spi_rw_byte(CC1120_FIFO_ACCESS | CC1120_BURST_BIT | CC1120_READ_BIT);
 	
 	for(i = 0; i < length; i++) {
 		((uint8_t *)buf)[i] = cc1120_arch_spi_rw_byte(0);
@@ -801,30 +801,31 @@ int
 cc1120_driver_channel_clear(void)
 {
 	PRINTF("**** Radio Driver: CCA ****\n");
+	uint8_t cca, cur_state, rssi0;
+	rtimer_clock_t t0;
+
 	if(locked) {
 		PRINTF("SPI Locked\n");
 		return 1;
 	} else {
-		uint8_t cca, cur_state;
-		rtimer_clock_t t0 = RTIMER_NOW();
-		uint8_t rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
-		
 		cur_state = cc1120_get_state();
-		
 		if(cur_state == CC1120_STATUS_TX) {
 			/* Channel can't be clear in TX. */
-			PRINTF(" - NO, in TX. ****\n");
 			return 0;
-		} if(cur_state != CC1120_STATUS_RX) {
+		} 
+		if(cur_state != CC1120_STATUS_RX) {
 			/* Not in RX... */
+			//printf(" NRX ");
 			return 1;
 		}
 		
 		/* Wait till the CARRIER_SENSE is valid. */
+		rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
+		t0 = RTIMER_NOW();
 		while(!(rssi0 & CC1120_CARRIER_SENSE_VALID)) {
 			if(RTIMER_CLOCK_LT((t0 + RTIMER_SECOND/20), RTIMER_NOW())) {
 				printf("\t RSSI Timeout.\n");		
-				LEDS_OFF(LEDS_BLUE);
+				//LEDS_OFF(LEDS_BLUE);
 				return 0;
 			}
 			rssi0 = cc1120_spi_single_read(CC1120_ADDR_RSSI0);
@@ -834,14 +835,14 @@ cc1120_driver_channel_clear(void)
 		if(rssi0 & CC1120_RSSI0_CARRIER_SENSE) {
 			cca = 0;
 			PRINTF("\t Channel NOT clear.\n");
-			LEDS_OFF(LEDS_BLUE);	
+			//LEDS_OFF(LEDS_BLUE);	
 		} else {
 			cca = 1;
 			PRINTF("\t Channel clear.\n");
-			LEDS_ON(LEDS_BLUE);
+			//LEDS_ON(LEDS_BLUE);
 		}
-		return cca;
 	}
+	return cca;
 }
 
 int
@@ -1462,7 +1463,6 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 	cc1120_arch_spi_disable();
 	
 	PRINTFTX("\t%d bytes in fifo (%d + length byte requested)\n", cc1120_read_txbytes());
-
 }
 
 
@@ -1471,16 +1471,18 @@ cc1120_write_txfifo(uint8_t *payload, uint8_t payload_len)
 int
 cc1120_interrupt_handler(void)
 {
-	//printf("I\n\r");
+	uint8_t marc_status;
+	LEDS_ON(LEDS_BLUE);
+	cc1120_arch_interrupt_acknowledge();
+	
 	/* Check if we have interrupted an SPI function, if so disable SPI. */
 	if(cc1120_arch_spi_enabled()) {
 		cc1120_arch_spi_disable();
 	}
 	
-	uint8_t marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
-	cc1120_arch_interrupt_acknowledge();
-	
+	marc_status = cc1120_spi_single_read(CC1120_ADDR_MARC_STATUS1);
 	if(marc_status == CC1120_MARC_STATUS_OUT_NO_FAILURE) {
+		LEDS_OFF(LEDS_BLUE);
 		return 0;
 	}
 	
@@ -1489,6 +1491,7 @@ cc1120_interrupt_handler(void)
 	if(marc_status == CC1120_MARC_STATUS_OUT_RX_FINISHED) {
 		/* Ignore as it should be an ACK. */
 		if(radio_pending & ACK_PENDING) {
+			LEDS_OFF(LEDS_BLUE);
 			return 0;
 		}	
 		
@@ -1496,10 +1499,17 @@ cc1120_interrupt_handler(void)
 		packet_pending++;
 		
 		process_poll(&cc1120_process);
+		LEDS_OFF(LEDS_BLUE);
 		return 1;
 	}	
 	
 	switch (marc_status){
+		case CC1120_MARC_STATUS_OUT_TX_FINISHED:	
+			/* TX Finished. */
+			radio_pending |= TX_COMPLETE;
+			radio_pending &= ~(TX_ERROR);														
+			break;
+			
 		case CC1120_MARC_STATUS_OUT_RX_OVERFLOW:	
 			/* RX FIFO has overflowed. */
 			PRINTFRXERR("\t!!! RX FIFO Error: Overflow. !!!\n");
@@ -1516,7 +1526,8 @@ cc1120_interrupt_handler(void)
 			radio_pending |= RX_FIFO_UNDER;			
 			printf("RUF\n\r");						
 			break;	
-				case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
+		
+		case CC1120_MARC_STATUS_OUT_RX_TIMEOUT:	
 			/* RX terminated due to timeout.  Should not get here as there is  */	
 			//printf("RX Timeout.\n\r");						
 			break;
@@ -1565,15 +1576,10 @@ cc1120_interrupt_handler(void)
 			/* TX on CCA Failed due to busy channel. */									
 			break;
 			
-		case CC1120_MARC_STATUS_OUT_TX_FINISHED:	
-			/* TX Finished. */
-			radio_pending |= TX_COMPLETE;
-			radio_pending &= ~(TX_ERROR);														
-			break;
-			
 		default:
 			break;
 	}	
+	LEDS_OFF(LEDS_BLUE);
 	return 1;
 }
 
@@ -1586,7 +1592,7 @@ PROCESS_THREAD(cc1120_process, ev, data)
 	PROCESS_POLLHANDLER(processor());					/* Register the Pollhandler. */
 	
 	PROCESS_BEGIN();
-	printf("CC1120 Driver Start\n");		
+	printf("CC1120 Driver Start\n");	
 	
 	PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_EXIT);	/* Wait till the process is terminated. */
 	
@@ -1597,9 +1603,8 @@ PROCESS_THREAD(cc1120_process, ev, data)
 		
 void processor(void)
 {			
-	uint8_t len, rxbytes = 0;	
+	uint8_t len;	
 	uint8_t buf[CC1120_MAX_PAYLOAD];
-	rimeaddr_t dest;
 			
 	PRINTFPROC("** Process Poll **\n");
 	LEDS_ON(LEDS_RED);
