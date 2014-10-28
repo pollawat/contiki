@@ -30,7 +30,7 @@
  *
  */
 #include "dev/serial-timeout.h"
-//#include "dev/protobuf-handler.h"
+#include "dev/protobuf-handler.h"
 #include <string.h> /* for memcpy() */
 #include <stdio.h>
 #include "lib/ringbuf.h"
