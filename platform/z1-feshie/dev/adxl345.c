@@ -49,6 +49,12 @@
 #include "i2cmaster.h"
 #include "isr_compat.h"
 
+ #ifdef ADXLDEBUG
+  #define PRINTFDEBUG(...) printf(__VA_ARGS)
+ #else
+  #define PRINTFDEBUG(...)
+ #endif
+
 /* Callback pointers when interrupt occurs */
 void (*accm_int1_cb)(uint8_t reg);
 void (*accm_int2_cb)(uint8_t reg);
@@ -382,7 +388,6 @@ static struct timer suppressTimer1, suppressTimer2;
 ISR(PORT1, port1_isr)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
-  
   /* ADXL345_IFG.x goes high when interrupt occurs, use to check what interrupted */
   if ((ADXL345_IFG & ADXL345_INT1_PIN) && !(CC1120_GDO0_PORT(IFG) & BV(CC1120_GDO0_PIN))){
     /* Check if this should be suppressed or not */
@@ -401,7 +406,7 @@ ISR(PORT1, port1_isr)
       LPM4_EXIT;
     }
   } else {
-    /* CC1120 interrupt */
+    /* CC1120 interrupt */ 
     if(cc1120_interrupt_handler()) {
       LPM4_EXIT;
     }

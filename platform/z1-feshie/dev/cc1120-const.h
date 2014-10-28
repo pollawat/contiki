@@ -296,7 +296,7 @@
 #define CC1120_STATUS_STATE_MASK				0x70 
 #define CC1120_STATUS_IDLE 					0x00
 #define CC1120_STATUS_RX					0x10
-#define CC1120_STATUS_TX 					0x20				
+#define CC1120_STATUS_TX 						0x20				
 #define CC1120_STATUS_FSTXON						0x30
 #define CC1120_STATUS_CALIBRATE						0x40
 #define CC1120_STATUS_SETTLING						0x50
@@ -329,6 +329,8 @@
 #define CC1120_PART_NUM_CC1120						0x48
 #define CC1120_PART_NUM_CC1125						0x58
 #define CC1120_PART_NUM_CC1175						0x5A
+#define CC1120_PART_NUM_CC1200						0x20
+#define CC1120_PART_NUM_CC1201						0x21
 
 //Bits 7-5 unused
 #define CC1120_SERIAL_STATUS_CLK32K					0x10
