@@ -16,7 +16,7 @@
 #else
 	#define PRINTF(...)
 #endif
-static int (*writebyte)(unsigned char c);
+static void (*writebyte)(unsigned char c);
 
 static process_event_t callback_event;
 static struct process *callback_process;
@@ -180,7 +180,7 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     }
 }
 
-void protobuf_handler_set_writeb(int (*wb)(unsigned char c)){
+void protobuf_handler_set_writeb(void (*wb)(unsigned char c)){
     writebyte = wb;    
 }
 

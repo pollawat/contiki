@@ -82,7 +82,6 @@ static volatile uint8_t serial_transmitting;
 #define TXBUFSIZE 64
 
 static struct ringbuf txbuf;
-static uint8_t txbuf_data[TXBUFSIZE];
 #endif /* TX_WITH_INTERRUPT */
 
 

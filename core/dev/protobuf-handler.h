@@ -12,7 +12,7 @@
 void protobuf_process_message(uint8_t *buf, uint8_t bytes);
 void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload, int8_t payload_length);
 
-void protobuf_handler_set_writeb(int (*wb)(unsigned char c));
+void protobuf_handler_set_writeb(void (*wb)(unsigned char c));
 
 void protobuf_register_process_callback(struct process *p, process_event_t ev);
 

@@ -1,32 +1,7 @@
 
-
-#include "contiki.h"
-#include <stdio.h>
-
 #include "sampler.h"
-#include "config.h"
-// Sensors
-#include "sampling-sensors.h"
-#include "ms1-io.h"
-#include "filenames-old.h"
 
-// Config
-#include "settings.pb.h"
-#include "readings.pb.h"
-// Protobuf
-#include "dev/pb_decode.h"
-#include "dev/pb_encode.h"
-
-
-#include "z1-sampler-config-defaults.h"
-
-
-#include "dev/temperature-sensor.h"
-#include "dev/battery-sensor.h"
-#include "dev/protobuf-handler.h"
-#include "dev/event-sensor.h"
-#include "cfs/cfs.h"
-
+PROCESS(sample_process, "Sample Process");
 
 //#define SENSEDEFBUG
 #ifdef SENSEDEFBUG
@@ -64,7 +39,7 @@ if(get_config(&sensor_config, SAMPLE_CONFIG) == 1)
 }
 
 
-PROCESS(sample_process, "Sample Process");
+
 
 
 
@@ -145,7 +120,7 @@ SENSORS_ACTIVATE(event_sensor);
         avr_retry_count = 0;
         data = NULL;
         do{
-            protobuf_send_message(0x01, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
+            protobuf_send_message(avr_id, PROTBUF_OPCODE_GET_DATA, NULL, (int)NULL);
             AVRDPRINT("Sent message %d\n", i);
             i = i+1;
             ctimer_set(&avr_timeout_timer, CLOCK_SECOND * AVR_TIMEOUT_SECONDS, avr_timer_handler, NULL);

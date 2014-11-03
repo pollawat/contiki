@@ -1,10 +1,33 @@
-#include "filenames-old.h"
-#include "contiki.h"
 
-#include <stdio.h>
-#include <stdint.h>
+#include "poster.h"
+
+
+
+//#define POSTDEFBUG
+#ifdef POSTDEFBUG
+    #define PPRINT(...) printf(__VA_ARGS__)
+#else
+    #define PPRINT(...)
+#endif
+
+
+
+PROCESS(post_process, "POST Process");
 
 static POSTConfig POST_config;
+static uint8_t data[256] = {0};
+static uint16_t data_length = 0;
+static struct etimer timer;
+static struct psock web_ps;
+static const uint8_t web_buf[128];
+static char psock_buffer[120];
+static struct etimer timeout_timer;
+static int http_status = 0;
+static struct psock ps;
+
+
+
+
 
 static int
 handle_connection(struct psock *p)
@@ -34,7 +57,8 @@ handle_connection(struct psock *p)
 
 /*---------------------------------------------------------------------------*/
 
-static void load_file(char *filename)
+static 
+void load_file(char *filename)
 {
   static int fd;
   fd = cfs_open(filename, CFS_READ);
@@ -42,35 +66,36 @@ static void load_file(char *filename)
   {
     data_length = cfs_read(fd, data, sizeof(data));
     cfs_close(fd);
-    DPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
+    PPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
   }
   else
   {
-    DPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
+    PPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
   }
 }
 
 
 void
-refreshPosterConfig(void){
-if(get_config(&POST_config, COMMS_CONFIG) == 1){ 
-  // Config file does not exist! Use default and set file
-    POST_config.interval = POST_INTERVAL;
-    POST_config.ip_count = POST_IP_COUNT;
-    POST_config.ip[0] = POST_IP0;
-    POST_config.ip[1] = POST_IP1;
-    POST_config.ip[2] = POST_IP2;
-    POST_config.ip[3] = POST_IP3;
-    POST_config.ip[4] = POST_IP4;
-    POST_config.ip[5] = POST_IP5;
-    POST_config.ip[6] = POST_IP6;
-    POST_config.ip[7] = POST_IP7;
-    POST_config.port = POST_PORT;
-    set_config(&POST_config, COMMS_CONFIG);
-    printf("POST config set to default and written\n");
-  }else{
-    DPRINT("POST Config file loaded\n");
-  }
+refreshPosterConfig(void)
+{
+    if(get_config(&POST_config, COMMS_CONFIG) == 1){ 
+        // Config file does not exist! Use default and set file
+        POST_config.interval = POST_INTERVAL;
+        POST_config.ip_count = POST_IP_COUNT;
+        POST_config.ip[0] = POST_IP0;
+        POST_config.ip[1] = POST_IP1;
+        POST_config.ip[2] = POST_IP2;
+        POST_config.ip[3] = POST_IP3;
+        POST_config.ip[4] = POST_IP4;
+        POST_config.ip[5] = POST_IP5;
+        POST_config.ip[6] = POST_IP6;
+        POST_config.ip[7] = POST_IP7;
+        POST_config.port = POST_PORT;
+        set_config(&POST_config, COMMS_CONFIG);
+        printf("POST config set to default and written\n");
+    }else{
+        PPRINT("POST Config file loaded\n");
+    }
 
 }
 
@@ -97,41 +122,41 @@ PROCESS_THREAD(post_process, ev, data)
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
           POST_config.ip[6], POST_config.ip[7]);
-      DPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
+      PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
       load_file(filename);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
-      DPRINT("Connecting...\n");
+      PPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
       if(uip_aborted() || uip_timedout() || uip_closed()) {
-        DPRINT("Could not establish connection\n");
+        PPRINT("Could not establish connection\n");
         retries++;
       } else if(uip_connected()) {
-        DPRINT("Connected\n");
+        PPRINT("Connected\n");
         PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
         etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
         do {
           if(etimer_expired(&timeout_timer)){
-            DPRINT("Connection took too long. TIMEOUT\n");
+            PPRINT("Connection took too long. TIMEOUT\n");
             PSOCK_CLOSE(&ps);
             retries++;
             break;
           } else if(data_length > 0) {
-            DPRINT("[POST] Handle Connection\n");
+            PPRINT("[POST] Handle Connection\n");
             handle_connection(&ps);
             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
           }
         } while(!(uip_closed() || uip_aborted() || uip_timedout()));
-        DPRINT("\nConnection closed.\n");
-        DPRINT("Status = %d\n", http_status);
+        PPRINT("\nConnection closed.\n");
+        PPRINT("Status = %d\n", http_status);
         if(http_status/100 == 2) { // Status OK
           data_length = 0;
           retries = 0;
           cfs_remove(filename);
-          DPRINT("[POST] Removing file\n");
+          PPRINT("[POST] Removing file\n");
         } else { // POST failed
           data_length = 0;
           retries++;
-          DPRINT("[POST] Failed, not removing file\n");
+          PPRINT("[POST] Failed, not removing file\n");
         }
       }
     }

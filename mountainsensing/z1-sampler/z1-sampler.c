@@ -56,9 +56,10 @@
 
 #include "dev/leds.h"
 
-
+#include "config.h"
 #include "sampler.h"
 #include "poster.h"
+
 #include "sampling-sensors.h"
 #include "z1-sampler-config-defaults.h"
 #include "web_defines.h"
@@ -102,7 +103,7 @@
 
 PROCESS(web_sense_process, "Feshie Sense");
 PROCESS(web_process, "Web Server");
-PROCESS(post_process, "POST Process");
+
 
 AUTOSTART_PROCESSES(&web_sense_process);
 
@@ -157,9 +158,9 @@ return(0);
 uint8_t
 get_url_param(char* par, char *url, char *key)
 {
-  /*
+  
   char str[100];
-  uint8_t *pch;
+  char *pch;
   uint8_t len;
   
   strcpy(str, url);
@@ -167,32 +168,16 @@ get_url_param(char* par, char *url, char *key)
   pch = strtok(str, "?&");
   
   while(pch != NULL) {
-    if(strncmp(pch, key, len) == 0) {
-      // If the token is key-value pair desired
-      par = pch + len + 1;
-      return 1;
+      if(strncmp(pch, key, len) == 0) {
+        // If the token is key-value pair desired
+        par = pch + len + 1;
+        return 1;
 
-    }
-    pch = strtok(NULL, "?&");
+      }
+      pch = strtok(NULL, "?&");
   }
   par = NULL;
-  return 0;*/
-   static char str[100];
-strcpy(str, url);
-static char* pch;
-static uint8_t len;
-len = strlen(key);
-static char* val;
-pch = strtok(str, "?&");
-while(pch != NULL) {
-if(strncmp(pch, key, len) == 0) {
-// If the token is key-value pair desired
-val = pch + len + 1;
-return val;
-}
-pch = strtok(NULL, "?&");
-}
-return NULL;
+  return 0;
 }
 
 
@@ -205,7 +190,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
 {
 
   static uint8_t i;
-  static char* param;
   static char num[16], tmpstr[80];
   static uint16_t y;
   static uint8_t mo, d, h, mi, se;
@@ -233,7 +217,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
     { // Serve clock form
       DPRINT("[WEBD] Serving /clock\n");
       submitted = 0;
-      if(get_url_param(parm, url, "submit") == 1) {
+      if(get_url_param(param, url, "submit") == 1) {
         submitted = 1;
         get_url_param(param, url, "y");
         y = atol(param == NULL ? ZERO : param);
@@ -331,14 +315,14 @@ PT_THREAD(web_handle_connection(struct psock *p))
         sensor_config.hasRain = 0;
       }
 
-      if(get_url_param(url, "adc1") == 1 && strcmp(param, "y") == 0) {
+      if(get_url_param(param, url, "adc1") == 1 && strcmp(param, "y") == 0) {
         sensor_config.hasADC1 = 1;
       } else {
         sensor_config.hasADC1 = 0;
       }
 
       
-      if(get_url_param(url, "adc2") == 1 && strcmp(param, "y") == 0) {
+      if(get_url_param(param, url, "adc2") == 1 && strcmp(param, "y") == 0) {
         sensor_config.hasADC2 = 1;
       } else {
         sensor_config.hasADC2 = 0;
@@ -414,7 +398,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         POST_config.ip[i] = (param == NULL ? 0 : strtol(param, NULL, 16));
       }
 
-      if(get_url_param(url, "port") == 1){
+      if(get_url_param(param, url, "port") == 1){
         POST_config.port = atol(param);
       }else{
         POST_config.port = POST_PORT;
@@ -521,6 +505,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
 PROCESS_THREAD(web_process, ev, data)
 {
+  static uint8_t web_buf[128];
   PROCESS_BEGIN();
 
   tcp_listen(UIP_HTONS(80));
