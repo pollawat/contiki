@@ -1,4 +1,9 @@
-static void avr_timer_handler(void *p);
-static process_event_t protobuf_event;
+#ifndef Z1_SAMPLER_H
+#define Z1_SAMPLER_H
+#define LIVE_CONNECTION_TIMEOUT 300
+#define CONNECTION_RETRIES 3
+#define URL_PARAM_LENGTH 8
 
-#define AVR_TIMEOUT_SECONDS 10
+uint8_t get_url_param(char *par, char *url, char *key)
+#endif
+
