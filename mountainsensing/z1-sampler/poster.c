@@ -15,22 +15,18 @@
 PROCESS(post_process, "POST Process");
 
 static POSTConfig POST_config;
-static uint8_t data[256] = {0};
-static uint16_t data_length = 0;
-static struct etimer timer;
-static struct psock web_ps;
-static const uint8_t web_buf[128];
-static char psock_buffer[120];
-static struct etimer timeout_timer;
-static int http_status = 0;
+
+
+static uint8_t psock_buffer[120];
+
 static struct psock ps;
 
 
 
 
 
-static int
-handle_connection(struct psock *p)
+int
+handle_connection(char *data_buffer, uint8_t data_length, uint8_t http_status, struct psock *p)
 {
   char content_length[8], tmpstr_handle[50];
 
@@ -42,7 +38,7 @@ handle_connection(struct psock *p)
   PSOCK_BEGIN(p);
 
   PSOCK_SEND_STR(p, tmpstr_handle);
-  PSOCK_SEND(p, data, data_length);
+  PSOCK_SEND(p, data_buffer, data_length);
 
   while(1) {
     PSOCK_READTO(p, '\n');
@@ -57,20 +53,22 @@ handle_connection(struct psock *p)
 
 /*---------------------------------------------------------------------------*/
 
-static 
-void load_file(char *filename)
+//returns number of bytes loaded
+
+uint8_t 
+load_file(char *data_buffer, char *filename)
 {
-  static int fd;
+  int fd;
+  uint8_t data_length;
   fd = cfs_open(filename, CFS_READ);
-  if(fd >= 0)
-  {
-    data_length = cfs_read(fd, data, sizeof(data));
+  if(fd >= 0){
+    data_length = cfs_read(fd, data_buffer, DATA_BUFFER_LENGTH);
     cfs_close(fd);
     PPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
-  }
-  else
-  {
+    return data_length;
+  }else{
     PPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
+    return 0;
   }
 }
 
@@ -106,24 +104,32 @@ PROCESS_THREAD(post_process, ev, data)
   static uip_ipaddr_t addr;
 
   static char filename[FILENAME_LENGTH];
-  
+  static char data_buffer[DATA_BUFFER_LENGTH];
+  static uint8_t http_status;
+  http_status = 0;
+  static uint8_t data_length;
+  data_length = 0;
+  /* These could be combined if needed to save space */
+  static struct etimer post_timer;
+  static struct etimer timeout_timer;
+
   refreshPosterConfig();
 
   PROCESS_BEGIN();
 
   
-  printf("Post interval set to: %d\n", POST_config.interval);
+  printf("Post interval set to: %lu\n", (long unsigned)POST_config.interval);
   while(1){
     retries = 0;
-    etimer_set(&timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+    etimer_set(&post_timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&post_timer));
     while((get_next_read_filename(filename)) !=0 && retries < CONNECTION_RETRIES){
       uip_ip6addr(&addr,
           POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
           POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
           POST_config.ip[6], POST_config.ip[7]);
       PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
-      load_file(filename);
+      data_length = load_file(data_buffer, filename);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
       PPRINT("Connecting...\n");
       PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
@@ -142,7 +148,7 @@ PROCESS_THREAD(post_process, ev, data)
             break;
           } else if(data_length > 0) {
             PPRINT("[POST] Handle Connection\n");
-            handle_connection(&ps);
+            handle_connection(data_buffer, data_length, http_status, &ps);
             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
           }
         } while(!(uip_closed() || uip_aborted() || uip_timedout()));
