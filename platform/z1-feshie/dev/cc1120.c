@@ -630,9 +630,8 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		cc1120_arch_spi_disable();												/* Disable the CC1120. */
 		rx_rssi = cc1120_spi_single_read(CC1120_FIFO_ACCESS);					/* Read the RSSI. */
 		rx_lqi = cc1120_spi_single_read(CC1120_FIFO_ACCESS) & CC1120_LQI_MASK;	/* Read the LQI. */
-		CC1120_RELEASE_SPI();													/* Release SPI Lock. */
-		
-		PRINTFRX("\tPacketRead\n");
+															/* Release SPI Lock. */
+		PRINTFRX("\tRX OK - %d byte packet.\n", length);
 	}
 		
 	if(radio_pending & RX_FIFO_UNDER) {										/* FIFO underflow */
@@ -640,7 +639,7 @@ cc1120_driver_read_packet(void *buf, unsigned short buf_len)
 		PRINTFRXERR("\tERROR: RX FIFO underflow.\n");
 	}
 	cc1120_flush_rx();														/* Make sure that the RX FIFO is empty. */
-	PRINTFRX("\tRX OK - %d byte packet.\n", length);
+	CC1120_RELEASE_SPI();
 	
 	return length;
 }
