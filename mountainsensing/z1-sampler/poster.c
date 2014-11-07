@@ -104,26 +104,22 @@ refreshPosterConfig(void)
 
 PROCESS_THREAD(post_process, ev, data)
 {
-  printf("Starting post process *********\n");
+
   static uint8_t retries;
-
   static uip_ipaddr_t addr;
-
   static char filename[FILENAME_LENGTH];
   static char data_buffer[DATA_BUFFER_LENGTH];
   static uint8_t http_status;
-  http_status = 0;
   static uint8_t data_length;
-  data_length = 0;
   /* These could be combined if needed to save space */
   static struct etimer post_timer;
   static struct etimer timeout_timer;
 
+  PROCESS_BEGIN();
   printf("\n******\n");
   refreshPosterConfig();
-
-  PROCESS_BEGIN();
-
+  data_length = 0;
+  http_status = 0;
   
 
   while(1){
