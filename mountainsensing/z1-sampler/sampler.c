@@ -3,7 +3,7 @@
 
 PROCESS(sample_process, "Sample Process");
 
-//#define SENSEDEFBUG
+#define SENSEDEFBUG
 #ifdef SENSEDEFBUG
     #define SPRINT(...) printf(__VA_ARGS__)
 #else

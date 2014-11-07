@@ -3,7 +3,7 @@
 
 
 
-//#define POSTDEFBUG
+#define POSTDEFBUG
 #ifdef POSTDEFBUG
     #define PPRINT(...) printf(__VA_ARGS__)
 #else
@@ -90,15 +90,21 @@ refreshPosterConfig(void)
         POST_config.ip[7] = POST_IP7;
         POST_config.port = POST_PORT;
         set_config(&POST_config, COMMS_CONFIG);
-        printf("POST config set to default and written\n");
+        PPRINT("POST config set to default and written\n");
     }else{
         PPRINT("POST Config file loaded\n");
     }
+    printf("Post interval set to: %lu\n", (long unsigned)POST_config.interval);
+    printf("Posting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
+     (unsigned int)POST_config.ip[0], (unsigned int)POST_config.ip[1], (unsigned int)POST_config.ip[2],
+     (unsigned int)POST_config.ip[3], (unsigned int)POST_config.ip[4], (unsigned int)POST_config.ip[5],
+     (unsigned int)POST_config.ip[6], (unsigned int)POST_config.ip[7]);
 
 }
 
 PROCESS_THREAD(post_process, ev, data)
 {
+  printf("Starting post process *********\n");
   static uint8_t retries;
 
   static uip_ipaddr_t addr;
@@ -113,12 +119,13 @@ PROCESS_THREAD(post_process, ev, data)
   static struct etimer post_timer;
   static struct etimer timeout_timer;
 
+  printf("\n******\n");
   refreshPosterConfig();
 
   PROCESS_BEGIN();
 
   
-  printf("Post interval set to: %lu\n", (long unsigned)POST_config.interval);
+
   while(1){
     retries = 0;
     etimer_set(&post_timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));

@@ -10,7 +10,7 @@
 //#include "dev/pb_encode.h"
 //#include "dev/protocol-buffers/buffer.h"
 
-#define PROTOBUF_HANDLER_DEBUG
+//#define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -186,7 +186,7 @@ void protobuf_handler_set_writeb(void (*wb)(unsigned char c)){
 
 
 void protobuf_register_process_callback(struct process *p, process_event_t ev){
-    PRINTF("Process registered\n");    
+    PRINTF("Protobuf callback registered\n");    
     callback_event =ev;
     callback_process=p;
 
