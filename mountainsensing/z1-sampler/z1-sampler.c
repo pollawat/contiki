@@ -51,7 +51,7 @@
 #include "net/netstack.h"
 
 #ifndef CC11xx_CC1120
-#include "dev/cc2420.h"
+  #include "dev/cc2420.h"
 #endif
 
 #include "dev/leds.h"
@@ -83,9 +83,10 @@
 
 #include "filenames-old.h"
 
+#include "platform-conf.h"
 
 
-//#define DEBUG 
+#define DEBUG 
 
 #ifdef DEBUG 
     #define DPRINT(...) printf(__VA_ARGS__)
@@ -536,6 +537,9 @@ PROCESS_THREAD(web_sense_process, ev, data)
   PROCESS_BEGIN();
   #ifndef CC11xx_CC1120
   cc2420_set_txpower(31);
+  #endif
+  #ifdef SPI_LOCKING
+    printf("SPI Locking enabled\n");
   #endif
 
   process_start(&web_process, NULL);

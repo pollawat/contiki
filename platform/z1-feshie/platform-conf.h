@@ -38,6 +38,14 @@
 #ifndef __PLATFORM_CONF_H__
 #define __PLATFORM_CONF_H__
 
+//#define SPI_LOCKING
+#define LOCKING_DEBUG
+#ifdef LOCKING_DEBUG
+ #include <stdio.h>
+ #define LPRINT(...) printf(__VA_ARGS__)
+#else
+ #define LPRINT(...)
+#endif
 /*
  * Definitions below are dictated by the hardware and not really
  * changeable!

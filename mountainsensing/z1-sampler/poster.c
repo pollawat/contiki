@@ -60,16 +60,29 @@ load_file(char *data_buffer, char *filename)
 {
   int fd;
   uint8_t data_length;
+#ifdef SPI_LOCKING
+  LPRINT("LOCK: load file\n");
+  NETSTACK.off(0);
+  cc1120_arch_interrupt_disable();
+  CC1120_LOCK_SPI();
+  
+#endif
   fd = cfs_open(filename, CFS_READ);
   if(fd >= 0){
     data_length = cfs_read(fd, data_buffer, DATA_BUFFER_LENGTH);
     cfs_close(fd);
     PPRINT("[LOAD] Read %d bytes from %s\n", data_length, filename);
-    return data_length;
   }else{
     PPRINT("[LOAD] ERROR: CAN'T READ FILE { %s }\n", filename);
-    return 0;
+    data_length = 0;
   }
+#ifdef SPI_LOCKING
+  LPRINT("UNLOCK: load file\n");
+  CC1120_RELEASE_SPI();
+  cc1120_arch_interrupt_enable();
+  NETSTACK.on();
+#endif
+  return data_length;
 }
 
 

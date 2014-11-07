@@ -27,6 +27,9 @@
 	#include "dev/protobuf-handler.h"
 	#include "dev/event-sensor.h"
 	#include "cfs/cfs.h"
+	#include "dev/cc1120.h"
+	#include "dev/cc1120-arch.h"
+	#include "platform-conf.h"
 
 
 	void avr_timer_handler(void *p);

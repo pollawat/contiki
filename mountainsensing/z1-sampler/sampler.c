@@ -10,7 +10,7 @@ PROCESS(sample_process, "Sample Process");
     #define SPRINT(...)
 #endif
 
-//#define AVRDEFBUG
+#define AVRDEFBUG
 #ifdef AVRDEFBUG
     #define AVRDPRINT(...) printf(__VA_ARGS__)
 #else
@@ -167,21 +167,29 @@ SENSORS_ACTIVATE(event_sensor);
     }
 
     AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
-
+#ifdef SPI_LOCKING
+    LPRINT("LOCK: write sample\n");
+    NETSTACK.off(0);
+    cc1120_arch_interrupt_disable();
+    CC1120_LOCK_SPI();
+#endif
     fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
-    if(fd >= 0)
-    {
+    if(fd >= 0){
       SPRINT("  [1/3] Writing to file...\n");
       cfs_write(fd, pb_buf, ostream.bytes_written);
       SPRINT("  [2/3] Closing file...\n");
       cfs_close(fd);
       SPRINT("  [3/3] Done\n");
-	//NETSTACK_MAC.on(); /* DESPERATE HACK!!??*/
-    }
-    else
-    {
+
+    }else{
       SPRINT("[SAMP] Failed to open file %s\n", filename);
     }
+#ifdef SPI_LOCKING
+    LPRINT("UNLOCK: write sample\n");
+    CC1120_RELEASE_SPI();
+    cc1120_arch_interrupt_enable();
+    NETSTACK.on();;
+#endif
   }
 
   PROCESS_END();

@@ -12,6 +12,9 @@
 	// Networking
 	#include "contiki-net.h"
 	#include "sampling-sensors.h"
+	#include "dev/cc1120.h"
+	#include "dev/cc1120-arch.h"
+	#include "platform-conf.h"
 
 	void refreshPosterConfig(void);
 	#define CONNECTION_RETRIES 3

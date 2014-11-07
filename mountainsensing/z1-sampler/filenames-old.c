@@ -7,6 +7,9 @@
 #include "cfs/cfs.h"
 
 #include "filenames-old.h"
+#include "dev/cc1120.h"
+#include "dev/cc1120-arch.h"
+#include "platform-conf.h"
 
 //#define FILEDEBUG
 #ifdef FILEDEBUG
@@ -23,20 +26,34 @@
 uint8_t
 get_next_read_filename(char *filename)
 {
-
+  uint8_t ret_code;
   struct cfs_dirent dirent;
   struct cfs_dir dir;
-
+  ret_code = 1;
+#ifdef SPI_LOCKING
+  LPRINT("LOCK:read filename\n");
+  NETSTACK.off(0);
+  cc1120_arch_interrupt_disable();
+  CC1120_LOCK_SPI();
+#endif
   if(cfs_opendir(&dir, "/") == 0) {
     while(cfs_readdir(&dir, &dirent) != -1) {
       if(strncmp(dirent.name, "r_", 2) == 0) {
         strcpy(filename, dirent.name);
-        return 1;
+        ret_code = 1;
       }
     }
+  }else{
+    FILEDEBUG("[NEXT] No file found. NULL\n");
+    ret_code=  0;
   }
-  FILEDEBUG("[NEXT] No file found. NULL\n");
-  return 0;
+#ifdef SPI_LOCKING
+  LPRINT("UNLOCK: read filename\n");
+  CC1120_RELEASE_SPI();
+  cc1120_arch_interrupt_enable();
+  NETSTACK.on();
+#endif
+  return ret_code;
 }
 
 /*
@@ -50,11 +67,19 @@ get_next_write_filename(char *filename)
   struct cfs_dir dir;
   uint16_t file_num;
   uint16_t max_num;
+  uint8_t ret_code;
+  ret_code = 1;
   file_num = 0;
   max_num = 0;
 
   filename[0] = 'r';
   filename[1] = '_';
+#ifdef SPI_LOCKING
+  LPRINT("LOCK:write filename\n");
+  NETSTACK.off(0);
+  cc1120_arch_interrupt_disable();
+  CC1120_LOCK_SPI();
+#endif
 
   if(cfs_opendir(&dir, "/") == 0) {
     FILEDEBUG("\tOpened folder\n");
@@ -79,9 +104,16 @@ get_next_write_filename(char *filename)
     }
 
     FILEDEBUG("Returning %s\n", filename);
-    return 1;
+    ret_code =  1;
   }else{
     FILEDEBUG("[ERROR] UNABLE TO OPEN ROOT DIRECTORY!!!\n");
-    return 0;
+    ret_code = 0;
   }
+#ifdef SPI_LOCKING
+  LPRINT("UNLOCK: write filename\n");
+  CC1120_RELEASE_SPI();
+  cc1120_arch_interrupt_enable();
+  NETSTACK.on();
+#endif
+  return ret_code;
 }
