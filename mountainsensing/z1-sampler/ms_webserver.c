@@ -199,10 +199,10 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, BOTTOM);
     }else if(strncmp(url, "/comsub", 7) == 0){
       WPRINT("Comms settings being set\n");
-      if(get_url_param(param, url, "interval\n") == 1){
-        WPRINT("Interval parameter = %s", param);
+      if(get_url_param(param, url, "interval") == 1){
+        WPRINT("Interval parameter = %s\n", param);
         POST_config.interval = atol(param);
-        WPRINT("Interval set to %d\n", POST_config.interval);
+        WPRINT("Interval set to %d\n", (uint16_t)POST_config.interval);
       }else{
         POST_config.interval = POST_INTERVAL;
         WPRINT("Interval not submitted\n");
@@ -301,7 +301,7 @@ PROCESS_THREAD(web_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
     if(uip_connected()){
       WPRINT("[WEBD] Connected!\n");
-      PSOCK_INIT(&web_ps, web_buf, sizeof(web_buf));
+      PSOCK_INIT(&web_ps, (uint8_t *)web_buf, sizeof(web_buf));
       while(!(uip_aborted() || uip_closed() || uip_timedout())){
         WPRINT("[WEBD] Waiting for TCP Event\n");
         PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
@@ -324,10 +324,10 @@ PROCESS_THREAD(web_process, ev, data)
  *   Returns "djap1g11"
  */
 uint8_t
-get_url_param(char* par, char *url, char *key)
+get_url_param(char *par, char *url, char *key)
 {
   char str[URL_LENGTH];
-  char *pch, p1;
+  char *pch;
   uint8_t len;
   uint8_t ret_status;
   strcpy(str, url);
@@ -335,12 +335,12 @@ get_url_param(char* par, char *url, char *key)
   len = strlen(key);
   WPRINT("key length = %d\n", len);
   pch = strtok(str, "?&");
-  par = NULL;
   ret_status =  0;
   while(pch != NULL) {
       if(strncmp(pch, key, len) == 0) {
         // If the token is key-value pair desired
-        par = pch + len + 1;
+        pch = pch + len + 1;
+        strcpy(par, pch);
         ret_status =  1;
         break;
       }

@@ -25,7 +25,7 @@
 	#define URL_LENGTH (WEB_BUFF_LENGTH - 4)
 
 	PROCESS_NAME(web_process);
-	uint8_t get_url_param(char* par, char *url, char *key);
+	uint8_t get_url_param(char *par, char *url, char *key);
 	int flash_du(int *filec, uint32_t *bytes);
 
 #endif
