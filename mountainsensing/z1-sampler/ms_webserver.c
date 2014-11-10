@@ -3,6 +3,7 @@
 PROCESS(web_process, "Web Server");
 
 static struct psock web_ps;
+static char web_buf[WEB_BUFF_LENGTH];
 
 #define WEBDEBUG
 #ifdef WEBDEBUG
@@ -25,7 +26,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
   static char AVRs[32];
   static SensorConfig sensor_config;
   static POSTConfig POST_config;
-  static char web_buf[128];
   static char *url;
   static char param[URL_PARAM_LENGTH];
 
@@ -33,7 +33,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
   PSOCK_BEGIN(p);
   PSOCK_READTO(p, '\n');
-
   if(strncmp("GET ", (char*)web_buf, 4) == 0){
     url = web_buf + 4;
     strtok(url, " ");
@@ -158,10 +157,8 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, "<h1>OK</h1>");
       PSOCK_SEND_STR(p, BOTTOM);
     }else if(strncmp(url, "/comms", 6) == 0){
-        /* Sets communications parameters
-         * should put a lot of text into a string and send rather than 
-         * like this
-         */
+      WPRINT("Comms form\n");
+      //should put a lot of text into a string and send rather than like this
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, COMMS_FORM_1);
@@ -201,10 +198,14 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
       PSOCK_SEND_STR(p, BOTTOM);
     }else if(strncmp(url, "/comsub", 7) == 0){
-      if(get_url_param(param, url, "interval") == 1){
+      WPRINT("Comms settings being set\n");
+      if(get_url_param(param, url, "interval\n") == 1){
+        WPRINT("Interval parameter = %s", param);
         POST_config.interval = atol(param);
+        WPRINT("Interval set to %d\n", POST_config.interval);
       }else{
         POST_config.interval = POST_INTERVAL;
+        WPRINT("Interval not submitted\n");
       }
 
       static char chr[2] = {'a',0};
@@ -239,7 +240,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
         sprintf(tmpstr, "%s\n%d files %ld bytes\n",TEXT_RES,filecount,bytesused); 
         PSOCK_SEND_STR(p, tmpstr);
-    }else if(strncmp(url, "/ls", 3) == 0){}
+    }else if(strncmp(url, "/ls", 3) == 0){
         /******** debug call to list all files on flash = SLOW! */
         struct cfs_dir dir;
         struct cfs_dirent dirent;
@@ -253,9 +254,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
             }
         }
     }else if(strncmp(url, "/settings", 9) == 0){
-      /******** debug GET for the node settings
-    * gives sampleinterval adc1 adc2 rain
-    */
+      // debug GET for the node settings gives sampleinterval adc1 adc2 rain
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       // get time
@@ -279,21 +278,21 @@ PT_THREAD(web_handle_connection(struct psock *p))
       strcat(tmpstr, num);
       PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, BOTTOM);
-  }else{
-      WPRINT("Serving / \"INDEX\"\n");
-      PSOCK_SEND_STR(p, HTTP_RES);
-      PSOCK_SEND_STR(p, TOP);
-      PSOCK_SEND_STR(p, INDEX_BODY);
-      PSOCK_SEND_STR(p, BOTTOM);
+    }else{
+        WPRINT("Serving / \"INDEX\"\n");
+        PSOCK_SEND_STR(p, HTTP_RES);
+        PSOCK_SEND_STR(p, TOP);
+        PSOCK_SEND_STR(p, INDEX_BODY);
+        PSOCK_SEND_STR(p, BOTTOM);
+    }
   }
-
   PSOCK_CLOSE(p);
   PSOCK_END(p);
 }
 
 PROCESS_THREAD(web_process, ev, data)
 {
-  static uint8_t web_buf[128];
+  
   PROCESS_BEGIN();
 
   tcp_listen(UIP_HTONS(80));
@@ -327,26 +326,29 @@ PROCESS_THREAD(web_process, ev, data)
 uint8_t
 get_url_param(char* par, char *url, char *key)
 {
-  
-  char str[100];
-  char *pch;
+  char str[URL_LENGTH];
+  char *pch, p1;
   uint8_t len;
-  
+  uint8_t ret_status;
   strcpy(str, url);
+  WPRINT("looking for %s, in %s\n", key, url);
   len = strlen(key);
+  WPRINT("key length = %d\n", len);
   pch = strtok(str, "?&");
-  
+  par = NULL;
+  ret_status =  0;
   while(pch != NULL) {
       if(strncmp(pch, key, len) == 0) {
         // If the token is key-value pair desired
         par = pch + len + 1;
-        return 1;
-
+        ret_status =  1;
+        break;
       }
       pch = strtok(NULL, "?&");
   }
-  par = NULL;
-  return 0;
+  WPRINT("Found %s\n", par);
+  
+  return ret_status;
 }
 
 

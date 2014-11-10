@@ -11,6 +11,7 @@
 	#include "z1-sampler-config-defaults.h"
 	#include <stdio.h>
 	#include <string.h>
+	#include <stdlib.h>
 	// Config
 	#include "settings.pb.h"
 	#include "readings.pb.h"
@@ -20,6 +21,8 @@
 	#include "net/netstack.h"
 
 	#define URL_PARAM_LENGTH 8
+	#define WEB_BUFF_LENGTH 128
+	#define URL_LENGTH (WEB_BUFF_LENGTH - 4)
 
 	PROCESS_NAME(web_process);
 	uint8_t get_url_param(char* par, char *url, char *key);
