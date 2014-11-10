@@ -10,6 +10,7 @@
 	#include "web_defines.h"
 	#include "z1-sampler-config-defaults.h"
 	#include <stdio.h>
+	#include <string.h>
 	// Config
 	#include "settings.pb.h"
 	#include "readings.pb.h"

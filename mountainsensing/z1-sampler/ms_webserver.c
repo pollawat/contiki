@@ -39,8 +39,8 @@ PT_THREAD(web_handle_connection(struct psock *p))
     strtok(url, " ");
     WPRINT("[WEBD] Got request for %s\n", url);
     
-    if(strncmp(url, "/clock", 6) == 0)
-    { // Serve clock form
+    if(strncmp(url, "/clock", 6) == 0){ 
+      // Serve clock form
       WPRINT("[WEBD] Serving /clock\n");
       submitted = 0;
       if(get_url_param(param, url, "submit") == 1) {
@@ -70,9 +70,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       }
       PSOCK_SEND_STR(p, CLOCK_FORM);
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else if(strncmp(url, "/sample", 7) == 0)
-    {
+    }else if(strncmp(url, "/sample", 7) == 0){
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, SENSOR_FORM_1);
@@ -112,9 +110,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, SENSOR_FORM_6);
       PSOCK_SEND_STR(p, BOTTOM);
       WPRINT("[WEBD] Closing connection.\n");
-    }
-    else if(strncmp(url, "/sensub", 7) == 0)
-    {
+    }else if(strncmp(url, "/sensub", 7) == 0){
       if(get_url_param(param, url, "sample") == 1){
         sensor_config.interval = atol(param);
       }else{
@@ -122,8 +118,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         sensor_config.interval = SENSOR_INTERVAL;
       }
 
-      if(get_url_param(param, url, "AVR") ==1)
-      {
+      if(get_url_param(param, url, "AVR") ==1){
         strcpy(AVRs, param);
         static char *pch;
         pch = strtok(AVRs, ".");
@@ -162,13 +157,11 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, "<h1>OK</h1>");
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-  /* Sets communications parameters
-  * should put a lot of text into a string and send rather than 
-  * like this
-  */
-    else if(strncmp(url, "/comms", 6) == 0)
-    {
+    }else if(strncmp(url, "/comms", 6) == 0){
+        /* Sets communications parameters
+         * should put a lot of text into a string and send rather than 
+         * like this
+         */
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, COMMS_FORM_1);
@@ -207,9 +200,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
       PSOCK_SEND_STR(p, COMMS_FORM_4);
 
       PSOCK_SEND_STR(p, BOTTOM);
-    }
-    else if(strncmp(url, "/comsub", 7) == 0)
-    {
+    }else if(strncmp(url, "/comsub", 7) == 0){
       if(get_url_param(param, url, "interval") == 1){
         POST_config.interval = atol(param);
       }else{
@@ -237,92 +228,63 @@ PT_THREAD(web_handle_connection(struct psock *p))
       strcat(tmpstr, "<h1>OK</h1>");
       strcat(tmpstr, BOTTOM);
       PSOCK_SEND_STR(p, tmpstr);
-    }
+    }else if(strncmp(url, "/du", 3) == 0){
+        /******** debug call to see flash disk usage */
+        static uint32_t bytesused;
+        static int filecount;
+        if( flash_du(&filecount, &bytesused) == -1){
+            PSOCK_SEND_STR(p, "failed\n");
+            return(-1);
+        }
 
-    /******** debug call to see flash disk usage */
-    else if(strncmp(url, "/du", 3) == 0)
-    {
-  static uint32_t bytesused;
-  static int filecount;
-  if( flash_du(&filecount, &bytesused) == -1){
-    PSOCK_SEND_STR(p, "failed\n");
-    return(-1);
-    }
+        sprintf(tmpstr, "%s\n%d files %ld bytes\n",TEXT_RES,filecount,bytesused); 
+        PSOCK_SEND_STR(p, tmpstr);
+    }else if(strncmp(url, "/ls", 3) == 0){}
+        /******** debug call to list all files on flash = SLOW! */
+        struct cfs_dir dir;
+        struct cfs_dirent dirent;
+        //char bigtmpstr[1024];
 
-  sprintf(tmpstr, "%s\n%d files %ld bytes\n",TEXT_RES,filecount,bytesused); 
-  PSOCK_SEND_STR(p, tmpstr);
-    }
-    /******** debug call to list all files on flash = SLOW! */
-    else if(strncmp(url, "/ls", 3) == 0)
-    {
-  struct cfs_dir dir;
-  struct cfs_dirent dirent;
-  //char bigtmpstr[1024];
-
-  PSOCK_SEND_STR(p, TEXT_RES);
-  PSOCK_SEND_STR(p, "printing on serial\r\n");
-  if(cfs_opendir(&dir, "/") == 0) {
-      while(cfs_readdir(&dir, &dirent) != -1) {
-    printf("%s %ld\n", dirent.name, (long)dirent.size);
-    /*
-    if((strlen(bigtmpstr) + strlen(tmpstr) ) > 1023){
-      strcat(bigtmpstr, tmpstr);
-      }
-    */
-      }
-  //PSOCK_SEND_STR(p, bigtmpstr);
-  //cfs_closedir(&dir);
-  }
-  /* nicer version which may make spi clashes
-  PSOCK_SEND_STR(p, TEXT_RES);
-  if(cfs_opendir(&dir, "/") == 0) {
-      while(cfs_readdir(&dir, &dirent) != -1) {
-    sprintf(tmpstr,"%s %ld\n", dirent.name, (long)dirent.size);
-    PSOCK_SEND_STR(p, tmpstr);
-      }
-  //cfs_closedir(&dir);
-  }
-  */
-    }
-
-
-    /******** debug GET for the node settings
+        PSOCK_SEND_STR(p, TEXT_RES);
+        PSOCK_SEND_STR(p, "printing on serial\r\n");
+        if(cfs_opendir(&dir, "/") == 0) {
+            while(cfs_readdir(&dir, &dirent) != -1) {
+              printf("%s %ld\n", dirent.name, (long)dirent.size);
+            }
+        }
+    }else if(strncmp(url, "/settings", 9) == 0){
+      /******** debug GET for the node settings
     * gives sampleinterval adc1 adc2 rain
     */
-    else if(strncmp(url, "/settings", 9) == 0)
-    {
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
-  // get time
-  ltoa(get_time(), tmpstr, 10);
-  strcat(tmpstr, " ");
+      // get time
+      ltoa(get_time(), tmpstr, 10);
+      strcat(tmpstr, " ");
       // sample Interval
       ltoa(sensor_config.interval, num, 10);
-  strcat(tmpstr, num);
-  strcat(tmpstr, "s ");
+      strcat(tmpstr, num);
+      strcat(tmpstr, "s ");
       // POST Interval
       ltoa(POST_config.interval, num, 10);
-  strcat(tmpstr, num);
-  strcat(tmpstr, "P ");
+      strcat(tmpstr, num);
+      strcat(tmpstr, "P ");
       if( sensor_config.hasADC1 == 1)
         strcat(tmpstr, "A1 ");
       if( sensor_config.hasADC2 == 1)
         strcat(tmpstr, "A2 ");
       if( sensor_config.hasRain == 1)
         strcat(tmpstr, "R ");
-  ltoa(reset_sensor.value(0), num, 10);
-  strcat(tmpstr, num);
+      ltoa(reset_sensor.value(0), num, 10);
+      strcat(tmpstr, num);
       PSOCK_SEND_STR(p, tmpstr);
       PSOCK_SEND_STR(p, BOTTOM);
-  }
-    else
-    {
+  }else{
       WPRINT("Serving / \"INDEX\"\n");
       PSOCK_SEND_STR(p, HTTP_RES);
       PSOCK_SEND_STR(p, TOP);
       PSOCK_SEND_STR(p, INDEX_BODY);
       PSOCK_SEND_STR(p, BOTTOM);
-    }
   }
 
   PSOCK_CLOSE(p);
@@ -335,16 +297,13 @@ PROCESS_THREAD(web_process, ev, data)
   PROCESS_BEGIN();
 
   tcp_listen(UIP_HTONS(80));
-  while(1)
-  {
+  while(1){
     WPRINT("[WEBD] Now listening for connections\n");
     PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
-    if(uip_connected())
-    {
+    if(uip_connected()){
       WPRINT("[WEBD] Connected!\n");
       PSOCK_INIT(&web_ps, web_buf, sizeof(web_buf));
-      while(!(uip_aborted() || uip_closed() || uip_timedout()))
-      {
+      while(!(uip_aborted() || uip_closed() || uip_timedout())){
         WPRINT("[WEBD] Waiting for TCP Event\n");
         PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
         WPRINT("[WEBD] Handle connection\n");
