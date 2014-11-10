@@ -73,7 +73,6 @@ AUTOSTART_PROCESSES(&feshie_sense_process);
 
 PROCESS_THREAD(feshie_sense_process, ev, data)
 {
-  //static struct etimer timer;
   PROCESS_BEGIN();
   #ifndef CC11xx_CC1120
   cc2420_set_txpower(31);
