@@ -15,9 +15,13 @@
     "</form>"
 
 #define INDEX_BODY "<h1>Index</h1>"             \
-    "<a href=\"/clock\">Clock Config</a><br>"   \
-    "<a href=\"/sample\">Sensors Config</a><br>"\
-    "<a href=\"/comms\">Comms Config</a>"
+    "<a href=\"/clock\">Clock Config</a>"   \
+    "<a href=\"/sample\">Sensors Config</a>"\
+    "<a href=\"/comms\">Comms Config</a>"       \
+    "<a href=\"/settings\">Setting dump</a>"    \
+    "<a href=\"/ls\">Print files on console</a>" \
+    "<a href=\"/du\">Disk usage</a>"
+
 
 #define SENSOR_FORM_1 "<form action=\"/sensub\" method=\"get\">" \
     "Sample Interval (s)<input type=\"number\" name=\"sample\" min=\"1\" value=\""
