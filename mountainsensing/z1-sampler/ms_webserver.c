@@ -200,7 +200,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
     }else if(strncmp(url, "/comsub", 7) == 0){
       WPRINT("Comms settings being set\n");
       if(get_url_param(param, url, "interval") == 1){
-        WPRINT("Interval parameter = %s\n", param);
         POST_config.interval = atol(param);
         WPRINT("Interval set to %d\n", (uint16_t)POST_config.interval);
       }else{
@@ -209,20 +208,32 @@ PT_THREAD(web_handle_connection(struct psock *p))
       }
 
       static char chr[2] = {'a',0};
-
+      WPRINT("Setting IP to:");
       for(i = 0; i < 8; i++) {
         chr[0] = 'a' + i;
-        get_url_param(param, url, chr);
-        POST_config.ip[i] = (param == NULL ? 0 : strtol(param, NULL, 16));
+        if (get_url_param(param, url, chr) ==1){
+            POST_config.ip[i] = strtol(param, NULL, 16);
+            WPRINT("%x",(unsigned int)POST_config.ip[i]);
+        }else{
+            printf("incomplete IP given. ABORTING\n");
+            return (-1);
+        }
+        
+        if (i < 7){
+          WPRINT(":");
+        }else{
+          WPRINT("\n");
+        }
       }
 
       if(get_url_param(param, url, "port") == 1){
         POST_config.port = atol(param);
+        WPRINT("Setting port to %d\n",(unsigned int)POST_config.port );
       }else{
         POST_config.port = POST_PORT;
+        WPRINT("Port not submitted\n");
       }
-
-      set_config(&POST_config, COMMS_CONFIG);
+      set_config((void *)&POST_config, COMMS_CONFIG);
       refreshPosterConfig();
       PSOCK_SEND_STR(p, HTTP_RES);
        strcpy(tmpstr,TOP);
@@ -331,9 +342,9 @@ get_url_param(char *par, char *url, char *key)
   uint8_t len;
   uint8_t ret_status;
   strcpy(str, url);
-  WPRINT("looking for %s, in %s\n", key, url);
+//  WPRINT("looking for %s, in %s\n", key, url);
   len = strlen(key);
-  WPRINT("key length = %d\n", len);
+//  WPRINT("key length = %d\n", len);
   pch = strtok(str, "?&");
   ret_status =  0;
   while(pch != NULL) {
@@ -346,7 +357,7 @@ get_url_param(char *par, char *url, char *key)
       }
       pch = strtok(NULL, "?&");
   }
-  WPRINT("Found %s\n", par);
+//  WPRINT("Found %s\n", par);
   
   return ret_status;
 }

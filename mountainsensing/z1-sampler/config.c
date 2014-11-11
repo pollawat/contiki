@@ -20,7 +20,7 @@
 #if SensorConfig_size > PostConfig_size
     #define CONFIG_BUF_SIZE (SensorConfig_size + 4)
 #else
-    #define CONFIG_BUF_SIZE ([POSTConfig_size + 4)
+    #define CONFIG_BUF_SIZE (POSTConfig_size + 4)
 #endif
 
 #define CONFIG_DEBUG
@@ -28,7 +28,7 @@
 #ifdef CONFIG_DEBUG 
     #define CPRINT(...) printf(__VA_ARGS__)
 #else
-    #define DPRINT(...)
+    #define CPRINT(...)
 #endif
 
 /*
@@ -36,32 +36,49 @@
  * Returns 0 upon success, 1 on failure
  */
 uint8_t 
-set_config(void* pb, uint8_t config)
+set_config(void *pb, uint8_t config)
 {
     uint8_t cfg_buf[CONFIG_BUF_SIZE];
     pb_ostream_t ostream;
     int write;
+    bool encode_status;
 
     memset(cfg_buf, 0, CONFIG_BUF_SIZE);
     ostream = pb_ostream_from_buffer(cfg_buf, CONFIG_BUF_SIZE);
     if(config == SAMPLE_CONFIG) {
-        pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
+        encode_status = pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
-    } else {
-       pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
+    } else if (config == COMMS_CONFIG){
+       
+        CPRINT("Saving the following details to config file\n");
+        CPRINT("\tInterval: %d\n", (unsigned int)((POSTConfig *)pb)->interval);
+        CPRINT("\tPort: %d\n", (unsigned int)((POSTConfig *)pb)->port);
+        CPRINT("\tPosting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
+            (unsigned int)((POSTConfig *)pb)->ip[0], (unsigned int)((POSTConfig *)pb)->ip[1], (unsigned int)((POSTConfig *)pb)->ip[2],
+            (unsigned int)((POSTConfig *)pb)->ip[3], (unsigned int)((POSTConfig *)pb)->ip[4], (unsigned int)((POSTConfig *)pb)->ip[5],
+            (unsigned int)((POSTConfig *)pb)->ip[6], (unsigned int)((POSTConfig *)pb)->ip[7]);
+       encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
        cfs_remove("commsconfig");
        write = cfs_open("commsconfig", CFS_WRITE);
+   }else{
+      printf("UNKNOWN CONFIG TYPE. UNABLE TO WRITE FILE!\n");
+      return 1;
    }
-    if(write != -1) {
+    if(encode_status){
+      if(write != -1) {
         cfs_write(write, cfg_buf, ostream.bytes_written);
         cfs_close(write);
         CPRINT("[WCFG] Writing %d bytes to config file\n", ostream.bytes_written);
-       return 0;
-    } else {
-       CPRINT("[WCFG] ERROR: could not write to disk\n");
-       return 1;
+        return 0;
+      } else {
+         CPRINT("[WCFG] ERROR: could not write to disk\n");
+         return 1;
+      }
+    }else{
+      printf("Failed to encode file. Leaving config as is\n");
     }
+    
 }
 
 

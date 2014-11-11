@@ -6,7 +6,7 @@
 
 	#include <stdlib.h>
 
-	uint8_t set_config(void* pb, uint8_t config);
-	uint8_t get_config(void* pb, uint8_t config);
+	uint8_t set_config(void *pb, uint8_t config);
+	uint8_t get_config(void *pb, uint8_t config);
 
 #endif
