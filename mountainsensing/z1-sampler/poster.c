@@ -99,6 +99,7 @@ refreshPosterConfig(void)
      (unsigned int)POST_config.ip[0], (unsigned int)POST_config.ip[1], (unsigned int)POST_config.ip[2],
      (unsigned int)POST_config.ip[3], (unsigned int)POST_config.ip[4], (unsigned int)POST_config.ip[5],
      (unsigned int)POST_config.ip[6], (unsigned int)POST_config.ip[7]);
+    printf("Post port: %d\n", (unsigned int)POST_config.port);
 
 }
 
@@ -116,7 +117,6 @@ PROCESS_THREAD(post_process, ev, data)
   static struct etimer timeout_timer;
 
   PROCESS_BEGIN();
-  printf("\n******\n");
   refreshPosterConfig();
   data_length = 0;
   http_status = 0;
