@@ -58,6 +58,16 @@ print_sensor_config(SensorConfig *conf)
   }
 }
 
+void
+print_comms_config(POSTConfig *conf){
+    CPRINT("\tInterval: %d\n", (unsigned int)conf->interval);
+    CPRINT("\tPort: %d\n", (unsigned int)conf->port);
+    CPRINT("\tPosting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
+        (unsigned int)conf->ip[0], (unsigned int)conf->ip[1], (unsigned int)conf->ip[2],
+        (unsigned int)conf->ip[3], (unsigned int)conf->ip[4], (unsigned int)conf->ip[5],
+        (unsigned int)conf->ip[6], (unsigned int)conf->ip[7]);
+  }
+
 
 /*
  * Sets the Sampler configuration (writes it to flash).
@@ -82,17 +92,11 @@ set_config(void *pb, uint8_t config)
         
 
     } else if (config == COMMS_CONFIG){
-       
         CPRINT("Saving the following details to config file\n");
-        CPRINT("\tInterval: %d\n", (unsigned int)((POSTConfig *)pb)->interval);
-        CPRINT("\tPort: %d\n", (unsigned int)((POSTConfig *)pb)->port);
-        CPRINT("\tPosting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
-            (unsigned int)((POSTConfig *)pb)->ip[0], (unsigned int)((POSTConfig *)pb)->ip[1], (unsigned int)((POSTConfig *)pb)->ip[2],
-            (unsigned int)((POSTConfig *)pb)->ip[3], (unsigned int)((POSTConfig *)pb)->ip[4], (unsigned int)((POSTConfig *)pb)->ip[5],
-            (unsigned int)((POSTConfig *)pb)->ip[6], (unsigned int)((POSTConfig *)pb)->ip[7]);
-       encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
-       cfs_remove("commsconfig");
-       write = cfs_open("commsconfig", CFS_WRITE);
+        print_comms_config((POSTConfig *)pb);
+        encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
+        cfs_remove("commsconfig");
+        write = cfs_open("commsconfig", CFS_WRITE);
    }else{
       printf("UNKNOWN CONFIG TYPE. UNABLE TO WRITE FILE!\n");
       return 1;
@@ -152,6 +156,8 @@ get_config(void* pb, uint8_t config)
           print_sensor_config((SensorConfig *)pb);
       } else {
           pb_decode_delimited(&istream, POSTConfig_fields, (POSTConfig *)pb);
+          CPRINT("Read Post config:\n");
+          print_comms_config((POSTConfig *)pb);
       }
       return 0;
     } else {

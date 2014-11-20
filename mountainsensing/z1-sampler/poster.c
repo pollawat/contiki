@@ -94,12 +94,8 @@ refreshPosterConfig(void)
     }else{
         PPRINT("POST Config file loaded\n");
     }
-    printf("Post interval set to: %lu\n", (long unsigned)POST_config.interval);
-    printf("Posting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
-     (unsigned int)POST_config.ip[0], (unsigned int)POST_config.ip[1], (unsigned int)POST_config.ip[2],
-     (unsigned int)POST_config.ip[3], (unsigned int)POST_config.ip[4], (unsigned int)POST_config.ip[5],
-     (unsigned int)POST_config.ip[6], (unsigned int)POST_config.ip[7]);
-    printf("Post port: %d\n", (unsigned int)POST_config.port);
+    PPRINT("Refeshed post config to:\n");
+    print_comms_config(&POST_config);
 
 }
 
