@@ -49,6 +49,27 @@ set_config(void *pb, uint8_t config)
         encode_status = pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
+        CPRINT("Saving the following details to config file\n");
+        CPRINT("ADC1: ");
+        if (((SensorConfig *)pb)->hasADC1 == 1){
+          CPRINT("yes\n");
+        }else{
+          CPRINT("no\n");
+        }
+        CPRINT("ADC2: ");
+        if (((SensorConfig *)pb)-> hasADC2){
+          CPRINT("yes\n");
+        }else{
+          CPRINT("no\n");
+        }
+        CPRINT("Rain: ");
+        if (((SensorConfig *)pb)-> hasRain){
+          CPRINT("yes\n");
+        }else{
+          CPRINT("no\n");
+        }
+        CPRINT("Interval = %d\n", (unsigned int)((SensorConfig *)pb)->interval);
+
     } else if (config == COMMS_CONFIG){
        
         CPRINT("Saving the following details to config file\n");
@@ -77,6 +98,7 @@ set_config(void *pb, uint8_t config)
       }
     }else{
       printf("Failed to encode file. Leaving config as is\n");
+      return 1;
     }
     
 }
