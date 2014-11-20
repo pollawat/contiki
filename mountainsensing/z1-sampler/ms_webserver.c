@@ -30,7 +30,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
   static char param[URL_PARAM_LENGTH];
 
   WPRINT("[WEBD] Reading HTTP request line...\n");
-
   PSOCK_BEGIN(p);
   PSOCK_READTO(p, '\n');
   if(strncmp("GET ", (char*)web_buf, 4) == 0){
@@ -214,16 +213,17 @@ PT_THREAD(web_handle_connection(struct psock *p))
         if (get_url_param(param, url, chr) ==1){
             POST_config.ip[i] = strtol(param, NULL, 16);
             WPRINT("%x",(unsigned int)POST_config.ip[i]);
+            if (i < 7){
+                WPRINT(":");
+            }else{
+                WPRINT("\n");
+            }
         }else{
             printf("incomplete IP given. ABORTING\n");
-            return (-1);
+            goto close_connection;
         }
         
-        if (i < 7){
-          WPRINT(":");
-        }else{
-          WPRINT("\n");
-        }
+
       }
 
       if(get_url_param(param, url, "port") == 1){
@@ -246,7 +246,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         static int filecount;
         if( flash_du(&filecount, &bytesused) == -1){
             PSOCK_SEND_STR(p, "failed\n");
-            return(-1);
+            goto close_connection;
         }
 
         sprintf(tmpstr, "%s\n%d files %ld bytes\n",TEXT_RES,filecount,bytesused); 
@@ -297,6 +297,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         PSOCK_SEND_STR(p, BOTTOM);
     }
   }
+  close_connection:
   PSOCK_CLOSE(p);
   PSOCK_END(p);
 }
