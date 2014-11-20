@@ -1,19 +1,7 @@
 
 #include "config.h"
 
-// Config
-#include "settings.pb.h"
-#include "readings.pb.h"
 
-// Protobuf
-#include "dev/pb_decode.h"
-#include "dev/pb_encode.h"
-
-#include "cfs/cfs.h"
-#include "contiki.h"
-
-#include <stdlib.h>
-#include <stdio.h>
 
 
 
@@ -31,6 +19,46 @@
     #define CPRINT(...)
 #endif
 
+
+void 
+print_sensor_config(SensorConfig *conf)
+{
+  uint8_t i;
+  CPRINT("\tInterval = %d\n", (unsigned int)conf->interval);
+  CPRINT("\tADC1: ");
+  if (conf->hasADC1 == 1){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tADC2: ");
+  if (conf-> hasADC2){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tRain: ");
+  if (conf-> hasRain){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tAVRs: ");
+  if(conf->avrIDs_count ==0 ){
+    CPRINT("NONE\n");
+  }else{
+    for(i=0; i < conf->avrIDs_count; i++){
+      CPRINT("%d", (int)conf->avrIDs[i] & 0xFF);
+      if(i < conf->avrIDs_count -1){
+        CPRINT(", ");
+      }else{
+        CPRINT("\n");
+      }
+    }
+  }
+}
+
+
 /*
  * Sets the Sampler configuration (writes it to flash).
  * Returns 0 upon success, 1 on failure
@@ -39,7 +67,6 @@ uint8_t
 set_config(void *pb, uint8_t config)
 {
     uint8_t cfg_buf[CONFIG_BUF_SIZE];
-    uint8_t i;
     pb_ostream_t ostream;
     int write;
     bool encode_status;
@@ -51,38 +78,7 @@ set_config(void *pb, uint8_t config)
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
         CPRINT("Saving the following details to config file\n");
-        CPRINT("\tInterval = %d\n", (unsigned int)((SensorConfig *)pb)->interval);
-        CPRINT("\tADC1: ");
-        if (((SensorConfig *)pb)->hasADC1 == 1){
-          CPRINT("yes\n");
-        }else{
-          CPRINT("no\n");
-        }
-        CPRINT("\tADC2: ");
-        if (((SensorConfig *)pb)-> hasADC2){
-          CPRINT("yes\n");
-        }else{
-          CPRINT("no\n");
-        }
-        CPRINT("\tRain: ");
-        if (((SensorConfig *)pb)-> hasRain){
-          CPRINT("yes\n");
-        }else{
-          CPRINT("no\n");
-        }
-        CPRINT("\tAVRs: ");
-        if(((SensorConfig *)pb)->avrIDs_count ==0 ){
-          CPRINT("NONE\n");
-        }else{
-          for(i=0; i < ((SensorConfig *)pb)->avrIDs_count; i++){
-            CPRINT("%d", (int)((SensorConfig *)pb)->avrIDs[i] & 0xFF);
-            if(i < ((SensorConfig *)pb)->avrIDs_count -1){
-              CPRINT(", ");
-            }else{
-              CPRINT("\n");
-            }
-          }
-        }
+        print_sensor_config((SensorConfig *)pb);
         
 
     } else if (config == COMMS_CONFIG){
@@ -152,6 +148,8 @@ get_config(void* pb, uint8_t config)
 
       if(config == SAMPLE_CONFIG) {
           pb_decode_delimited(&istream, SensorConfig_fields, (SensorConfig *)pb);
+          CPRINT("Read sensor config:\n");
+          print_sensor_config((SensorConfig *)pb);
       } else {
           pb_decode_delimited(&istream, POSTConfig_fields, (POSTConfig *)pb);
       }
