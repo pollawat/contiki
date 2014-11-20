@@ -39,6 +39,7 @@ uint8_t
 set_config(void *pb, uint8_t config)
 {
     uint8_t cfg_buf[CONFIG_BUF_SIZE];
+    uint8_t i;
     pb_ostream_t ostream;
     int write;
     bool encode_status;
@@ -50,25 +51,39 @@ set_config(void *pb, uint8_t config)
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
         CPRINT("Saving the following details to config file\n");
-        CPRINT("ADC1: ");
+        CPRINT("\tInterval = %d\n", (unsigned int)((SensorConfig *)pb)->interval);
+        CPRINT("\tADC1: ");
         if (((SensorConfig *)pb)->hasADC1 == 1){
           CPRINT("yes\n");
         }else{
           CPRINT("no\n");
         }
-        CPRINT("ADC2: ");
+        CPRINT("\tADC2: ");
         if (((SensorConfig *)pb)-> hasADC2){
           CPRINT("yes\n");
         }else{
           CPRINT("no\n");
         }
-        CPRINT("Rain: ");
+        CPRINT("\tRain: ");
         if (((SensorConfig *)pb)-> hasRain){
           CPRINT("yes\n");
         }else{
           CPRINT("no\n");
         }
-        CPRINT("Interval = %d\n", (unsigned int)((SensorConfig *)pb)->interval);
+        CPRINT("\tAVRs: ");
+        if(((SensorConfig *)pb)->avrIDs_count ==0 ){
+          CPRINT("NONE\n");
+        }else{
+          for(i=0; i < ((SensorConfig *)pb)->avrIDs_count; i++){
+            CPRINT("%d", (int)((SensorConfig *)pb)->avrIDs[i] & 0xFF);
+            if(i < ((SensorConfig *)pb)->avrIDs_count -1){
+              CPRINT(", ");
+            }else{
+              CPRINT("\n");
+            }
+          }
+        }
+        
 
     } else if (config == COMMS_CONFIG){
        
