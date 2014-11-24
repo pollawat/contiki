@@ -28,6 +28,12 @@ PT_THREAD(web_handle_connection(struct psock *p))
   static POSTConfig POST_config;
   static char *url;
   static char param[URL_PARAM_LENGTH];
+  static uint32_t bytesused;
+  static int filecount;
+  static char *pch;
+  static char chr[2] = {'a',0};
+  static struct cfs_dir dir;
+  static struct cfs_dirent dirent;
 
   WPRINT("[WEBD] Reading HTTP request line...\n");
   PSOCK_BEGIN(p);
@@ -118,7 +124,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
 
       if(get_url_param(param, url, "AVR") ==1){
         strcpy(AVRs, param);
-        static char *pch;
         pch = strtok(AVRs, ".");
         i = 0;
         while(pch != NULL) {
@@ -206,7 +211,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         WPRINT("Interval not submitted\n");
       }
 
-      static char chr[2] = {'a',0};
+
       WPRINT("Setting IP to:");
       for(i = 0; i < 8; i++) {
         chr[0] = 'a' + i;
@@ -222,8 +227,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
             printf("incomplete IP given. ABORTING\n");
             goto close_connection;
         }
-        
-
       }
 
       if(get_url_param(param, url, "port") == 1){
@@ -233,17 +236,23 @@ PT_THREAD(web_handle_connection(struct psock *p))
         POST_config.port = POST_PORT;
         WPRINT("Port not submitted\n");
       }
-      set_config((void *)&POST_config, COMMS_CONFIG);
-      refreshPosterConfig();
-      PSOCK_SEND_STR(p, HTTP_RES);
-       strcpy(tmpstr,TOP);
-      strcat(tmpstr, "<h1>OK</h1>");
-      strcat(tmpstr, BOTTOM);
-      PSOCK_SEND_STR(p, tmpstr);
+      if(set_config((void *)&POST_config, COMMS_CONFIG) == 0){
+        refreshPosterConfig();
+        PSOCK_SEND_STR(p, HTTP_RES);
+        strcpy(tmpstr,TOP);
+        strcat(tmpstr, "<h1>OK</h1>");
+        strcat(tmpstr, BOTTOM);
+        PSOCK_SEND_STR(p, tmpstr);
+      }else{
+        printf("Setting config failed\n");
+        PSOCK_SEND_STR(p, HTTP_RES);
+        strcpy(tmpstr,TOP);
+        strcat(tmpstr, "<h1>FAILED</h1>");
+        strcat(tmpstr, BOTTOM);
+        PSOCK_SEND_STR(p, tmpstr);
+      }
     }else if(strncmp(url, "/du", 3) == 0){
         /******** debug call to see flash disk usage */
-        static uint32_t bytesused;
-        static int filecount;
         if( flash_du(&filecount, &bytesused) == -1){
             PSOCK_SEND_STR(p, "failed\n");
             goto close_connection;
@@ -253,9 +262,6 @@ PT_THREAD(web_handle_connection(struct psock *p))
         PSOCK_SEND_STR(p, tmpstr);
     }else if(strncmp(url, "/ls", 3) == 0){
         /******** debug call to list all files on flash = SLOW! */
-        struct cfs_dir dir;
-        struct cfs_dirent dirent;
-        //char bigtmpstr[1024];
 
         PSOCK_SEND_STR(p, TEXT_RES);
         PSOCK_SEND_STR(p, "printing on serial\r\n");
