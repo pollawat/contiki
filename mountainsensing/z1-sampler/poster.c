@@ -111,6 +111,7 @@ PROCESS_THREAD(post_process, ev, data)
   /* These could be combined if needed to save space */
   static struct etimer post_timer;
   static struct etimer timeout_timer;
+  static uip_ds6_addr_t *n_addr;
 
   PROCESS_BEGIN();
   refreshPosterConfig();
@@ -122,11 +123,28 @@ PROCESS_THREAD(post_process, ev, data)
     retries = 0;
     etimer_set(&post_timer, CLOCK_SECOND * (POST_config.interval - (get_time() % POST_config.interval)));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&post_timer));
+    n_addr = uip_ds6_get_global(-1);
     while((get_next_read_filename(filename)) !=0 && retries < CONNECTION_RETRIES){
-      uip_ip6addr(&addr,
-          POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
-          POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
-          POST_config.ip[6], POST_config.ip[7]);
+      if(n_addr == NULL){
+        printf("Not associated so can't send\n");
+        break;
+      }
+      //n_addr != NULL checks we are associated
+   //   uip_ip6addr(&addr,
+   //       POST_config.ip[0], POST_config.ip[1], POST_config.ip[2],
+   //       POST_config.ip[3], POST_config.ip[4], POST_config.ip[5],
+   //       POST_config.ip[6], POST_config.ip[7]);
+       uip_ip6addr_u8(&addr,
+            n_addr->ipaddr.u8[0], n_addr->ipaddr.u8[1],
+            n_addr->ipaddr.u8[2], n_addr->ipaddr.u8[3],
+            n_addr->ipaddr.u8[4], n_addr->ipaddr.u8[5],
+            n_addr->ipaddr.u8[6], n_addr->ipaddr.u8[7],
+            0, 0, 0, 0, 0, 0, 0, 1);
+            #ifdef POSTDEFBUG
+              printf("About to post to: ");
+              uip_debug_ipaddr_print(&addr);
+              printf("\n");
+            #endif
       PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
       data_length = load_file(data_buffer, filename);
       tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);

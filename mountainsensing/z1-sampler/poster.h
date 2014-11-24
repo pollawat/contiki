@@ -12,6 +12,8 @@
 	// Networking
 	#include "contiki-net.h"
 	#include "sampling-sensors.h"
+	#include "uip-ds6.h"
+	#include "uip-debug.h"
 
 	void refreshPosterConfig(void);
 	#define CONNECTION_RETRIES 3
