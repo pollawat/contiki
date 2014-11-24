@@ -80,7 +80,6 @@ set_config(void *pb, uint8_t config)
     pb_ostream_t ostream;
     int write;
     bool encode_status;
-
     memset(cfg_buf, 0, CONFIG_BUF_SIZE);
     ostream = pb_ostream_from_buffer(cfg_buf, CONFIG_BUF_SIZE);
     if(config == SAMPLE_CONFIG) {
@@ -92,9 +91,9 @@ set_config(void *pb, uint8_t config)
         
 
     } else if (config == COMMS_CONFIG){
+        encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
         CPRINT("Saving the following details to config file\n");
         print_comms_config((POSTConfig *)pb);
-        encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
         cfs_remove("commsconfig");
         write = cfs_open("commsconfig", CFS_WRITE);
    }else{
