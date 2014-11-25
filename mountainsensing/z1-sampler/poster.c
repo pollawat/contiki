@@ -35,20 +35,21 @@ handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, 
     strcat(tmpstr_handle, content_length);
     strcat(tmpstr_handle, "\r\n\r\n");
 
-    PSOCK_BEGIN(p);
+    if(data_length > 0){
+        PSOCK_BEGIN(p);
 
-    PSOCK_SEND_STR(p, tmpstr_handle);
-    PSOCK_SEND(p, data_buffer, data_length);
+        PSOCK_SEND_STR(p, tmpstr_handle);
+        PSOCK_SEND(p, data_buffer, data_length);
 
-    while(1) {
-        PSOCK_READTO(p, '\n');
-        if(strncmp(psock_buffer, "HTTP/", 5) == 0){   
-            // Status line
-            *http_status = atoi(psock_buffer + 9);
+        while(1) {
+            PSOCK_READTO(p, '\n');
+            if(strncmp(psock_buffer, "HTTP/", 5) == 0){   
+                // Status line
+                *http_status = atoi(psock_buffer + 9);
+            }
         }
+        PSOCK_END(p);
     }
-
-    PSOCK_END(p);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -154,6 +155,10 @@ PROCESS_THREAD(post_process, ev, data)
     #endif
             PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
             data_length = load_file(data_buffer, filename);
+            if(data_length = 0){
+                retries++;
+                continue;
+            }
             tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
             PPRINT("Connecting...\n");
             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
