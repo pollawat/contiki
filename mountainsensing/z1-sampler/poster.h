@@ -21,6 +21,7 @@
 	#define CONNECTION_RETRIES 3
 	#define LIVE_CONNECTION_TIMEOUT 300
 	#define DATA_BUFFER_LENGTH 256
+	#define PSOCK_BUFFER_LENGTH 120
 
 	void refreshPosterConfig(void);
 	
