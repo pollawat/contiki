@@ -38,7 +38,7 @@
 #ifndef __PLATFORM_CONF_H__
 #define __PLATFORM_CONF_H__
 
-//#define SPI_LOCKING
+#define SPI_LOCKING
 #define LOCKING_DEBUG
 #ifdef LOCKING_DEBUG
  #include <stdio.h>
