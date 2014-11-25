@@ -99,16 +99,16 @@ PROCESS_THREAD(sample_process, ev, data)
         sample.has_accZ = 1;
 
         if(sensor_config.hasADC1) {
-            sample.has_ADC1 = sensor_config.hasADC1;
+            sample.has_ADC1 = 1;
             sample.ADC1 = get_sensor_ADC1();
         }
         if(sensor_config.hasADC2) {
 
-            sample.has_ADC2 = sensor_config.hasADC2;
+            sample.has_ADC2 = 1;
             sample.ADC2 = get_sensor_ADC2();
         }
         if(sensor_config.hasRain) {
-            sample.has_rain = sensor_config.hasRain;
+            sample.has_rain = 1;
             sample.rain = get_sensor_rain();
         }
       
