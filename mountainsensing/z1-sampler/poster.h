@@ -18,14 +18,15 @@
 	#include "dev/cc1120-arch.h"
 	#include "platform-conf.h"
 
-	void refreshPosterConfig(void);
 	#define CONNECTION_RETRIES 3
 	#define LIVE_CONNECTION_TIMEOUT 300
 	#define DATA_BUFFER_LENGTH 256
 
+	void refreshPosterConfig(void);
+	
 	PROCESS_NAME(post_process);
 
-int handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p);
-uint8_t load_file(char *data_buffer, char *filename);
+	int handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p);
+	uint8_t load_file(char *data_buffer, char *filename);
 
 #endif
