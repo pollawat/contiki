@@ -162,7 +162,6 @@ SENSORS_ACTIVATE(event_sensor);
     ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
     pb_encode_delimited(&ostream, Sample_fields, &sample);
 
-	//NETSTACK_MAC.off(0); /* DESPERATE HACK!!??*/
     get_next_write_filename(filename);
     if(filename == 0) {
       continue;
@@ -171,7 +170,7 @@ SENSORS_ACTIVATE(event_sensor);
     AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
 #ifdef SPI_LOCKING
     LPRINT("LOCK: write sample\n");
-    NETSTACK.off(0);
+    NETSTACK_MAC.off(0);
     cc1120_arch_interrupt_disable();
     CC1120_LOCK_SPI();
 #endif
@@ -190,7 +189,7 @@ SENSORS_ACTIVATE(event_sensor);
     LPRINT("UNLOCK: write sample\n");
     CC1120_RELEASE_SPI();
     cc1120_arch_interrupt_enable();
-    NETSTACK.on();;
+    NETSTACK_MAC.on();
 #endif
   }
 

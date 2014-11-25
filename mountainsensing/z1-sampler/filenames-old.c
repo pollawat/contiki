@@ -32,7 +32,7 @@ get_next_read_filename(char *filename)
   ret_code = 1;
 #ifdef SPI_LOCKING
   LPRINT("LOCK:read filename\n");
-  NETSTACK.off(0);
+  NETSTACK_MAC.off(0);
   cc1120_arch_interrupt_disable();
   CC1120_LOCK_SPI();
 #endif
@@ -51,7 +51,7 @@ get_next_read_filename(char *filename)
   LPRINT("UNLOCK: read filename\n");
   CC1120_RELEASE_SPI();
   cc1120_arch_interrupt_enable();
-  NETSTACK.on();
+  NETSTACK_MAC.on();
 #endif
   return ret_code;
 }
@@ -76,7 +76,7 @@ get_next_write_filename(char *filename)
   filename[1] = '_';
 #ifdef SPI_LOCKING
   LPRINT("LOCK:write filename\n");
-  NETSTACK.off(0);
+  NETSTACK_MAC.off(0);
   cc1120_arch_interrupt_disable();
   CC1120_LOCK_SPI();
 #endif
@@ -113,7 +113,7 @@ get_next_write_filename(char *filename)
   LPRINT("UNLOCK: write filename\n");
   CC1120_RELEASE_SPI();
   cc1120_arch_interrupt_enable();
-  NETSTACK.on();
+  NETSTACK_MAC.on();
 #endif
   return ret_code;
 }
