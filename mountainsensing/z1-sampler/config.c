@@ -84,13 +84,13 @@ set_config(void* pb, uint8_t config)
       CC1120_LOCK_SPI();
 #endif
     if(config == SAMPLE_CONFIG) {
-        pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
+        encode_status = pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
         CPRINT("Saving the following details to config file\n");
         print_sensor_config((SensorConfig *)pb);
     } else if (config == COMMS_CONFIG){
-        pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
+        encode_status = pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
         cfs_remove("commsconfig");
         write = cfs_open("commsconfig", CFS_WRITE);
         CPRINT("Saving the following details to config file\n");
