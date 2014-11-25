@@ -1,29 +1,11 @@
 
 #include "config.h"
 
-// Config
-#include "settings.pb.h"
-#include "readings.pb.h"
-
-// Protobuf
-#include "dev/pb_decode.h"
-#include "dev/pb_encode.h"
-
-#include "cfs/cfs.h"
-#include "contiki.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-
-#include "dev/cc1120.h"
-#include "dev/cc1120-arch.h"
-#include "platform-conf.h"
-
 
 #if SensorConfig_size > PostConfig_size
     #define CONFIG_BUF_SIZE (SensorConfig_size + 4)
 #else
-    #define CONFIG_BUF_SIZE ([POSTConfig_size + 4)
+    #define CONFIG_BUF_SIZE (POSTConfig_size + 4)
 #endif
 
 #define CONFIG_DEBUG
@@ -31,13 +13,59 @@
 #ifdef CONFIG_DEBUG 
     #define CPRINT(...) printf(__VA_ARGS__)
 #else
-    #define DPRINT(...)
+    #define CPRINT(...)
 #endif
 
-/*
- * Sets the Sampler configuration (writes it to flash).
- * Returns 0 upon success, 1 on failure
- */
+
+void 
+print_sensor_config(SensorConfig *conf)
+{
+  uint8_t i;
+  CPRINT("\tInterval = %d\n", (unsigned int)conf->interval);
+  CPRINT("\tADC1: ");
+  if (conf->hasADC1 == 1){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tADC2: ");
+  if (conf-> hasADC2){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tRain: ");
+  if (conf-> hasRain){
+    CPRINT("yes\n");
+  }else{
+    CPRINT("no\n");
+  }
+  CPRINT("\tAVRs: ");
+  if(conf->avrIDs_count ==0 ){
+    CPRINT("NONE\n");
+  }else{
+    for(i=0; i < conf->avrIDs_count; i++){
+      CPRINT("%d", (int)conf->avrIDs[i] & 0xFF);
+      if(i < conf->avrIDs_count -1){
+        CPRINT(", ");
+      }else{
+        CPRINT("\n");
+      }
+    }
+  }
+}
+
+void
+print_comms_config(POSTConfig *conf){
+    CPRINT("\tInterval: %d\n", (unsigned int)conf->interval);
+    CPRINT("\tPort: %d\n", (unsigned int)conf->port);
+    CPRINT("\tPosting to %x:%x:%x:%x:%x:%x:%x:%x\n", 
+        (unsigned int)conf->ip[0], (unsigned int)conf->ip[1], (unsigned int)conf->ip[2],
+        (unsigned int)conf->ip[3], (unsigned int)conf->ip[4], (unsigned int)conf->ip[5],
+        (unsigned int)conf->ip[6], (unsigned int)conf->ip[7]);
+}
+
+
 uint8_t 
 set_config(void* pb, uint8_t config)
 {
@@ -45,39 +73,52 @@ set_config(void* pb, uint8_t config)
     pb_ostream_t ostream;
     int write;
     uint8_t ret_code;
+    bool encode_status;
 
     memset(cfg_buf, 0, CONFIG_BUF_SIZE);
     ostream = pb_ostream_from_buffer(cfg_buf, CONFIG_BUF_SIZE);
 #ifdef SPI_LOCKING
       LPRINT("LOCK: set conf\n");
-      NETSTACK.off(0);
+      NETSTACK_MAC.off(0);
       cc1120_arch_interrupt_disable();
       CC1120_LOCK_SPI();
-      
 #endif
     if(config == SAMPLE_CONFIG) {
         pb_encode_delimited(&ostream, SensorConfig_fields, (SensorConfig *)pb);
         cfs_remove("sampleconfig");
         write = cfs_open("sampleconfig", CFS_WRITE);
-    } else {
-       pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
-       cfs_remove("commsconfig");
-       write = cfs_open("commsconfig", CFS_WRITE);
-   }
-    if(write != -1) {
-        cfs_write(write, cfg_buf, ostream.bytes_written);
-        cfs_close(write);
-        CPRINT("[WCFG] Writing %d bytes to config file\n", ostream.bytes_written);
-       ret_code = 0;
-    } else {
-       CPRINT("[WCFG] ERROR: could not write to disk\n");
-       ret_code = 1;
+        CPRINT("Saving the following details to config file\n");
+        print_sensor_config((SensorConfig *)pb);
+    } else if (config == COMMS_CONFIG){
+        pb_encode_delimited(&ostream, POSTConfig_fields, (POSTConfig *)pb);
+        cfs_remove("commsconfig");
+        write = cfs_open("commsconfig", CFS_WRITE);
+        CPRINT("Saving the following details to config file\n");
+        print_comms_config((POSTConfig *)pb);
+    }else{
+        printf("UNKNOWN CONFIG TYPE. UNABLE TO WRITE FILE!\n");
+        encode_status = 0;
+        ret_code = 2;
+    }
+    if(encode_status){
+        if(write != -1) {
+            cfs_write(write, cfg_buf, ostream.bytes_written);
+            cfs_close(write);
+            CPRINT("[WCFG] Writing %d bytes to config file\n", ostream.bytes_written);
+           ret_code = 0;
+        } else {
+           CPRINT("[WCFG] ERROR: could not write to disk\n");
+           ret_code = 1;
+        }
+    }else{
+      printf("Failed to encode file. Leaving config as is\n");
+      ret_code = 2;
     }
 #ifdef SPI_LOCKING
     LPRINT("UNLOCK: set config\n");
     CC1120_RELEASE_SPI();
     cc1120_arch_interrupt_enable();
-    NETSTACK.on();
+    NETSTACK_MAC.on();
 #endif
     return ret_code;
 }
@@ -98,7 +139,7 @@ get_config(void* pb, uint8_t config)
     memset(cfg_buf, 0, CONFIG_BUF_SIZE);
 #ifdef SPI_LOCKING
       LPRINT("LOCK: get conf\n");
-      NETSTACK.off(0);
+      NETSTACK_MAC.off(0);
       cc1120_arch_interrupt_disable();
       CC1120_LOCK_SPI();
 #endif
@@ -134,7 +175,7 @@ get_config(void* pb, uint8_t config)
     LPRINT("UNLOCK: get conf\n");
     CC1120_RELEASE_SPI();
     cc1120_arch_interrupt_enable();
-    NETSTACK.on();
+    NETSTACK_MAC.on();
 #endif
     return ret_code;
 }

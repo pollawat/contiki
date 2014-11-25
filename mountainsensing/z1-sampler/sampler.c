@@ -17,6 +17,8 @@ PROCESS(sample_process, "Sample Process");
     #define AVRDPRINT(...)
 #endif
 
+//#define SENSE_ON /*Do not turn sensor power off */
+
 static SensorConfig sensor_config;
 static process_event_t protobuf_event;
 
