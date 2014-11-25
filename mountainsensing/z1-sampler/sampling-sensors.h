@@ -9,5 +9,6 @@
 	int16_t get_sensor_acc_y(void);
 	int16_t get_sensor_acc_z(void);
 	uint32_t get_time(void);
+
 	uint8_t set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s);
 #endif
