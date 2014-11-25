@@ -10,97 +10,96 @@
 #include "dev/event-sensor.h"	//event sensor (rain)
 #include "sampling-sensors.h"
 
-#define ADC_ACTIVATE_DELAY 10 //delay in ms
+#define ADC_ACTIVATE_DELAY 10 //delay in ticks of the rtimer  PLATFORM DEPENDANT!
 
-/*
- * AVR_count - number of AVR IDs
- * avrIDs - array of AVR IDs
- * data - The data array to populate with the data
- *
- * Returns the lenght of the data
- */
-uint16_t get_sensor_AVR(uint8_t AVR_count, uint8_t *avrIDs, uint8_t *data)
+
+
+uint16_t 
+get_sensor_rain(void)
 {
-  printf("sampling-sensors.c: get_sensor_AVR(): NOT IMPLEMENTED");
-  return 0;
+    return event_sensor.value(1);
 }
 
-uint16_t get_sensor_rain()
+uint16_t 
+get_sensor_ADC1(void)
 {
-  return event_sensor.value(1);
+    uint16_t adc1_ret;
+    rtimer_clock_t t0;
+    SENSORS_ACTIVATE(adc1_sensor);
+    t0 = RTIMER_NOW();
+    while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
+    adc1_ret =  adc1_sensor.value(0);
+    SENSORS_DEACTIVATE(adc1_sensor);
+    return adc1_ret;
 }
 
-uint16_t get_sensor_ADC1(void)
+uint16_t 
+get_sensor_ADC2(void)
 {
-  static uint16_t adc1_ret;
-  SENSORS_ACTIVATE(adc1_sensor);
-  rtimer_clock_t t0;
-  t0 = RTIMER_NOW();
-  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
-  adc1_ret =  adc1_sensor.value(0);
-  SENSORS_DEACTIVATE(adc1_sensor);
-  return adc1_ret;
+    uint16_t ret;
+    rtimer_clock_t t0;
+    SENSORS_ACTIVATE(adc1_sensor);
+    t0 = RTIMER_NOW();
+    while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
+    ret =  adc2_sensor.value(0);
+    SENSORS_DEACTIVATE(adc2_sensor);
+    return ret;
 }
 
-uint16_t get_sensor_ADC2(void)
+float 
+get_sensor_temp(void)
 {
-  static uint16_t ret;
-  SENSORS_ACTIVATE(adc1_sensor);
-  rtimer_clock_t t0;
-  t0 = RTIMER_NOW();
-  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
-  ret =  adc2_sensor.value(0);
-  SENSORS_DEACTIVATE(adc2_sensor);
-  return ret;
+    return (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
 }
 
-float get_sensor_temp(void)
+float 
+get_sensor_batt(void)
 {
-  return (float)(((temperature_sensor.value(0)*2.500)/4096)-0.986)*282;
+    float bat_ret;
+    rtimer_clock_t t0;
+    SENSORS_ACTIVATE(batv_sensor);
+    t0 = RTIMER_NOW();
+    while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
+    bat_ret =  (float)(batv_sensor.value(0));
+    SENSORS_DEACTIVATE(batv_sensor);
+    return bat_ret;
 }
 
-float get_sensor_batt(void)
+int16_t 
+get_sensor_acc_x(void)
 {
-  static float bat_ret;
-  SENSORS_ACTIVATE(batv_sensor);
-  rtimer_clock_t t0;
-  t0 = RTIMER_NOW();
-  while(RTIMER_CLOCK_LT(RTIMER_NOW(), (t0 + (uint32_t) ADC_ACTIVATE_DELAY)));
-  bat_ret =  (float)(batv_sensor.value(0));
-  SENSORS_DEACTIVATE(batv_sensor);
-  return bat_ret;
+    return accm_read_axis(X_AXIS);
 }
 
-int16_t get_sensor_acc_x(void)
+int16_t 
+get_sensor_acc_y(void)
 {
-  return accm_read_axis(X_AXIS);
+    return accm_read_axis(Y_AXIS);
 }
 
-int16_t get_sensor_acc_y(void)
+int16_t 
+get_sensor_acc_z(void)
 {
-  return accm_read_axis(Y_AXIS);
+   return accm_read_axis(Z_AXIS);
 }
 
-int16_t get_sensor_acc_z(void)
+uint32_t 
+get_time(void)
 {
-  return accm_read_axis(Z_AXIS);
+    return ds3231_get_epoch_seconds();
 }
 
-uint32_t get_time(void)
+uint8_t 
+set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
 {
-  return ds3231_get_epoch_seconds();
-}
+    tm t;
 
-uint8_t set_time(uint16_t y, uint8_t mo, uint8_t d, uint8_t h, uint8_t mi, uint8_t s)
-{
-  static tm t;
+    t.tm_year = y - 1900;
+    t.tm_mon = mo - 1;
+    t.tm_mday = d;
+    t.tm_hour = h;
+    t.tm_min = mi;
+    t.tm_sec = s;
 
-  t.tm_year = y - 1900;
-  t.tm_mon = mo - 1;
-  t.tm_mday = d;
-  t.tm_hour = h;
-  t.tm_min = mi;
-  t.tm_sec = s;
-
-  return (uint8_t)ds3231_set_time(&t);
+    return (uint8_t)ds3231_set_time(&t);
 }
