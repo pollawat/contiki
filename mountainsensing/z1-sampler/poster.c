@@ -45,7 +45,6 @@ handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, 
     if(strncmp(psock_buffer, "HTTP/", 5) == 0)
     { // Status line
       *http_status = atoi(psock_buffer + 9);
-      PPRINT("status = %d", *http_status);
     }
   }
 
@@ -130,7 +129,7 @@ PROCESS_THREAD(post_process, ev, data)
   PROCESS_BEGIN();
   refreshPosterConfig();
   data_length = 0;
-  //http_status = 0;
+  http_status = 0;
   
 
   while(1){
