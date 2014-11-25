@@ -19,6 +19,12 @@
 	#include <stdlib.h>
 	#include <stdio.h>
 
+	#include "dev/cc1120.h"
+	#include "dev/cc1120-arch.h"
+	#include "contiki-conf.h"
+	#include "platform-conf.h"
+	#include "net/netstack.h"
+
 	uint8_t set_config(void *pb, uint8_t config);
 	uint8_t get_config(void *pb, uint8_t config);
 	void print_sensor_config(SensorConfig *conf);
