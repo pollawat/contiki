@@ -136,6 +136,9 @@ erase_sector(unsigned long offset)
   SPI_WAITFORTx_ENDED();
 
   SPI_FLASH_DISABLE();
+  
+  SPI_FLUSH(); //(void)SPI_RXBUF;	/* Dummy read of SPI RX Buffer to ensure that there is no stray data. */
+  
   splx(s);
 }
 /*---------------------------------------------------------------------------*/
@@ -212,6 +215,7 @@ program_page(unsigned long offset, const unsigned char *p, int nbytes)
   SPI_WAITFORTx_ENDED();
 
   SPI_FLASH_DISABLE();
+  SPI_FLUSH(); //(void)SPI_RXBUF;	/* Dummy read of SPI RX Buffer to ensure that there is no stray data. */
   splx(s);
 
   return p;
