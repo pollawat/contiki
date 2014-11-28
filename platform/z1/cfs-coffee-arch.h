@@ -42,42 +42,60 @@
 #define CFS_COFFEE_ARCH_H
 
 #include "contiki-conf.h"
-#include "dev/xmem.h"
+#ifndef I2C_MEM
+	#include "dev/xmem.h"
+ #else
+ 	#include "dev/eeprom-dev.h"
+#endif
 
-/*** M25P16 Memory Organization
-The memory is organized as: 
-16Mbit = 2 097 152 bytes (8 bits each) 
-32 sectors (512 Kbits, 65536 bytes each) 
-8192 pages (256 bytes each). 
-Each page can be individually programmed (bits are programmed from 1 to 0). The device is 
-sector or bulk erasable (bits are erased from 0 to 1) but not page erasable
-*/
-#define COFFEE_XMEM_TOTAL_SIZE_KB       2048UL  //Total size of the External Flash Memory in the Z1
+#ifndef I2C_MEM
+	/*** M25P16 Memory Organization
+	The memory is organized as: 
+	16Mbit = 2 097 152 bytes (8 bits each) 
+	32 sectors (512 Kbits, 65536 bytes each) 
+	8192 pages (256 bytes each). 
+	Each page can be individually programmed (bits are programmed from 1 to 0). The device is 
+	sector or bulk erasable (bits are erased from 0 to 1) but not page erasable
+	*/
+	#define COFFEE_XMEM_TOTAL_SIZE_KB       2048UL  //Total size of the External Flash Memory in the Z1
 
-/* Coffee configuration parameters. */
-#define COFFEE_SECTOR_SIZE		65536UL  
-#define COFFEE_PAGE_SIZE		256UL
-#define COFFEE_START			COFFEE_SECTOR_SIZE*2
-#define COFFEE_SIZE			(COFFEE_XMEM_TOTAL_SIZE_KB * 1024UL - COFFEE_START)
-#define COFFEE_NAME_LENGTH		16
-#define COFFEE_MAX_OPEN_FILES		6
-#define COFFEE_FD_SET_SIZE		8
-#define COFFEE_LOG_TABLE_LIMIT		256
-#define COFFEE_DYN_SIZE			4*1024
-#define COFFEE_LOG_SIZE			1024
+	/* Coffee configuration parameters. */
+	#define COFFEE_SECTOR_SIZE		65536UL  
+	#define COFFEE_PAGE_SIZE		256UL
+	#define COFFEE_START			COFFEE_SECTOR_SIZE*2
+	#define COFFEE_SIZE			(COFFEE_XMEM_TOTAL_SIZE_KB * 1024UL - COFFEE_START)
+	#define COFFEE_NAME_LENGTH		16
+	#define COFFEE_MAX_OPEN_FILES		6
+	#define COFFEE_FD_SET_SIZE		8
+	#define COFFEE_LOG_TABLE_LIMIT		256
+	#define COFFEE_DYN_SIZE			4*1024
+	#define COFFEE_LOG_SIZE			1024
 
-#define COFFEE_MICRO_LOGS		1
+	#define COFFEE_MICRO_LOGS		1
 
-/* Flash operations. */
-#define COFFEE_WRITE(buf, size, offset)				\
-		xmem_pwrite((char *)(buf), (size), COFFEE_START + (offset))
+	/* Flash operations. */
+	#define COFFEE_WRITE(buf, size, offset)				\
+			xmem_pwrite((char *)(buf), (size), COFFEE_START + (offset))
 
-#define COFFEE_READ(buf, size, offset)				\
-  		xmem_pread((char *)(buf), (size), COFFEE_START + (offset))
+	#define COFFEE_READ(buf, size, offset)				\
+	  		xmem_pread((char *)(buf), (size), COFFEE_START + (offset))
 
-#define COFFEE_ERASE(sector)					\
-  		xmem_erase(COFFEE_SECTOR_SIZE, COFFEE_START + (sector) * COFFEE_SECTOR_SIZE)
+	#define COFFEE_ERASE(sector)					\
+	  		xmem_erase(COFFEE_SECTOR_SIZE, COFFEE_START + (sector) * COFFEE_SECTOR_SIZE)
+#else
+	  		/*** I2C eeprom settings ***/
 
+
+
+	#define COFFEE_WRITE(buf, size, offset)				\
+	  		eeprom_write(COFFEE_START + (offset), size, buf)
+
+	#define COFFEE_READ(buf, size, offset)				\
+	  		eeprom_read(COFFEE_START + (offset), size, buf)
+
+	#define COFFEE_ERASE(sector)			 do{}while(0)
+	  		
+#endif
 /* Coffee types. */
 typedef int16_t coffee_page_t;
 

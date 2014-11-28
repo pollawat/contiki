@@ -293,7 +293,6 @@ EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int
 {
     unsigned char adr_hi;
     unsigned char adr_lo;
-    unsigned int counterSize;
 
   	#ifdef PRINTF_DEBUG
   	printf("EEPROM_SequentialRead: reading %d bytes from Address 0x%.2x\r\n", Size, Address);
@@ -311,7 +310,7 @@ EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int
 
     // Write Address first
     I2CWriteInit();
-    i2c_transmit_n(2, &I2CBufferArray);
+    i2c_transmit_n(2, (uint8_t *)&I2CBufferArray);
     I2CReadInit();
     i2c_receive_n(Size, (uint8_t *)Data);
 }
