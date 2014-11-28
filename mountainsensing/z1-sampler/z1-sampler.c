@@ -84,7 +84,6 @@ PROCESS_THREAD(feshie_sense_process, ev, data)
 
   process_start(&web_process, NULL);
   process_start(&sample_process, NULL);
-  process_start(&post_process, NULL);
 
 
   PROCESS_END();

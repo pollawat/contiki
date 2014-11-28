@@ -23,11 +23,14 @@
 	#define DATA_BUFFER_LENGTH 256
 	#define PSOCK_BUFFER_LENGTH 120
 
-	void refreshPosterConfig(void);
-	
-	PROCESS_NAME(post_process);
-
-	int handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p);
+	int handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p,  uint8_t *psock_buffer);
 	uint8_t load_file(char *data_buffer, char *filename);
+
+	#define POSTDEFBUG
+	#ifdef POSTDEFBUG
+	    #define PPRINT(...) printf(__VA_ARGS__)
+	#else
+	    #define PPRINT(...)
+	#endif
 
 #endif

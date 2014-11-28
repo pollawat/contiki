@@ -1,5 +1,6 @@
 
 #include "sampler.h"
+#include "poster.h"
 
 PROCESS(sample_process, "Sample Process");
 
@@ -20,7 +21,10 @@ PROCESS(sample_process, "Sample Process");
 //#define SENSE_ON /*Do not turn sensor power off */
 
 static SensorConfig sensor_config;
+static POSTConfig POST_config;
 static process_event_t protobuf_event;
+static struct psock ps;
+static uint8_t psock_buffer[PSOCK_BUFFER_LENGTH];
 
 
 void
@@ -46,21 +50,38 @@ refreshSensorConfig(void){
 
 PROCESS_THREAD(sample_process, ev, data)
 {
+    //sample variables
     static struct etimer sample_timer;
     static uint8_t pb_buf[Sample_size];
-    static int fd;
     static Sample sample;
     static int i;
+#ifndef SAMPLE_SEND
+    static int fd;
     static char filename[FILENAME_LENGTH];
+#endif
     static uint8_t avr_id;
     static struct ctimer avr_timeout_timer;
     static uint8_t avr_recieved;
     static uint8_t avr_retry_count;
     static pb_ostream_t ostream;
+    static uint8_t sample_count;
+
+    //poster variables
+    static uint8_t post_retries;
+    static uip_ipaddr_t addr;
+    static char data_buffer[DATA_BUFFER_LENGTH];
+    static uint8_t http_status;
+    static uint8_t data_length;
+    static struct etimer timeout_timer;
+    static uip_ds6_addr_t *n_addr;
+
+    data_length = 0;
+    http_status = 0;
 
     PROCESS_BEGIN();
     refreshSensorConfig();
-
+    refreshPosterConfig();
+    sample_count = 0;
     avr_recieved = 0;
     avr_retry_count = 0;
 
@@ -79,6 +100,7 @@ PROCESS_THREAD(sample_process, ev, data)
     while(1){
         etimer_set(&sample_timer, CLOCK_SECOND * (sensor_config.interval - (get_time() % sensor_config.interval)));
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&sample_timer));
+        sample_count = sample_count +1;
         ms1_sense_on();
         sample.time = get_time();
 
@@ -160,18 +182,19 @@ PROCESS_THREAD(sample_process, ev, data)
         ostream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
         pb_encode_delimited(&ostream, Sample_fields, &sample);
 
+#ifndef SAMPLE_SEND
         get_next_write_filename(filename);
         if(filename == 0) {
           continue;
         }
 
         AVRDPRINT("[SAMP] Writing %d bytes to %s...\n", ostream.bytes_written, filename);
-#ifdef SPI_LOCKING
+    #ifdef SPI_LOCKING
         LPRINT("LOCK: write sample\n");
         NETSTACK_MAC.off(0);
         cc1120_arch_interrupt_disable();
         CC1120_LOCK_SPI();
-#endif
+    #endif
         fd = cfs_open(filename, CFS_WRITE | CFS_APPEND);
         if(fd >= 0){
             SPRINT("  [1/3] Writing to file...\n");
@@ -182,12 +205,94 @@ PROCESS_THREAD(sample_process, ev, data)
         }else{
             SPRINT("[SAMP] Failed to open file %s\n", filename);
         }
-#ifdef SPI_LOCKING
+    #ifdef SPI_LOCKING
         LPRINT("UNLOCK: write sample\n");
         CC1120_RELEASE_SPI();
         cc1120_arch_interrupt_enable();
         NETSTACK_MAC.on();
+    #endif
 #endif
+
+        post_retries = 0;
+        if(IMMEDIATE_SEND || sample_count >= POST_config.interval){
+            //We've looped enough times for it to be a post time
+            //or we are in sample_send mode
+            n_addr = uip_ds6_get_global(-1);
+            if(n_addr == NULL){
+                printf("Not associated so can't send\n");
+                continue;
+            }
+#ifndef SAMPLE_SEND
+            while((get_next_read_filename(filename)) !=0 && post_retries < CONNECTION_RETRIES){
+                data_length = load_file(data_buffer, filename);
+#else
+            data_length = ostream.bytes_written;
+            memcpy((void *)data_buffer, (void *)pb_buf, data_length);
+            while(post_retries < CONNECTION_RETRIES){
+#endif
+                uip_ip6addr_u8(&addr,
+                    n_addr->ipaddr.u8[0], n_addr->ipaddr.u8[1],
+                    n_addr->ipaddr.u8[2], n_addr->ipaddr.u8[3],
+                    n_addr->ipaddr.u8[4], n_addr->ipaddr.u8[5],
+                    n_addr->ipaddr.u8[6], n_addr->ipaddr.u8[7],
+                    0, 0, 0, 0, 0, 0, 0, 1);
+#ifdef POSTDEFBUG
+                printf("About to post to: ");
+                uip_debug_ipaddr_print(&addr);
+                printf("\n");
+#endif
+#ifdef SAMPLE_SEND
+                PPRINT("[POST][INIT] About to attempt POST with current data - RETRY [%d]\n",  post_retries);
+#else
+                PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, post_retries);
+#endif
+                
+                if(data_length == 0){
+                    post_retries++;
+                    continue;
+                }
+                tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
+                PPRINT("Connecting...\n");
+                PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+                if(uip_aborted() || uip_timedout() || uip_closed()) {
+                    PPRINT("Could not establish connection\n");
+                    post_retries++;
+                } else if(uip_connected()) {
+                    PPRINT("Connected\n");
+                    PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
+                    etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+                    do {
+                        if(etimer_expired(&timeout_timer)){
+                            PPRINT("Connection took too long. TIMEOUT\n");
+                            PSOCK_CLOSE(&ps);
+                            post_retries++;
+                            break;
+                        } else if(data_length > 0) {
+                            PPRINT("[POST] Handle Connection\n");
+                            handle_connection(data_buffer, data_length, &http_status, &ps, &psock_buffer);
+                            PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+                        }
+                    } while(!(uip_closed() || uip_aborted() || uip_timedout()));
+                    PPRINT("\nConnection closed.\n");
+                    PPRINT("Status = %d\n", http_status);
+                    if(http_status/100 == 2) { // Status OK
+                        data_length = 0;
+                        post_retries = 0;
+                        sample_count = 0;
+#ifndef SAMPLE_SEND
+                        cfs_remove(filename);
+                        PPRINT("[POST] Removing file\n");
+#endif
+                    } else { // POST failed
+                        data_length = 0;
+                        post_retries++;
+                        PPRINT("[POST] Failed, not removing file\n");
+                    }
+                }
+            }
+            PSOCK_CLOSE(&ps);
+            
+        }
     }
     PROCESS_END();
 }
@@ -196,4 +301,31 @@ void
 avr_timer_handler(void *p)
 {
 	process_post(&sample_process, protobuf_event, (process_data_t)NULL);
+}
+
+
+void
+refreshPosterConfig()
+{
+    if(get_config(&POST_config, COMMS_CONFIG) == 1){ 
+        // Config file does not exist! Use default and set file
+        POST_config.interval = POST_INTERVAL;
+        POST_config.ip_count = POST_IP_COUNT;
+        POST_config.ip[0] = POST_IP0;
+        POST_config.ip[1] = POST_IP1;
+        POST_config.ip[2] = POST_IP2;
+        POST_config.ip[3] = POST_IP3;
+        POST_config.ip[4] = POST_IP4;
+        POST_config.ip[5] = POST_IP5;
+        POST_config.ip[6] = POST_IP6;
+        POST_config.ip[7] = POST_IP7;
+        POST_config.port = POST_PORT;
+        set_config(&POST_config, COMMS_CONFIG);
+        PPRINT("POST config set to default and written\n");
+    }else{
+        PPRINT("POST Config file loaded\n");
+    }
+    PPRINT("Refeshed post config to:\n");
+    print_comms_config(&POST_config);
+
 }

@@ -34,11 +34,18 @@
 
 	void avr_timer_handler(void *p);
 	void refreshSensorConfig(void);
+	void refreshPosterConfig(void);
 
 	PROCESS_NAME(sample_process);
 
 
 
 	#define AVR_TIMEOUT_SECONDS 10
+	#define SAMPLE_SEND
+	#ifdef SAMPLE_SEND
+		#define IMMEDIATE_SEND 1
+	#else
+		#define IMMEDIATE_SEND 0
+	#endif
 
 #endif
