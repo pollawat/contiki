@@ -1,5 +1,5 @@
 #include "I2Croutines.h"				/* From application note SLAA208A */
-#include "eeprom.h"
+#include "eeprom-dev.h"
 #include <stdint.h>
 #include <stdio.h>
 
