@@ -74,25 +74,27 @@
 ; You may not use the Program in non-TI devices.
 ;
 ******************************************************************************/
+#ifndef __I2C_ROUTINES_H
+#define __I2C_ROUTINES_H
+	#define     MAXPAGEWRITE   128
 
-#define     MAXPAGEWRITE   128
+	/* Munging for compatibility with glacsweb's MSP430x5xx series chip */
+	#define UCB0TXIE UCTXIE
+	#define UCB0RXIE UCRXIE
 
-/* Munging for compatibility with glacsweb's MSP430x5xx series chip */
-#define UCB0TXIE UCTXIE
-#define UCB0RXIE UCRXIE
+	#define I2C_PORT_SEL  P3SEL
+	#define I2C_PORT_OUT  P3OUT
+	#define I2C_PORT_REN  P3REN
+	#define I2C_PORT_DIR  P3DIR
+	#define SDA_PIN       BIT1                  // UCB0SDA pin
+	#define SCL_PIN       BIT2                  // UCB0SCL pin
+	#define SCL_CLOCK_DIV 11                  	// SCL clock divider
 
-#define I2C_PORT_SEL  P3SEL
-#define I2C_PORT_OUT  P3OUT
-#define I2C_PORT_REN  P3REN
-#define I2C_PORT_DIR  P3DIR
-#define SDA_PIN       BIT1                  // UCB0SDA pin
-#define SCL_PIN       BIT2                  // UCB0SCL pin
-#define SCL_CLOCK_DIV 11                  	// SCL clock divider
-
-void InitI2C(unsigned char eeprom_i2c_address);
-void EEPROM_ByteWrite(unsigned int Address , unsigned char Data);
-void EEPROM_PageWrite(unsigned int StartAddress , unsigned char * Data , unsigned int Size);
-unsigned char EEPROM_RandomRead(unsigned int Address);
-unsigned char EEPROM_CurrentAddressRead(void);
-void EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int Size);
-void EEPROM_AckPolling(void);
+	void InitI2C(unsigned char eeprom_i2c_address);
+	void EEPROM_ByteWrite(unsigned int Address , unsigned char Data);
+	void EEPROM_PageWrite(unsigned int StartAddress , unsigned char * Data , unsigned int Size);
+	unsigned char EEPROM_RandomRead(unsigned int Address);
+	unsigned char EEPROM_CurrentAddressRead(void);
+	void EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int Size);
+	void EEPROM_AckPolling(void);
+#endif

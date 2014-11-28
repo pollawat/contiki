@@ -28,6 +28,9 @@
 /*    Phil Basford - Jan 2013 */
 /*                  -  added stdint import 
 *                   - now uses <legacymsp430.h>
+
+      Phil Basford - Nov 2014
+                   - contiki....
 */
 /*******************************************************************************
 ;
@@ -83,10 +86,8 @@
 ; You may not use the Program in non-TI devices.
 ;
 ******************************************************************************/
-#include "device.h"
+#include "uart1_i2c_master.h"
 #include "I2Croutines.h"
-#include <legacymsp430.h>
-#include <stdint.h>
 
 //#define PRINTF_DEBUG
 #ifdef PRINTF_DEBUG
@@ -96,66 +97,36 @@
 int PtrTransmit;
 unsigned char I2CBufferArray[130];
 unsigned char I2CBuffer;
+static uint8_t address;
 
 /*----------------------------------------------------------------------------*/
 // Description:
 //   Initialization of the I2C Module
 /*----------------------------------------------------------------------------*/
-void InitI2C(unsigned char eeprom_i2c_address)
+void 
+InitI2C(unsigned char eeprom_i2c_address)
 {
-	#ifdef PRINTF_DEBUG
-	printf("InitI2C() : selecting slave address 0x%.2x \r\n", eeprom_i2c_address);
-	#endif
-  I2C_PORT_SEL |= SDA_PIN + SCL_PIN;        // Assign I2C pins to USCI_B0
-
-  // Recommended initialisation steps of I2C module as shown in User Guide:
-  UCB0CTL1 |= UCSWRST;                      // Enable SW reset
-  UCB0CTL0 = UCMST + UCMODE_3 + UCSYNC;     // I2C Master, synchronous mode
-  UCB0CTL1 = UCSSEL_2 + UCTR + UCSWRST;     // Use SMCLK, TX mode, keep SW reset
-  UCB0BR0 = SCL_CLOCK_DIV;                  // fSCL = SMCLK/SCL_CLOCK_DIV
-  UCB0BR1 = 0;
-  UCB0I2CSA  = eeprom_i2c_address;          // define Slave Address
-                                            // In this case the Slave Address
-                                            // defines the control byte that is
-                                            // sent to the EEPROM.
-  UCB0I2COA = 0x01A5;                       // own address.
-  UCB0CTL1 &= ~UCSWRST;                     // Clear SW reset, resume operation
-
-  if (UCB0STAT & UCBBUSY)                   // test if bus to be free
-  {                                         // otherwise a manual Clock on is
-                                            // generated
-    I2C_PORT_SEL &= ~SCL_PIN;               // Select Port function for SCL
-    I2C_PORT_OUT &= ~SCL_PIN;               //
-    I2C_PORT_DIR |= SCL_PIN;                // drive SCL low
-    I2C_PORT_SEL |= SDA_PIN + SCL_PIN;      // select module function for the
-                                            // used I2C pins
-  };
+	address = (uint8_t)eeprom_i2c_address;
 }
 
 /*---------------------------------------------------------------------------*/
 // Description:
 //   Initialization of the I2C Module for Write operation.
 /*---------------------------------------------------------------------------*/
-void I2CWriteInit(void)
+void 
+I2CWriteInit(void)
 {
-  UCB0CTL1 |= UCTR;                         // UCTR=1 => Transmit Mode (R/W bit = 0)
-	UCB0IFG &= ~UCTXIFG;			/* Clear TX int flag */
-
-  UCB0IE &= ~UCRXIE;                         // disable Receive ready interrupt
-  UCB0IE |= UCTXIE;                          // enable Transmit ready interrupt
+    i2c_transmitinit(address);
 }
 
 /*----------------------------------------------------------------------------*/
 // Description:
 //   Initialization of the I2C Module for Read operation.
 /*----------------------------------------------------------------------------*/
-void I2CReadInit(void)
+void 
+I2CReadInit(void)
 {
-  UCB0CTL1 &= ~UCTR;                        // UCTR=0 => Receive Mode (R/W bit = 1)
-	UCB0IFG &= ~UCRXIFG;			/* Clear RX int flag */
-
-  UCB0IE &= ~UCTXIE;                         // disable Transmit ready interrupt
-  UCB0IE |= UCRXIE;                          // enable Receive ready interrupt
+  i2c_receiveinit(address);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -163,28 +134,25 @@ void I2CReadInit(void)
 //   Byte Write Operation. The communication via the I2C bus with an EEPROM
 //   (2465) is realized. A data byte is written into a user defined address.
 /*----------------------------------------------------------------------------*/
-void EEPROM_ByteWrite(unsigned int Address, unsigned char Data)
+void 
+EEPROM_ByteWrite(unsigned int Address, unsigned char Data)
 {
-  unsigned char adr_hi;
-  unsigned char adr_lo;
+    unsigned char adr_hi;
+    unsigned char adr_lo;
 
-  while (UCB0STAT & UCBBUSY);                // wait until I2C module has
-                                            // finished all operations.
+    while (i2c_busy());                       // wait until I2C module has
+                                              // finished all operations.
 
-  adr_hi = Address >> 8;                    // calculate high byte
-  adr_lo = Address & 0xFF;                  // and low byte of address
+    adr_hi = Address >> 8;                    // calculate high byte
+    adr_lo = Address & 0xFF;                  // and low byte of address
 
-  I2CBufferArray[2] = adr_hi;               // Low byte address.
-  I2CBufferArray[1] = adr_lo;               // High byte address.
-  I2CBufferArray[0] = Data;
-  PtrTransmit = 2;                          // set I2CBufferArray Pointer
+    I2CBufferArray[2] = adr_hi;               // Low byte address.
+    I2CBufferArray[1] = adr_lo;               // High byte address.
+    I2CBufferArray[0] = Data;
+    PtrTransmit = 2;                          // set I2CBufferArray Pointer
 
-  I2CWriteInit();
-  UCB0CTL1 |= UCTXSTT;                      // start condition generation
-                                            // => I2C communication is started
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
-  UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
-  while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
+    I2CWriteInit();
+    i2c_transmit_n(3, (uint8_t *)&I2CBufferArray);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -192,78 +160,71 @@ void EEPROM_ByteWrite(unsigned int Address, unsigned char Data)
 //   Page Write Operation. The communication via the I2C bus with an EEPROM
 //   (24xx65) is realized. A data byte is written into a user defined address.
 /*----------------------------------------------------------------------------*/
-void EEPROM_PageWrite(unsigned int StartAddress, unsigned char * Data, unsigned int Size)
+void 
+EEPROM_PageWrite(unsigned int StartAddress, unsigned char * Data, unsigned int Size)
 {
-  volatile unsigned int i = 0;
-  volatile unsigned char counterI2cBuffer;
-  unsigned char adr_hi;
-  unsigned char adr_lo;
-  unsigned int currentAddress = StartAddress;
-  unsigned int currentSize = Size;
-  unsigned int bufferPtr = 0;
-  unsigned char moreDataToRead = 1;
+    volatile unsigned int i = 0;
+    volatile unsigned char counterI2cBuffer;
+    unsigned char adr_hi;
+    unsigned char adr_lo;
+    unsigned int currentAddress = StartAddress;
+    unsigned int currentSize = Size;
+    unsigned int bufferPtr = 0;
+    unsigned char moreDataToRead = 1;
 
-	volatile uint32_t spinwait = 0;
+  	volatile uint32_t spinwait = 0;
 
-	#ifdef PRINTF_DEBUG
-	printf("EEPROM_PageWrite: writing %d bytes from StartAddress 0x%.2x\r\n", Size, StartAddress);
-	#endif
+  	#ifdef PRINTF_DEBUG
+  	printf("EEPROM_PageWrite: writing %d bytes from StartAddress 0x%.2x\r\n", Size, StartAddress);
+  	#endif
 
-  while (UCB0STAT & UCBBUSY);                // wait until I2C module has
-                                            // finished all operations.
+    while (i2c_busy());                // wait until I2C module has
+                                              // finished all operations.
+   
+    // Execute until no more data in Data buffer
+    while(moreDataToRead){
+        adr_hi = currentAddress >> 8;           // calculate high byte
+        adr_lo = currentAddress & 0xFF;         // and low byte of address
 
-  // Execute until no more data in Data buffer
-  while(moreDataToRead)
-  {
-    adr_hi = currentAddress >> 8;           // calculate high byte
-    adr_lo = currentAddress & 0xFF;         // and low byte of address
+        // Chop data down to page-sized packets to be transmitted at a time
+        // Maintain pointer of current startaddress
+        if(currentSize > MAXPAGEWRITE){
+            bufferPtr = bufferPtr + MAXPAGEWRITE;
+            counterI2cBuffer = MAXPAGEWRITE - 1;
+            PtrTransmit = MAXPAGEWRITE + 1;       // set I2CBufferArray Pointer
+            currentSize = currentSize - MAXPAGEWRITE;
+            currentAddress = currentAddress + MAXPAGEWRITE;
 
-    // Chop data down to page-sized packets to be transmitted at a time
-    // Maintain pointer of current startaddress
-    if(currentSize > MAXPAGEWRITE)
-    {
-      bufferPtr = bufferPtr + MAXPAGEWRITE;
-      counterI2cBuffer = MAXPAGEWRITE - 1;
-      PtrTransmit = MAXPAGEWRITE + 1;       // set I2CBufferArray Pointer
-      currentSize = currentSize - MAXPAGEWRITE;
-      currentAddress = currentAddress + MAXPAGEWRITE;
+            // Get start address
+            I2CBufferArray[MAXPAGEWRITE + 1] = adr_hi; // High byte address.
+            I2CBufferArray[MAXPAGEWRITE] = adr_lo; // Low byte address.
+        }else{
+            bufferPtr = bufferPtr + currentSize;
+            counterI2cBuffer = currentSize - 1;
+            PtrTransmit = currentSize + 1;        // set I2CBufferArray Pointer.
+            moreDataToRead = 0;
+            currentAddress = currentAddress + currentSize;
 
-      // Get start address
-      I2CBufferArray[MAXPAGEWRITE + 1] = adr_hi; // High byte address.
-      I2CBufferArray[MAXPAGEWRITE] = adr_lo; // Low byte address.
+            // Get start address
+            I2CBufferArray[currentSize + 1] = adr_hi; // High byte address.
+            I2CBufferArray[currentSize] = adr_lo; // Low byte address.
+        }
+
+        // Copy data to I2CBufferArray
+        unsigned char temp;
+        for(i ; i < bufferPtr ; i++){
+            temp = Data[i];                       // Required or else IAR throws a
+                                                  // warning [Pa082]
+            I2CBufferArray[counterI2cBuffer] = temp;
+            counterI2cBuffer--;
+        }
+
+        I2CWriteInit();
+        I2CWriteInit();
+        i2c_transmit_n(bufferPtr, &I2CBufferArray);
+      
+    	//EEPROM_AckPolling();                    // Ensure data is written in EEPROM
     }
-    else
-    {
-      bufferPtr = bufferPtr + currentSize;
-      counterI2cBuffer = currentSize - 1;
-      PtrTransmit = currentSize + 1;        // set I2CBufferArray Pointer.
-      moreDataToRead = 0;
-      currentAddress = currentAddress + currentSize;
-
-      // Get start address
-      I2CBufferArray[currentSize + 1] = adr_hi; // High byte address.
-      I2CBufferArray[currentSize] = adr_lo; // Low byte address.
-    }
-
-    // Copy data to I2CBufferArray
-    unsigned char temp;
-    for(i ; i < bufferPtr ; i++)
-    {
-      temp = Data[i];                       // Required or else IAR throws a
-                                            // warning [Pa082]
-      I2CBufferArray[counterI2cBuffer] = temp;
-      counterI2cBuffer--;
-    }
-
-    I2CWriteInit();
-    UCB0CTL1 |= UCTXSTT;                    // start condition generation
-                                            // => I2C communication is started
-    __bis_SR_register(LPM0_bits + GIE);     // Enter LPM0 w/ interrupts
-    UCB0CTL1 |= UCTXSTP;                    // I2C stop condition
-    while(UCB0CTL1 & UCTXSTP);              // Ensure stop condition got sent
-
-		EEPROM_AckPolling();                    // Ensure data is written in EEPROM
-  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -273,16 +234,16 @@ void EEPROM_PageWrite(unsigned int StartAddress, unsigned char * Data, unsigned 
 /*----------------------------------------------------------------------------*/
 unsigned char EEPROM_CurrentAddressRead(void)
 {
-  while(UCB0STAT & UCBBUSY);                 // wait until I2C module has
-                                            // finished all operations
-  I2CReadInit();
+    while(i2c_busy());                        // wait until I2C module has
+                                              // finished all operations
+    I2CReadInit();
 
-  UCB0CTL1 |= UCTXSTT;                      // I2C start condition
-  while(UCB0CTL1 & UCTXSTT);                // Start condition sent?
-  UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
-  while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
-  return I2CBuffer;
+    UCB0CTL1 |= UCTXSTT;                      // I2C start condition
+    while(UCB0CTL1 & UCTXSTT);                // Start condition sent?
+    UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
+    __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
+    while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
+    return I2CBuffer;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -290,36 +251,37 @@ unsigned char EEPROM_CurrentAddressRead(void)
 //   Random Read Operation. Data is read from the EEPROM. The EEPROM
 //   address is defined with the parameter Address.
 /*----------------------------------------------------------------------------*/
-unsigned char EEPROM_RandomRead(unsigned int Address)
+unsigned char 
+EEPROM_RandomRead(unsigned int Address)
 {
-  unsigned char adr_hi;
-  unsigned char adr_lo;
+    unsigned char adr_hi;
+    unsigned char adr_lo;
 
-  while (UCB0STAT & UCBBUSY);                // wait until I2C module has
-                                            // finished all operations
+    while (i2c_busy());                       // wait until I2C module has
+                                              // finished all operations
 
-  adr_hi = Address >> 8;                    // calculate high byte
-  adr_lo = Address & 0xFF;                  // and low byte of address
+    adr_hi = Address >> 8;                    // calculate high byte
+    adr_lo = Address & 0xFF;                  // and low byte of address
 
-  I2CBufferArray[1] = adr_hi;               // store single bytes that have to
-  I2CBufferArray[0] = adr_lo;               // be sent in the I2CBuffer.
-  PtrTransmit = 1;                          // set I2CBufferArray Pointer
+    I2CBufferArray[1] = adr_hi;               // store single bytes that have to
+    I2CBufferArray[0] = adr_lo;               // be sent in the I2CBuffer.
+    PtrTransmit = 1;                          // set I2CBufferArray Pointer
 
-  // Write Address first
-  I2CWriteInit();
-  UCB0CTL1 |= UCTXSTT;                      // start condition generation
-                                            // => I2C communication is started
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
+    // Write Address first
+    I2CWriteInit();
+    UCB0CTL1 |= UCTXSTT;                      // start condition generation
+                                              // => I2C communication is started
+    __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
 
-  // Read Data byte
-  I2CReadInit();
+    // Read Data byte
+    I2CReadInit();
 
-  UCB0CTL1 |= UCTXSTT;                      // I2C start condition
-  while(UCB0CTL1 & UCTXSTT);                // Start condition sent?
-  UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
-  while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
-  return I2CBuffer;
+    UCB0CTL1 |= UCTXSTT;                      // I2C start condition
+    while(UCB0CTL1 & UCTXSTT);                // Start condition sent?
+    UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
+    __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
+    while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
+    return I2CBuffer;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -328,46 +290,32 @@ unsigned char EEPROM_RandomRead(unsigned int Address)
 //   form from the parameter address as a starting point. Specify the size to
 //   be read and populate to a Data buffer.
 /*----------------------------------------------------------------------------*/
-void EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int Size)
+void 
+EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int Size)
 {
-  unsigned char adr_hi;
-  unsigned char adr_lo;
-  unsigned int counterSize;
+    unsigned char adr_hi;
+    unsigned char adr_lo;
+    unsigned int counterSize;
 
-	#ifdef PRINTF_DEBUG
-	printf("EEPROM_SequentialRead: reading %d bytes from Address 0x%.2x\r\n", Size, Address);
-	#endif
+  	#ifdef PRINTF_DEBUG
+  	printf("EEPROM_SequentialRead: reading %d bytes from Address 0x%.2x\r\n", Size, Address);
+  	#endif
 
-  while (UCB0STAT & UCBBUSY);                // wait until I2C module has
-                                            // finished all operations
+    while (i2c_busy());                        // wait until I2C module has
+                                              // finished all operations
 
-  adr_hi = Address >> 8;                    // calculate high byte
-  adr_lo = Address & 0xFF;                  // and low byte of address
+    adr_hi = Address >> 8;                    // calculate high byte
+    adr_lo = Address & 0xFF;                  // and low byte of address
 
-  I2CBufferArray[1] = adr_hi;               // store single bytes that have to
-  I2CBufferArray[0] = adr_lo;               // be sent in the I2CBuffer.
-  PtrTransmit = 1;                          // set I2CBufferArray Pointer
+    I2CBufferArray[1] = adr_hi;               // store single bytes that have to
+    I2CBufferArray[0] = adr_lo;               // be sent in the I2CBuffer.
+    PtrTransmit = 1;                          // set I2CBufferArray Pointer
 
-  // Write Address first
-  I2CWriteInit();
-  UCB0CTL1 |= UCTXSTT;                      // start condition generation
-                                            // => I2C communication is started
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
-
-  // Read Data byte
-  I2CReadInit();
-
-  UCB0CTL1 |= UCTXSTT;                      // I2C start condition
-  while(UCB0CTL1 & UCTXSTT);                // Start condition sent?
-
-  for(counterSize = 0 ; counterSize < Size ; counterSize++)
-  {
-    __bis_SR_register(LPM0_bits + GIE);     // Enter LPM0 w/ interrupts
-    Data[counterSize] = I2CBuffer;
-  }
-  UCB0CTL1 |= UCTXSTP;                      // I2C stop condition
-  __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupts
-  while(UCB0CTL1 & UCTXSTP);                // Ensure stop condition got sent
+    // Write Address first
+    I2CWriteInit();
+    i2c_transmit_n(2, &I2CBufferArray);
+    I2CReadInit();
+    i2c_receive_n(Size, Data);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -375,52 +323,50 @@ void EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigne
 //   Acknowledge Polling. The EEPROM will not acknowledge if a write cycle is
 //   in progress. It can be used to determine when a write cycle is completed.
 /*----------------------------------------------------------------------------*/
-void EEPROM_AckPolling(void)
+/*
+void 
+EEPROM_AckPolling(void)
 {
-	volatile uint8_t spinwait = 0;
+  	volatile uint8_t spinwait = 0;
 
-  while (UCB0STAT & UCBBUSY);                // wait until I2C module has
-                                            // finished all operations
-  do
-  {
-    UCB0STAT = 0x00;                        // clear I2C interrupt flags
-		UCB0IFG = 0;														/* clear I2C interrupt flags */
-    UCB0CTL1 |= UCTR;                       // I2CTRX=1 => Transmit Mode (R/W bit = 0)
-    UCB0CTL1 &= ~UCTXSTT;
-    UCB0CTL1 |= UCTXSTT;                    // start condition is generated
-    while(UCB0CTL1 & UCTXSTT)               // wait till I2CSTT bit was cleared
-    {
-      if(!(UCNACKIFG & UCB0IFG))           // Break out if ACK received
-        break;
-    }
-    UCB0CTL1 |= UCTXSTP;                    // stop condition is generated after
-                                            // slave address was sent => I2C communication is started
-    while (UCB0CTL1 & UCTXSTP);             // wait till stop bit is reset
-		
-		for (spinwait = 0; spinwait <200; spinwait++); // Software delay
+    while (i2c_busy());                       // wait until I2C module has
+                                              // finished all operations
+    do{
+        UCB0STAT = 0x00;                        // clear I2C interrupt flags
+    		UCB0IFG = 0;														// clear I2C interrupt flags 
+        UCB0CTL1 |= UCTR;                       // I2CTRX=1 => Transmit Mode (R/W bit = 0)
+        UCB0CTL1 &= ~UCTXSTT;
+        UCB0CTL1 |= UCTXSTT;                    // start condition is generated
+        while(UCB0CTL1 & UCTXSTT){               // wait till I2CSTT bit was cleared
+            if(!(UCNACKIFG & UCB0IFG)){           // Break out if ACK received
+                break;
+            }
+        }
+        UCB0CTL1 |= UCTXSTP;                    // stop condition is generated after
+                                                // slave address was sent => I2C communication is started
+        while (UCB0CTL1 & UCTXSTP);             // wait till stop bit is reset
+    		
+    		for (spinwait = 0; spinwait <200; spinwait++); // Software delay
 
-  }while(UCNACKIFG & UCB0IFG);
+    }while(UCNACKIFG & UCB0IFG);
 }
-
+*/
 /* Modified interrupt routine for compatibility with 500 series chip.
 Original code designed for chips with separate TX and RX interrupt vectors */
-interrupt (USCI_B0_VECTOR) USCI_ISR(void)
-{
-	if (UCB0IFG & UCTXIFG)				/* TX interrupt */
-  {
-    UCB0TXBUF = I2CBufferArray[PtrTransmit];// Load TX buffer
-    PtrTransmit--;                          // Decrement TX byte counter
-    if(PtrTransmit < 0)
-    {
-      while(!(UCB0IFG & UCTXIFG));
-			UCB0IE &= ~UCTXIE;				/* Disable interrupts */
-      UCB0IFG &= ~UCTXIFG;			/* Clear TX int flag */
-      __bic_SR_register_on_exit(LPM0_bits); // Exit LPM0
-    }
-  }
-  else if(UCB0IFG & UCRXIFG)			/* RX interrupt */
-  {
-    I2CBuffer = UCB0RXBUF;                  // store received data in buffer
-    __bic_SR_register_on_exit(LPM0_bits);   // Exit LPM0
-  }
-}
+
+//interrupt (USCI_B0_VECTOR) USCI_ISR(void)
+//{
+// 	if (UCB0IFG & UCTXIFG){}				/* TX interrupt */
+//        UCB0TXBUF = I2CBufferArray[PtrTransmit];// Load TX buffer
+//        PtrTransmit--;                          // Decrement TX byte counter
+//        if(PtrTransmit < 0){
+//            while(!(UCB0IFG & UCTXIFG));
+//      			UCB0IE &= ~UCTXIE;				/* Disable interrupts */
+//            UCB0IFG &= ~UCTXIFG;			/* Clear TX int flag */
+//            __bic_SR_register_on_exit(LPM0_bits); // Exit LPM0
+//        }
+//    }else if(UCB0IFG & UCRXIFG){			/* RX interrupt */
+//        I2CBuffer = UCB0RXBUF;                  // store received data in buffer
+//        __bic_SR_register_on_exit(LPM0_bits);   // Exit LPM0
+//    }
+//}

@@ -19,7 +19,8 @@ typedef struct
 	uint16_t offset;
 } address_t;
 
-void select_chip(uint8_t chip)
+void 
+select_chip(uint8_t chip)
 {
 	currentchip = chip;
 	InitI2C(i2c_address[currentchip]);
@@ -28,7 +29,8 @@ void select_chip(uint8_t chip)
 #endif
 }
 
-eeprom_error_t eeprom_read(uint32_t logicaladdress, uint32_t size, uint8_t* data)
+eeprom_error_t 
+eeprom_read(uint32_t logicaladdress, uint32_t size, uint8_t* data)
 {
 	uint8_t chip = 0;
 	uint32_t offset, endofchip, bytesleft;
@@ -38,36 +40,37 @@ eeprom_error_t eeprom_read(uint32_t logicaladdress, uint32_t size, uint8_t* data
 	printf("eeprom_read(...) logicaladdress = 0x%lx \r\n", logicaladdress);
 #endif
 
-	if ( (logicaladdress + size) > LOGICAL_SIZE )
+	if ( (logicaladdress + size) > LOGICAL_SIZE ){
 		return EE_OUT_OF_RANGE;
+	}
 
 	chip = (uint8_t)(logicaladdress / CHIP_SIZE); /* Find the chip to start in */
 	select_chip(chip);
 	offset = logicaladdress - (chip * CHIP_SIZE); /* Find offset within chip */
 	
 	bytesleft = size;
-	while (bytesleft)
-		{
-			bytestoread = bytesleft;
+	while (bytesleft){
+		bytestoread = bytesleft;
 
-			if (offset + bytestoread > CHIP_SIZE)
-				bytestoread = CHIP_SIZE - offset;
-
-			EEPROM_SequentialRead(offset, &data[size - bytesleft], bytestoread);
-
-			bytesleft -= bytestoread;
-					
-			if (bytesleft)
-				{
-					offset = 0;
-					chip++;
-					select_chip(chip);
-				}
+		if (offset + bytestoread > CHIP_SIZE){
+			bytestoread = CHIP_SIZE - offset;
 		}
+
+		EEPROM_SequentialRead(offset, &data[size - bytesleft], bytestoread);
+
+		bytesleft -= bytestoread;
+				
+		if (bytesleft){
+			offset = 0;
+			chip++;
+			select_chip(chip);
+		}
+	}
 	return EE_OK;
 }
 								 
-eeprom_error_t eeprom_write(uint32_t logicaladdress, uint32_t size, uint8_t* data)
+eeprom_error_t 
+eeprom_write(uint32_t logicaladdress, uint32_t size, uint8_t* data)
 {
 	uint8_t chip = 0;
 	uint32_t offset, endofchip, bytesleft;
@@ -78,77 +81,79 @@ eeprom_error_t eeprom_write(uint32_t logicaladdress, uint32_t size, uint8_t* dat
 	printf("eeprom_write(...) logicaladdress = 0x%lx \r\n", logicaladdress);
 #endif
 
-	if ( (logicaladdress + size) > LOGICAL_SIZE )
+	if ( (logicaladdress + size) > LOGICAL_SIZE ){
 		return EE_OUT_OF_RANGE;
+	}
 
 	chip = (uint8_t)(logicaladdress / CHIP_SIZE); /* Find the chip to start in */
 	select_chip(chip);
 	offset = logicaladdress - (chip * CHIP_SIZE); /* Find offset within chip */
 
 	bytesleft = size;
-	while (bytesleft)
-		{
-			endofpage = (((offset / PAGE_SIZE) * PAGE_SIZE) + PAGE_SIZE); /* Find address of last byte in current page */
-			if ((offset + bytesleft) > endofpage)		/* Write no further than end of current page */
-				bytestowrite = endofpage - offset;
-			else
-				bytestowrite = bytesleft;
-
-			if (offset + bytestowrite > CHIP_SIZE) /* Select next chip if necessary */
-				{
-					offset = 0;
-					chip++;
-					select_chip(chip);
-					continue;
-				}
-			
-			EEPROM_PageWrite(offset, &data[size - bytesleft], bytestowrite); 
-
-			bytesleft -= bytestowrite; /* Update bytesleft and offset after write */
-			offset += bytestowrite;
+	while (bytesleft){
+		endofpage = (((offset / PAGE_SIZE) * PAGE_SIZE) + PAGE_SIZE); /* Find address of last byte in current page */
+		if ((offset + bytesleft) > endofpage){		/* Write no further than end of current page */
+			bytestowrite = endofpage - offset;
+		}else{
+			bytestowrite = bytesleft;
 		}
+		if (offset + bytestowrite > CHIP_SIZE){ /* Select next chip if necessary */
+				offset = 0;
+				chip++;
+				select_chip(chip);
+				continue;
+		}
+		
+		EEPROM_PageWrite(offset, &data[size - bytesleft], bytestowrite); 
+
+		bytesleft -= bytestowrite; /* Update bytesleft and offset after write */
+		offset += bytestowrite;
+	}
 
 	return EE_OK;
 }
 
-/*
-void eepromtest()
+
+void 
+eepromtest()
 {
 	uint16_t c, block;
 	uint8_t buf[1024], buf2[1024], b;
 
-struct h {
-	    uint32_t timestamp; // epoch of start 
-		uint16_t length;    // how many samples
-		uint16_t rate;      // in Hz
-		uint16_t gain;      // amp gain - at the moment just our code
-};
+	struct h {
+		    uint32_t timestamp; // epoch of start 
+			uint16_t length;    // how many samples
+			uint16_t rate;      // in Hz
+			uint16_t gain;      // amp gain - at the moment just our code
+	};
 
 	struct h headr, back;
 
-headr.timestamp = 12345678;
-headr.length = 32767;
-headr.rate = 2;
-headr.gain = 1;
-		eeprom_write(0, sizeof(struct h), &headr);
-		eeprom_read(0, sizeof(struct h), &back);
-printf("%lu, %u %u\n\r",back.timestamp, back.rate, back.gain); 
-return;
+	headr.timestamp = 12345678;
+	headr.length = 32767;
+	headr.rate = 2;
+	headr.gain = 1;
+			eeprom_write(0, sizeof(struct h), &headr);
+			eeprom_read(0, sizeof(struct h), &back);
+	printf("%lu, %u %u\n\r",back.timestamp, back.rate, back.gain); 
 
 	// just make a 1k byte buffer full of rolling counts
-	for(c = 0; c < 1024; c++)
+	for(c = 0; c < 1024; c++){
 		buf[c] = (uint8_t)c;
+	}
 
 	// write several copies to eeprom
-	for(c = 0; c < 32; c++)
+	for(c = 0; c < 32; c++){
 		eeprom_write(c * 1024, 1024, buf);
-return;
+	}
 	// read them all back and check they're in sequence
-	for(block = 0; block < 8; block++)
+	for(block = 0; block < 8; block++){
 		eeprom_read(block * 1024, 1024, buf2);
-		for(c = 0; c < 1024; c++)
-			if( buf2[c] != buf[c])
+		for(c = 0; c < 1024; c++){
+			if( buf2[c] != buf[c]){
 				printf("Error! block %d byte %d\n",block,c);
-
+			}
+		}
+	}
 }
-*/
+
