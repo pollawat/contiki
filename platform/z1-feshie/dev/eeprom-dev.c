@@ -7,7 +7,7 @@
 It has an inactive A2 pin. In the I2C address it has a "Block Select"
 bit B0 where the A2 bit would be for a 24xx51x. It therefore requires
 a new I2C address to be sent when crossing the 512-page boundary, so
-to make life easier, let's treat each 24xx102x as two chips  */
+to make life easier, let's treat each 24xx102x as two chips  */ 
 
 uint8_t currentchip = 0;
 const uint8_t i2c_address[] = I2C_ADDRESSES;
@@ -33,7 +33,7 @@ eeprom_error_t
 eeprom_read(uint32_t logicaladdress, uint32_t size, uint8_t* data)
 {
 	uint8_t chip = 0;
-	uint32_t offset, endofchip, bytesleft;
+	uint32_t offset, bytesleft;
 	uint16_t bytestoread;
 
 #ifdef PRINTF_DEBUG
@@ -73,7 +73,7 @@ eeprom_error_t
 eeprom_write(uint32_t logicaladdress, uint32_t size, uint8_t* data)
 {
 	uint8_t chip = 0;
-	uint32_t offset, endofchip, bytesleft;
+	uint32_t offset, bytesleft;
 	volatile uint32_t endofpage;
 	uint16_t bytestowrite;
 	
@@ -115,45 +115,8 @@ eeprom_write(uint32_t logicaladdress, uint32_t size, uint8_t* data)
 
 
 void 
-eepromtest()
+eepromtest(void)
 {
-	uint16_t c, block;
-	uint8_t buf[1024], buf2[1024], b;
-
-	struct h {
-		    uint32_t timestamp; // epoch of start 
-			uint16_t length;    // how many samples
-			uint16_t rate;      // in Hz
-			uint16_t gain;      // amp gain - at the moment just our code
-	};
-
-	struct h headr, back;
-
-	headr.timestamp = 12345678;
-	headr.length = 32767;
-	headr.rate = 2;
-	headr.gain = 1;
-			eeprom_write(0, sizeof(struct h), &headr);
-			eeprom_read(0, sizeof(struct h), &back);
-	printf("%lu, %u %u\n\r",back.timestamp, back.rate, back.gain); 
-
-	// just make a 1k byte buffer full of rolling counts
-	for(c = 0; c < 1024; c++){
-		buf[c] = (uint8_t)c;
-	}
-
-	// write several copies to eeprom
-	for(c = 0; c < 32; c++){
-		eeprom_write(c * 1024, 1024, buf);
-	}
-	// read them all back and check they're in sequence
-	for(block = 0; block < 8; block++){
-		eeprom_read(block * 1024, 1024, buf2);
-		for(c = 0; c < 1024; c++){
-			if( buf2[c] != buf[c]){
-				printf("Error! block %d byte %d\n",block,c);
-			}
-		}
-	}
+	printf("EEPROM TEST: Needs writing\n");
 }
 

@@ -85,7 +85,7 @@
 ;
 ; You may not use the Program in non-TI devices.
 ;
-******************************************************************************/
+******************************************************************************/ 
 #include "uart1_i2c_master.h"
 #include "I2Croutines.h"
 
@@ -172,8 +172,6 @@ EEPROM_PageWrite(unsigned int StartAddress, unsigned char * Data, unsigned int S
     unsigned int bufferPtr = 0;
     unsigned char moreDataToRead = 1;
 
-  	volatile uint32_t spinwait = 0;
-
   	#ifdef PRINTF_DEBUG
   	printf("EEPROM_PageWrite: writing %d bytes from StartAddress 0x%.2x\r\n", Size, StartAddress);
   	#endif
@@ -221,7 +219,7 @@ EEPROM_PageWrite(unsigned int StartAddress, unsigned char * Data, unsigned int S
 
         I2CWriteInit();
         I2CWriteInit();
-        i2c_transmit_n(bufferPtr, &I2CBufferArray);
+        i2c_transmit_n(bufferPtr, (uint8_t *)&I2CBufferArray);
       
     	//EEPROM_AckPolling();                    // Ensure data is written in EEPROM
     }
@@ -315,58 +313,5 @@ EEPROM_SequentialRead(unsigned int Address , unsigned char * Data , unsigned int
     I2CWriteInit();
     i2c_transmit_n(2, &I2CBufferArray);
     I2CReadInit();
-    i2c_receive_n(Size, Data);
+    i2c_receive_n(Size, (uint8_t *)Data);
 }
-
-/*----------------------------------------------------------------------------*/
-// Description:
-//   Acknowledge Polling. The EEPROM will not acknowledge if a write cycle is
-//   in progress. It can be used to determine when a write cycle is completed.
-/*----------------------------------------------------------------------------*/
-/*
-void 
-EEPROM_AckPolling(void)
-{
-  	volatile uint8_t spinwait = 0;
-
-    while (i2c_busy());                       // wait until I2C module has
-                                              // finished all operations
-    do{
-        UCB0STAT = 0x00;                        // clear I2C interrupt flags
-    		UCB0IFG = 0;														// clear I2C interrupt flags 
-        UCB0CTL1 |= UCTR;                       // I2CTRX=1 => Transmit Mode (R/W bit = 0)
-        UCB0CTL1 &= ~UCTXSTT;
-        UCB0CTL1 |= UCTXSTT;                    // start condition is generated
-        while(UCB0CTL1 & UCTXSTT){               // wait till I2CSTT bit was cleared
-            if(!(UCNACKIFG & UCB0IFG)){           // Break out if ACK received
-                break;
-            }
-        }
-        UCB0CTL1 |= UCTXSTP;                    // stop condition is generated after
-                                                // slave address was sent => I2C communication is started
-        while (UCB0CTL1 & UCTXSTP);             // wait till stop bit is reset
-    		
-    		for (spinwait = 0; spinwait <200; spinwait++); // Software delay
-
-    }while(UCNACKIFG & UCB0IFG);
-}
-*/
-/* Modified interrupt routine for compatibility with 500 series chip.
-Original code designed for chips with separate TX and RX interrupt vectors */
-
-//interrupt (USCI_B0_VECTOR) USCI_ISR(void)
-//{
-// 	if (UCB0IFG & UCTXIFG){}				/* TX interrupt */
-//        UCB0TXBUF = I2CBufferArray[PtrTransmit];// Load TX buffer
-//        PtrTransmit--;                          // Decrement TX byte counter
-//        if(PtrTransmit < 0){
-//            while(!(UCB0IFG & UCTXIFG));
-//      			UCB0IE &= ~UCTXIE;				/* Disable interrupts */
-//            UCB0IFG &= ~UCTXIFG;			/* Clear TX int flag */
-//            __bic_SR_register_on_exit(LPM0_bits); // Exit LPM0
-//        }
-//    }else if(UCB0IFG & UCRXIFG){			/* RX interrupt */
-//        I2CBuffer = UCB0RXBUF;                  // store received data in buffer
-//        __bic_SR_register_on_exit(LPM0_bits);   // Exit LPM0
-//    }
-//}
