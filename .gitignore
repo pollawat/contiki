@@ -90,3 +90,7 @@ contiki-cc2530dk.lib
 # vim temp files
 .*.swp
 
+#sublime files
+*.sublime-project
+*.sublime-workspace
+
