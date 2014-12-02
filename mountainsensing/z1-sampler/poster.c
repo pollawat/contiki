@@ -29,25 +29,33 @@ int
 handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p)
 {
     char content_length[8], tmpstr_handle[50];
-
-    itoa(data_length, content_length, 10);
-    strcpy(tmpstr_handle, "POST / HTTP/1.0\r\nContent-Length: ");
-    strcat(tmpstr_handle, content_length);
-    strcat(tmpstr_handle, "\r\n\r\n");
-
+    PPRINT("Data length = %d\n", data_length);
     if(data_length > 0){
+        itoa(data_length, content_length, 10);
+        strcpy(tmpstr_handle, "POST / HTTP/1.0\r\nContent-Length: ");
+        strcat(tmpstr_handle, content_length);
+        strcat(tmpstr_handle, "\r\n\r\n");
+        PPRINT("Prepared string\n");
+    
         PSOCK_BEGIN(p);
-
+        PPRINT("begun\n");
         PSOCK_SEND_STR(p, tmpstr_handle);
+        PPRINT("String sent\n");
         PSOCK_SEND(p, data_buffer, data_length);
-
+        PPRINT("Data sent wating for status\n");
         while(1) {
+            PPRINT("W");
             PSOCK_READTO(p, '\n');
             if(strncmp(psock_buffer, "HTTP/", 5) == 0){   
                 // Status line
                 *http_status = atoi(psock_buffer + 9);
             }
         }
+        PPRINT("about to end\n");
+        PSOCK_END(p);
+    }else{
+        printf("Invalid data length in handle connection\n" );
+        PSOCK_BEGIN(p);
         PSOCK_END(p);
     }
 }
@@ -155,7 +163,7 @@ PROCESS_THREAD(post_process, ev, data)
     #endif
             PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, retries);
             data_length = load_file(data_buffer, filename);
-            if(data_length = 0){
+            if(data_length == 0){
                 retries++;
                 continue;
             }
@@ -169,16 +177,24 @@ PROCESS_THREAD(post_process, ev, data)
                 PPRINT("Connected\n");
                 PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
                 etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
+                http_status = 0;
                 do {
+                    PPRINT("Timer expired = %d\n", etimer_expired(&timeout_timer));
                     if(etimer_expired(&timeout_timer)){
                         PPRINT("Connection took too long. TIMEOUT\n");
                         PSOCK_CLOSE(&ps);
                         retries++;
                         break;
-                    } else if(data_length > 0) {
+                    }else if(http_status == 0){
+                        PPRINT("HTTP status = %d\n", http_status);
                         PPRINT("[POST] Handle Connection\n");
+                        PPRINT("Sending length = %d\n", data_length);
                         handle_connection(data_buffer, data_length, &http_status, &ps);
+                        //not returned yet
                         PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+                    }else{
+                        PPRINT("HTTP status = %d\n", http_status);
+                        break;
                     }
                 } while(!(uip_closed() || uip_aborted() || uip_timedout()));
                 PPRINT("\nConnection closed.\n");
