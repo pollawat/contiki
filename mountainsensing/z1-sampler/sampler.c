@@ -311,6 +311,9 @@ PROCESS_THREAD(sample_process, ev, data)
                         post_retries++;
                         PPRINT("[POST] Failed, not removing file\n"); 
                     }
+                }else{
+                    printf("Other status\n");
+                    printf("UIP flags = %d\n", uip_flags);
                 }
             }
             PSOCK_CLOSE(&ps);
