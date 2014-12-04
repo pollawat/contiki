@@ -75,8 +75,7 @@ PROCESS_THREAD(sample_process, ev, data)
     static struct etimer timeout_timer;
     static uip_ds6_addr_t *n_addr;
 
-    data_length = 0;
-    http_status = 0;
+
 
     PROCESS_BEGIN();
     refreshSensorConfig();
@@ -84,6 +83,8 @@ PROCESS_THREAD(sample_process, ev, data)
     sample_count = 0;
     avr_recieved = 0;
     avr_retry_count = 0;
+    data_length = 0;
+    http_status = 0;
 
     protobuf_event = process_alloc_event();
     protobuf_register_process_callback(&sample_process, protobuf_event) ;
@@ -94,6 +95,9 @@ PROCESS_THREAD(sample_process, ev, data)
     printf("Sensor power permanently on\n");
 #endif
 
+#ifdef SAMPLE_SEND
+    printf("<<<<< SAMPLE AND SEND ENABLED >>>>>\n");
+#endif
 
     SENSORS_ACTIVATE(event_sensor);
     SPRINT("[SAMP] Sampling sensors activated\n");
@@ -214,9 +218,12 @@ PROCESS_THREAD(sample_process, ev, data)
 #endif
 
         post_retries = 0;
+        PPRINT("Sample count = %d\n", sample_count);
         if(IMMEDIATE_SEND || sample_count >= POST_config.interval){
             //We've looped enough times for it to be a post time
             //or we are in sample_send mode
+            data_length = 0;
+            http_status = 0;
             n_addr = uip_ds6_get_global(-1);
             if(n_addr == NULL){
                 printf("Not associated so can't send\n");
@@ -246,14 +253,18 @@ PROCESS_THREAD(sample_process, ev, data)
 #else
                 PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, post_retries);
 #endif
-                
+                PPRINT("Data length = %d\n", data_length);
                 if(data_length == 0){
                     post_retries++;
+                    printf("Data length = 0\n");
+                    PPRINT("Retry count = %d\n", post_retries);
                     continue;
                 }
+              //  PPRINT("Post length check = %d\n", data_length);
                 tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
                 PPRINT("Connecting...\n");
                 PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+                PPRINT("event\n");
                 if(uip_aborted() || uip_timedout() || uip_closed()) {
                     PPRINT("Could not establish connection\n");
                     post_retries++;
@@ -262,18 +273,27 @@ PROCESS_THREAD(sample_process, ev, data)
                     PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
                     etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
                     do {
+                        PPRINT("Timer expired = %d\n", etimer_expired(&timeout_timer));
                         if(etimer_expired(&timeout_timer)){
                             PPRINT("Connection took too long. TIMEOUT\n");
                             PSOCK_CLOSE(&ps);
                             post_retries++;
                             break;
-                        } else if(data_length > 0) {
+                        }else if (data_length ==0){
+                            //something odd has happened
+                            PPRINT("Length = 0\n");
+                            break;
+                        }else if(http_status == 0){
                             PPRINT("[POST] Handle Connection\n");
                             handle_connection(data_buffer, data_length, &http_status, &ps, &psock_buffer);
+                            //not returned yet
                             PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+                        }else{
+                            PPRINT("HTTP status = %d\n", http_status);
+                            break;
                         }
                     } while(!(uip_closed() || uip_aborted() || uip_timedout()));
-                    PPRINT("\nConnection closed.\n");
+                   // PPRINT("Connection closed.\n");
                     PPRINT("Status = %d\n", http_status);
                     if(http_status/100 == 2) { // Status OK
                         data_length = 0;
@@ -282,11 +302,14 @@ PROCESS_THREAD(sample_process, ev, data)
 #ifndef SAMPLE_SEND
                         cfs_remove(filename);
                         PPRINT("[POST] Removing file\n");
+#else
+                        //If sample and send break out of the loop
+                        break;
 #endif
                     } else { // POST failed
                         data_length = 0;
                         post_retries++;
-                        PPRINT("[POST] Failed, not removing file\n");
+                        PPRINT("[POST] Failed, not removing file\n"); 
                     }
                 }
             }
