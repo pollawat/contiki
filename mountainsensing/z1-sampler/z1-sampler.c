@@ -79,7 +79,7 @@ PROCESS_THREAD(feshie_sense_process, ev, data)
   cc2420_set_txpower(31);
   #endif
   #ifdef SPI_LOCKING
-    printf("SPI Locking enabled\n");
+    printf(">>>>>SPI Locking enabled<<<<<\n");
   #endif
 
   process_start(&web_process, NULL);
