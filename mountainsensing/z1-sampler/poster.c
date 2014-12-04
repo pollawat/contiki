@@ -5,25 +5,33 @@ int
 handle_connection(char *data_buffer, uint8_t data_length, uint8_t *http_status, struct psock *p, uint8_t *psock_buffer)
 {
     char content_length[8], tmpstr_handle[50];
-
-    itoa(data_length, content_length, 10);
-    strcpy(tmpstr_handle, "POST / HTTP/1.0\r\nContent-Length: ");
-    strcat(tmpstr_handle, content_length);
-    strcat(tmpstr_handle, "\r\n\r\n");
-
+    PPRINT("Data length = %d\n", data_length);
     if(data_length > 0){
+        itoa(data_length, content_length, 10);
+        strcpy(tmpstr_handle, "POST / HTTP/1.0\r\nContent-Length: ");
+        strcat(tmpstr_handle, content_length);
+        strcat(tmpstr_handle, "\r\n\r\n");
+        PPRINT("Prepared string\n");
+    
         PSOCK_BEGIN(p);
-
+        PPRINT("begun\n");
         PSOCK_SEND_STR(p, tmpstr_handle);
+        PPRINT("String sent\n");
         PSOCK_SEND(p, data_buffer, data_length);
-
+        PPRINT("Data sent wating for status\n");
         while(1) {
+            PPRINT("W");
             PSOCK_READTO(p, '\n');
             if(strncmp(psock_buffer, "HTTP/", 5) == 0){   
                 // Status line
                 *http_status = atoi((const char *)psock_buffer + 9);
             }
         }
+        PPRINT("about to end\n");
+        PSOCK_END(p);
+    }else{
+        printf("Invalid data length in handle connection\n" );
+        PSOCK_BEGIN(p);
         PSOCK_END(p);
     }
 }
@@ -60,5 +68,3 @@ load_file(char *data_buffer, char *filename)
 #endif
     return data_length;
 }
-
-
