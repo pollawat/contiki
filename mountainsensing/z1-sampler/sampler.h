@@ -41,7 +41,7 @@
 
 
 	#define AVR_TIMEOUT_SECONDS 10
-	#define SAMPLE_SEND
+	//#define SAMPLE_SEND
 	#ifdef SAMPLE_SEND
 		#define IMMEDIATE_SEND 1
 	#else
