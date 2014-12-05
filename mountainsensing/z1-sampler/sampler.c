@@ -265,10 +265,11 @@ PROCESS_THREAD(sample_process, ev, data)
                 PPRINT("Connecting...\n");
                 PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
                 PPRINT("event\n");
-                if(uip_aborted() || uip_timedout() || uip_closed()) {
+                if(uip_aborted() || uip_timedout() || uip_closed() ) {
                     PPRINT("Could not establish connection\n");
+                    printf("UIP flags = %d\n", uip_flags);
                     post_retries++;
-                } else if(uip_connected()) {
+                } else if(uip_connected()|| uip_poll()) {
                     PPRINT("Connected\n");
                     PSOCK_INIT(&ps, psock_buffer, sizeof(psock_buffer));
                     etimer_set(&timeout_timer, CLOCK_SECOND*LIVE_CONNECTION_TIMEOUT);
