@@ -74,16 +74,18 @@ AUTOSTART_PROCESSES(&feshie_sense_process);
 
 PROCESS_THREAD(feshie_sense_process, ev, data)
 {
-  PROCESS_BEGIN();
-  #ifndef CC11xx_CC1120
-  cc2420_set_txpower(31);
-  #endif
-  #ifdef SPI_LOCKING
-    printf(">>>>>SPI Locking enabled<<<<<\n");
-  #endif
-
-  process_start(&web_process, NULL);
-  process_start(&sample_process, NULL);
+    PROCESS_BEGIN();
+    #ifndef CC11xx_CC1120
+        cc2420_set_txpower(31);
+    #endif
+    #ifdef SPI_LOCKING
+        printf(">>>>>SPI Locking enabled<<<<<\n");
+    #endif
+    #ifdef Z1_SAMPLER_AVR_DISABLE
+        printf("####AVR Disabled####\n");
+    #endif
+    process_start(&web_process, NULL);
+    process_start(&sample_process, NULL);
 
 
   PROCESS_END();
