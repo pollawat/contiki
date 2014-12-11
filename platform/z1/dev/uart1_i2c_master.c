@@ -286,6 +286,7 @@ uart1_writeb(unsigned char c)
 //#else /* TX_WITH_INTERRUPT */
   //PRINTF("UART1 tx without interrupt\n");
   /* Loop until the transmission buffer is available. */
+     PRINTF("W");
   while((UCA1STAT & UCBUSY));	//while send in progress
 
   /* Transmit the data. */

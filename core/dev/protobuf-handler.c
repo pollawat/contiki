@@ -10,7 +10,7 @@
 //#include "dev/pb_encode.h"
 //#include "dev/protocol-buffers/buffer.h"
 
-//#define PROTOBUF_HANDLER_DEBUG
+#define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -169,12 +169,12 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     //ready to send    
 
     if(writebyte != NULL){
-/*	PRINTF("Writing to serial port\n");
+	PRINTF("Writing to serial port\n");
         for(i=0; i < buf_length; i++){
             writebyte(buf[i]);
 	    PRINTF("\t%d\n", buf[i]);
         }
-	PRINTF("Finsihed\n"); */
+	PRINTF("Finsihed\n"); 
     }else{
 	printf("No writebyte specified\n");
     }
