@@ -6,11 +6,9 @@
 #include "contiki-conf.h"
 
 #include "dev/protobuf-handler.h"
-//#include "dev/pb_decode.h"
-//#include "dev/pb_encode.h"
-//#include "dev/protocol-buffers/buffer.h"
 
-#define PROTOBUF_HANDLER_DEBUG
+
+//#define PROTOBUF_HANDLER_DEBUG
 #ifdef PROTOBUF_HANDLER_DEBUG
 	#define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -34,15 +32,20 @@ static uint16_t crc16_up(uint16_t crc, uint8_t a);
 uint16_t 
 crc16_up(uint16_t crc, uint8_t a)
 {
+//    PRINTF("Starting CRC with 0x%04x\n", crc);
     uint8_t i;
-    crc ^= a;
+//    PRINTF("Processing CRC for 0x%04x\n", a);
+    crc ^= (uint16_t)a;
+//    PRINTF("After XOR = 0x%04x\n", crc);
     for (i = 0; i < 8; ++i){
         if (crc & 1){
             crc = (crc >> 1) ^ 0xA001;
         }else{
             crc = (crc >> 1);
         }
+//        PRINTF("CRC r%d = 0x%04x\n",i, crc);
     }
+//    PRINTF("CRC RET = 0x%04x\n", crc);
     return crc;
 }
 
@@ -133,8 +136,8 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     uint16_t crc = 0xFFFF;
     uint8_t i=0;
 #ifdef PROTOBUF_HANDLER_DEBUG
-    printf("Dest: %i\n", addr);
-    printf("Optcode: %i\n", opcode);
+    printf("Dest: %02x\n", addr);
+    printf("Optcode: %02x\n", opcode);
     printf("Payload length: %i\n", payload_length); 
 #endif	 
 
@@ -163,16 +166,16 @@ void protobuf_send_message(uint8_t addr, uint8_t opcode, uint8_t *payload,
     }
     buf[buf_length++] = crc & 0xFF; //Get the low order bits
     buf[buf_length++] = (crc >> 8) & 0xFF;
-    PRINTF("CRC: %lu\n", (long unsigned)crc);
-    PRINTF("CRC low: %i\n", crc & 0xFF);
-    PRINTF("CRC high: %i\n", (crc >>8) & 0xFF); 
+    PRINTF("CRC: %04x\n", crc);
+    PRINTF("CRC low: %02x\n", crc & 0xFF);
+    PRINTF("CRC high: %02x\n", (crc >>8) & 0xFF); 
     //ready to send    
 
     if(writebyte != NULL){
-	PRINTF("Writing to serial port\n");
+//	PRINTF("Writing to serial port\n");
         for(i=0; i < buf_length; i++){
             writebyte(buf[i]);
-	    PRINTF("\t%d\n", buf[i]);
+//	    PRINTF("\t%d\n", buf[i]);
         }
 	PRINTF("Finsihed\n"); 
     }else{
