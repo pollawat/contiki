@@ -84,6 +84,9 @@ contiki-cc2530dk.lib
 *.d71
 *.d81
 
+#gcc build artifacts
+*.co
+
 #regression tests artifacts
 *.testlog
 
