@@ -45,7 +45,7 @@ print_sensor_config(SensorConfig *conf)
     CPRINT("NONE\n");
   }else{
     for(i=0; i < conf->avrIDs_count; i++){
-      CPRINT("%d", (int)conf->avrIDs[i] & 0xFF);
+      CPRINT("%02x", (int)conf->avrIDs[i] & 0xFF);
       if(i < conf->avrIDs_count -1){
         CPRINT(", ");
       }else{

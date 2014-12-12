@@ -127,7 +127,7 @@ PT_THREAD(web_handle_connection(struct psock *p))
         pch = strtok(AVRs, ".");
         i = 0;
         while(pch != NULL) {
-          sensor_config.avrIDs[i++] = atoi(pch);
+          sensor_config.avrIDs[i++] = strtol(pch, NULL, 16);
           pch = strtok(NULL, ".");
         }
         sensor_config.avrIDs_count = i;
