@@ -18,9 +18,10 @@
 
 	#include <stdlib.h>
 	#include <stdio.h>
-
+#ifdef SPI_LOCKING
 	#include "dev/cc1120.h"
 	#include "dev/cc1120-arch.h"
+#endif
 	#include "contiki-conf.h"
 	#include "platform-conf.h"
 	#include "net/netstack.h"

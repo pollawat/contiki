@@ -7,8 +7,10 @@
 #include "cfs/cfs.h"
 
 #include "filenames-old.h"
+#ifdef SPI_LOCKING
 #include "dev/cc1120.h"
 #include "dev/cc1120-arch.h"
+#endif
 #include "platform-conf.h"
 
 //#define FILEDEBUG

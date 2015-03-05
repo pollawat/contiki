@@ -14,8 +14,10 @@
 	#include "sampling-sensors.h"
 	#include "uip-ds6.h"
 	#include "uip-debug.h"
+#ifdef SPI_LOCKING
 	#include "dev/cc1120.h"
 	#include "dev/cc1120-arch.h"
+#endif
 	#include "platform-conf.h"
 
 	#define CONNECTION_RETRIES 3
