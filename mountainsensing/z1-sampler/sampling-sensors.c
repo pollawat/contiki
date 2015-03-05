@@ -12,7 +12,7 @@
 
 #define ADC_ACTIVATE_DELAY 10 //delay in ticks of the rtimer  PLATFORM DEPENDANT!
 
-
+//#define NO_RTC
 
 uint16_t 
 get_sensor_rain(void)
@@ -86,7 +86,11 @@ get_sensor_acc_z(void)
 uint32_t 
 get_time(void)
 {
+#ifdef NO_RTC
+    return (uint32_t)12345;
+#else
     return ds3231_get_epoch_seconds();
+#endif
 }
 
 uint8_t 
