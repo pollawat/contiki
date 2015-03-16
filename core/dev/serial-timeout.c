@@ -37,7 +37,7 @@
 #include "contiki.h"
 #include "contiki-conf.h"
 
-#define SERIAL_TIMEOUT_DEBUG
+//#define SERIAL_TIMEOUT_DEBUG
 
 #ifdef SERIAL_TIMEOUT_DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -130,7 +130,7 @@ PROCESS_THREAD(serial_timeout_process, ev, data)
       rxbytes = 0;
       memset(rxbuf_data, 0, SER_BUFSIZE); /*Reset buffer*/ 
       if (bytes != 0){
-        printf("CALLING PROTOBUG\n");
+        PRINTF("CALLING PROTOBUG\n");
         protobuf_process_message(buf, bytes);    
       }
     }
