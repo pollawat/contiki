@@ -11,7 +11,7 @@ PROCESS(sample_process, "Sample Process");
     #define SPRINT(...)
 #endif
 
-#define AVRDEFBUG
+//#define AVRDEFBUG
 #ifdef AVRDEFBUG
     #define AVRDPRINT(...) printf(__VA_ARGS__)
 #else
@@ -254,11 +254,9 @@ PROCESS_THREAD(sample_process, ev, data)
                 PPRINT("[POST][INIT] About to attempt POST with %s - RETRY [%d]\n", filename, post_retries);
 #endif
                 PPRINT("Data length = %d\n", data_length);
-                if(data_length == 0){
-                    post_retries++;
-                    printf("Data length = 0\n");
-                    PPRINT("Retry count = %d\n", post_retries);
-                    continue;
+                if(data_length == 0 && strcmp("r_1", filename) == 0){                    
+                    printf("Enpty file r_1 breaking out of send loop\n");
+                    break;
                 }
               //  PPRINT("Post length check = %d\n", data_length);
                 tcp_connect(&addr, UIP_HTONS(POST_config.port), NULL);
