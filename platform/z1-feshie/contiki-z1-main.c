@@ -41,6 +41,7 @@
 #include "dev/leds.h"
 #include "dev/serial-line.h"
 #include "dev/serial-timeout.h"
+#include "dev/protobuf-handler.h"
 #ifndef NO_SLIP
 	#include "dev/slip.h"
 #endif
@@ -212,9 +213,6 @@ main(int argc, char **argv)
   ms1_io_init(); 
   i2c_enable();
   
-  uart1_set_input(serial_timeout_input_byte);
-  serial_timeout_init();
-  
 
   cc1120_arch_pin_init();	/* Configure CC1120 SPI pins to prevent SPI conflicts. */
   
@@ -230,11 +228,12 @@ main(int argc, char **argv)
 #endif
 #endif /* WITH_UIP */
 
+  uart1_pin_init(); 
+#ifndef Z1_SAMPLER_AVR_DISABLE
   uart1_init('b'); /* It ignores the input to the func */
+#endif
   spi_init();				/* Initialise SPI. Moved here to limit re-init problems. */
-  
   xmem_init();
-
   rtimer_init();
   /*
    * Hardware initialization done!
@@ -303,10 +302,10 @@ main(int argc, char **argv)
 
   {
     uint8_t longaddr[8];
-    uint16_t shortaddr;
+    //uint16_t shortaddr;
     
-    shortaddr = (rimeaddr_node_addr.u8[0] << 8) +
-      rimeaddr_node_addr.u8[1];
+   //shortaddr = (rimeaddr_node_addr.u8[0] << 8) +
+    //  rimeaddr_node_addr.u8[1];
     memset(longaddr, 0, sizeof(longaddr));
     rimeaddr_copy((rimeaddr_t *)&longaddr, &rimeaddr_node_addr);
     printf("MAC %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
@@ -395,10 +394,19 @@ main(int argc, char **argv)
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+
 #ifdef NO_SLIP
   uart0_set_input(serial_line_input_byte);
   serial_line_init();
 #endif
+
+#ifndef Z1_SAMPLER_AVR_DISABLE
+  uart1_set_input(serial_timeout_input_byte);
+  protobuf_init();
+  serial_timeout_init();
+  protobuf_handler_set_writeb(uart1_writeb);
+#endif
+
 #if PROFILE_CONF_ON
   profile_init();
 #endif /* PROFILE_CONF_ON */

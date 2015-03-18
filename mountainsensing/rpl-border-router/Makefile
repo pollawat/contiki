@@ -1,6 +1,8 @@
 CONTIKI_PROJECT=border-router
 all: $(CONTIKI_PROJECT) 
-TARGET=z1-feshie
+ifndef TARGET
+	TARGET=z1-feshie
+endif
 CONTIKI=../../
 
 WITH_UIP6=1
@@ -48,3 +50,6 @@ connect-router:	$(CONTIKI)/tools/tunslip6
 
 connect-router-cooja:	$(CONTIKI)/tools/tunslip6
 	sudo $(CONTIKI)/tools/tunslip6 -a 127.0.0.1 $(PREFIX)
+
+install: 
+	make border-router.upload

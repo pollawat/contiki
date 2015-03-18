@@ -43,14 +43,14 @@
 #include "contiki.h"
 
 //#ifndef SERIAL_TIMEOUT_VALUE
-	#define SERIAL_TIMEOUT_VALUE   RTIMER_SECOND
+	#define SERIAL_TIMEOUT_VALUE   (RTIMER_SECOND/200)
 //#endif
 
 /**
  * Event posted when a timeout has expired after the end of data recieving.
  *
  */
-extern process_event_t serial_timeout_event_message;
+process_event_t serial_timeout_event_message;
 
 /**
  * Get one byte of input from the serial driver.

@@ -83,14 +83,6 @@ void uart1_init(unsigned long ubr);
 #endif /* I2C_CONF_RX_WITH_INTERRUPT */
 
 
-#if 0
-#include <stdio.h>
-#define PRINTFDEBUG(...) printf(__VA_ARGS__)
-#else
-#define PRINTFDEBUG(...)
-#endif
-
-
 
 
 #define UART1_BAUD2UBR(baud) ((MSP430_CPU_SPEED)/(baud))

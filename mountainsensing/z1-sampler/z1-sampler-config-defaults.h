@@ -1,10 +1,13 @@
+#ifndef Z1_SAMPLER_DEFAULTS_H
+#define Z1_SAMPLER_DEFAULTS_H
+
 #define SENSOR_INTERVAL 120
 #define SENSOR_AVRIDS_COUNT 0
 #define SENSOR_HASADC1 0
 #define SENSOR_HASADC2 0
 #define SENSOR_HASRAIN 0
 
-#define POST_INTERVAL 180
+#define POST_INTERVAL 4
 #define POST_IP_COUNT 8
 #define POST_IP0 0x2a01
 #define POST_IP1 0x348
@@ -15,3 +18,4 @@
 #define POST_IP6 0x0
 #define POST_IP7 0x1
 #define POST_PORT 8081
+#endif

@@ -38,7 +38,7 @@ void ms1_io_init(void){
   PRINTF("\tTurning on radio\n");
   //Turn on by default
   ms1_radio_on();
-  ms1_sense_off; //turn off sensors by default
+  ms1_sense_off(); //turn off sensors by default
 }
 
 void ms1_radio_on(void){

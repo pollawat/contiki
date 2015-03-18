@@ -14,6 +14,8 @@ all: node-setup
 %.class: %.java
 	javac $(basename $<).java
 
+install: z1.feshie.upload
+
 viewrssi: ViewRSSI.class
 	make login | java ViewRSSI
 
