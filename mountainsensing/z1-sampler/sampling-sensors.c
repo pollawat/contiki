@@ -1,5 +1,6 @@
 // Sensors
 #include "dev/uart1_i2c_master.h"
+#include <clock.h>
 
 #include "dev/ds3231-sensor.h" 	// Clock
 #include "dev/adc1-sensor.h" 	// ADC 1
@@ -87,7 +88,9 @@ uint32_t
 get_time(void)
 {
 #ifdef NO_RTC
-    return (uint32_t)12345;
+    //within clock.h (-1 to verify that the time as not been set)
+    return clock_second() * -1;
+    //return (uint32_t)12345;
 #else
     return ds3231_get_epoch_seconds();
 #endif
