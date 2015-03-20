@@ -1,0 +1,5 @@
+#ifndef SHT25_TEST_CONF_H
+#define SHT25_TEST_CONF_H
+
+#define I2C_CONF_RX_WITH_INTERRUPT 0
+#endif
